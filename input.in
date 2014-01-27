@@ -1,0 +1,18 @@
+#potential
+"/home/ben/code/fortran/eampa/v0.07/sheng_al_eam.pot"
+#configurations
+"/home/ben/code/fortran/eampa/v0.07/atoms.conf"
+#savecoords
+no
+#saveneighbourlist
+no
+#savepot
+yes
+#runtype
+bulkmodulus
+#unitvector
+1 0 0
+0 1 0
+0 0 1
+#eaminterp
+FOURPOINT

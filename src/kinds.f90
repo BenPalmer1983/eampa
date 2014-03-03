@@ -9,8 +9,8 @@ Module kinds
   Integer, Parameter :: VeryLongInteger = Selected_Int_Kind(32)       ! very long integer
   
   !example usage
-  ! Integer(kind=StandardInteger)
-  ! Real(kind=SingleReal)
-  ! Real(kind=DoubleReal)
+  ! Integer(kind=StandardInteger) ::
+  ! Real(kind=SingleReal) ::
+  ! Real(kind=DoubleReal) ::
   
 End Module kinds

@@ -31,7 +31,7 @@ Module input
   Character(len=1) :: saveFileCoords
   Character(len=1) :: saveFileNeighbourList
   Character(len=1) :: saveFilePot
-  Character(len=32) :: calcRunType
+  Integer(kind=StandardInteger) :: calcRunType
   Integer(kind=StandardInteger) :: configCount
   Integer(kind=StandardInteger) :: eamInterpType
   
@@ -85,7 +85,6 @@ contains
 	Call readInputFile()
 	Call readEamPot()
 	Call readConfiguration()
-	!Call orderEamPotentials()
 		
 
   End Subroutine runInput
@@ -119,8 +118,10 @@ contains
 	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
 	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
 !write to output file
-    write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
-	write(999,"(A11,A60)") "Input file ",inputFileName
+    If(mpiProcessID.eq.0)Then
+	  write(999,"(F8.4,A2,A24,A60)") ProgramTime(),"  ",&
+	  "Reading user input file ",inputFileName
+	End If
 	
 !set defaults, overridden by user input
 	Allocate(unitVector(1:3,1:3))
@@ -134,7 +135,7 @@ contains
 	unitVector(2,3) = 0			!z2
 	unitVector(3,3) = 1			!z3
 	eamInterpType = 1
-	
+	calcRunType = 1
 	
 !open & read in file	
   	Open(UNIT=1,FILE=inputFileName) 
@@ -168,11 +169,30 @@ contains
 	    Read(1,*,IOSTAT=ios) buffera
 		saveFilePot = StrToUpper(buffera(1:1))
 	  endif
+	  
+!Run types
 	  if(buffera(1:8).eq."#runtype")then
 !read next line
 	    Read(1,*,IOSTAT=ios) buffera
-		calcRunType = StrToUpper(buffera)
+		buffera = StrToUpper(buffera)
+		if(buffera(1:3).eq."ENE")then		!ENERGY
+		  calcRunType = 1
+		endif
+		if(buffera(1:6).eq."FOR")then		!FORCES
+		  calcRunType = 2
+		endif
+		if(buffera(1:3).eq."BUL")then		!BULKMODULUS
+		  calcRunType = 3
+		endif
+		if(buffera(1:3).eq."ELA")then		!ELASTICCONSTANTS
+		  calcRunType = 4
+		endif
+		if(buffera(1:3).eq."OPT")then		!OPTIMISE
+		  calcRunType = 5
+		endif
 	  endif
+	  
+!Unit vector components
 	  if(buffera(1:11).eq."#unitvector")then
 !read next line
 	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc
@@ -189,7 +209,7 @@ contains
 		Read(bufferc,*) unitVector(3,3)			!z3 
 	  endif
 	  
-	  
+!EAM Interpolation Types
 	  if(buffera(1:10).eq."#eaminterp")then
 !read next line
 	    Read(1,*,IOSTAT=ios) buffera
@@ -205,6 +225,9 @@ contains
 		endif
 		if(buffera(1:9).eq."FOURPOINT")then
 		  eamInterpType = 3
+		endif
+		if(buffera(1:9).eq."FIVEPOINT")then
+		  eamInterpType = 4
 		endif
 	  endif
 	  
@@ -242,17 +265,19 @@ contains
 	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
 	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
 !open output potfile
-    if(saveFilePot.eq."Y")then
+    if(saveFilePot.eq."Y".and.mpiProcessID.eq.0)then
 	  outputFile = trim(currentWorkingDirectory)//"/"//"output.pot"
 	  open(unit=21,file=trim(outputFile))
 	endif
 	
 !write to output file
-    write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
-	write(999,"(A18,A60)") "Reading from file ",potentialFilePath
+    If(mpiProcessID.eq.0)Then
+	  write(999,"(F8.4,A2,A27,A60)") ProgramTime(),"  ",&
+	  "Reading EAM potential from ",potentialFilePath
+	endif
 	
 !Set EAM type
-eamType = 1		!1 = default type/standard   2 = 2BMEAM
+    eamType = 1		!1 = default type/standard   2 = 2BMEAM
 	
 !allocate elements array
     Allocate(elements(1:300))
@@ -341,10 +366,12 @@ eamType = 1		!1 = default type/standard   2 = 2BMEAM
 	elementCount = elementCounter
 	
 !store/output elements	
-    write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
-	do i=1,size(elements)
-	  write(999,"(A8,I4,A2,A2)") "Element ",i,": ",elements(i)
-	enddo
+    If(mpiProcessID.eq.0)Then
+      write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
+	  Do i=1,size(elements)
+	    write(999,"(A8,I4,A2,A2)") "Element ",i,": ",elements(i)
+	  End Do
+	End If
 			
 !count data points
 	dataCounter = 0	
@@ -402,38 +429,45 @@ Open(UNIT=1,FILE=potentialFilePath)
 	endif
 	
 !store/output potential count etc
-    write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
-	write(999,"(A28,I4)") "Element count:              ",elementCounter
-	write(999,"(A28,I4)") "EAM Type:                   ",eamType
-	write(999,"(A28,I4)") "Potentials count:           ",numberPotentials
-	write(999,"(A28,I4)") "Potentials expected:        ",potentialCounter
+    If(mpiProcessID.eq.0)Then
+    write(999,"(A6,A16,F8.4)") "      ","Program time:   ",ProgramTime()
+	write(999,"(A6,A28,I4)") "      ","Element count:              ",elementCounter
+	write(999,"(A6,A28,I4)") "      ","EAM Type:                   ",eamType
+	write(999,"(A6,A28,I4)") "      ","Potentials count:           ",numberPotentials
+	write(999,"(A6,A28,I4)") "      ","Potentials expected:        ",potentialCounter
     if(eamType.eq.1)then
-	  write(999,"(A28,I4)") "Pairs functions:            ",pairCount
-	  write(999,"(A28,I4)") "Density functions:          ",densCount
-	  write(999,"(A28,I4)") "Embedding functions:        ",embeCount	
+	  write(999,"(A6,A28,I4)") "      ","Pairs functions:            ",pairCount
+	  write(999,"(A6,A28,I4)") "      ","Density functions:          ",densCount
+	  write(999,"(A6,A28,I4)") "      ","Embedding functions:        ",embeCount	
 	elseif(eamType.eq.2)then
-	  write(999,"(A28,I4)") "Pairs functions:            ",pairCount
-	  write(999,"(A28,I4)") "S-band Density functions:   ",densCount
-	  write(999,"(A28,I4)") "D-band Density functions:   ",dendCount
-	  write(999,"(A28,I4)") "S-band Embedding functions: ",embeCount	
-	  write(999,"(A28,I4)") "S-band Embedding functions: ",embdCount	
+	  write(999,"(A6,A28,I4)") "      ","Pairs functions:            ",pairCount
+	  write(999,"(A6,A28,I4)") "      ","S-band Density functions:   ",densCount
+	  write(999,"(A6,A28,I4)") "      ","D-band Density functions:   ",dendCount
+	  write(999,"(A6,A28,I4)") "      ","S-band Embedding functions: ",embeCount	
+	  write(999,"(A6,A28,I4)") "      ","S-band Embedding functions: ",embdCount	
 	endif
 	
-	write(999,"(A28,I8)") "Data points:                ",dataCounter
-	write(999,"(A28,A1)") "Save coords file:           ",saveFileCoords
-	write(999,"(A28,A1)") "Save neighbour list file:   ",saveFileNeighbourList
-	write(999,"(A28,A1)") "Save potential file:        ",saveFilePot
-	write(999,"(A28,A32)") "Calculation run type:       ",calcRunType
-	write(999,"(A28)") "Unit vector:                "
-	write(999,"(F8.4,F8.4,F8.4)") unitVector(1,1),unitVector(2,1),unitVector(3,1)
-	write(999,"(F8.4,F8.4,F8.4)") unitVector(1,2),unitVector(2,2),unitVector(3,2)
-	write(999,"(F8.4,F8.4,F8.4)") unitVector(1,3),unitVector(2,3),unitVector(3,3)
-	
+	write(999,"(A6,A28,I8)") "      ","Data points:                ",dataCounter
+	write(999,"(A6,A28,A1)") "      ","Save coords file:           ",saveFileCoords
+	write(999,"(A6,A28,A1)") "      ","Save neighbour list file:   ",saveFileNeighbourList
+	write(999,"(A6,A28,A1)") "      ","Save potential file:        ",saveFilePot
+	write(999,"(A6,A28,I8)") "      ","Calculation run type:       ",calcRunType
+	write(999,"(A6,A28)") "      ","Unit vector:                "
+	write(999,"(A6,F8.4,F8.4,F8.4)") "      ",unitVector(1,1),unitVector(2,1),unitVector(3,1)
+	write(999,"(A6,F8.4,F8.4,F8.4)") "      ",unitVector(1,2),unitVector(2,2),unitVector(3,2)
+	write(999,"(A6,F8.4,F8.4,F8.4)") "      ",unitVector(1,3),unitVector(2,3),unitVector(3,3)
+	End If
 		
-	!allocate eam keys/data
+!Allocate eam keys/data
     Allocate(eamKey(1:numberPotentials,1:5))	
-    Allocate(eamData(1:dataCounter,1:2))	
+    Allocate(eamData(1:dataCounter,1:3))	
 	  
+!Initialise data array
+    Do i=1,size(eamData,1)
+      Do j=1,size(eamData,2)
+	    eamData(i,j) = 0.0D0
+	  End Do
+	End Do
 	
 	potentialCounter = 0
 	eamType = 1
@@ -552,51 +586,14 @@ Open(UNIT=1,FILE=potentialFilePath)
 	CLOSE(1) 
 	
 !output/store potentials	
-    write(999,"(A32)") "Summary of potential functions "
-    do i=1,size(eamKey)/5
-	  write(999,"(I8,I8,I8,I8,I8,I8)") i,eamKey(i,1),eamKey(i,2),eamKey(i,3),eamKey(i,4),eamKey(i,5)
-    enddo
-	
-	
-!store eam data and close file
-    if(saveFilePot.eq."Y")then
-	  do i=1,size(eamKey)/5
-	    if(eamKey(i,3).eq.1)then
-	      write(21,"(A5,A2,A1,A2,A4,I4,I4)") "PAIR ",elements(eamKey(i,1))," ",elements(eamKey(i,2)),&
-		  "    ",eamKey(i,1),eamKey(i,2)
-		endif  
-		if(eamKey(i,3).eq.2)then
-		  if(eamType.eq.1)then
-	        write(21,"(A5,A2,A4,I4)") "DENS ",elements(eamKey(i,1)),"    ",&
-			eamKey(i,1)
-		  endif
-		  if(eamType.eq.2)then
-	        write(21,"(A5,A2,A1,A2,A4,I4,I4)") "DENS ",elements(eamKey(i,1))," ",&
-			elements(eamKey(i,2)),"    ",eamKey(i,1),eamKey(i,2)
-		  endif
-		endif 
-		if(eamKey(i,3).eq.3)then
-	      write(21,"(A5,A2,A4,I4)") "EMBE ",elements(eamKey(i,1)),"    ",&
-		  eamKey(i,1)
-		endif 
-		if(eamKey(i,4).eq.4)then
-	      write(21,"(A5,A2,A4,I4)") "DEND ",elements(eamKey(i,1)),"    ",&
-		  eamKey(i,1)
-		endif 
-		if(eamKey(i,4).eq.4)then
-	      write(21,"(A5,A2,A4,I4)") "EMBD ",elements(eamKey(i,1)),"    ",&
-		  eamKey(i,1)
-		endif 
-		
-		k = 1
-		do j=eamKey(i,4),(eamKey(i,4)+eamKey(i,5)-1)
-		  write(21,"(E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") eamData(j,1),"  ",&
-		  eamData(j,2),"    ",i,k,j
-		  k = k + 1
-		enddo
+    If(mpiProcessID.eq.0)Then
+      write(999,"(A6,A32)") "      ","Summary of potential functions "
+      do i=1,size(eamKey)/5
+	    write(999,"(A6,I8,I8,I8,I8,I8,I8)") "      ",i,eamKey(i,1),eamKey(i,2),&
+	    eamKey(i,3),eamKey(i,4),eamKey(i,5)
       enddo
-      close(21)
-    endif	
+	End If
+	
 
 	
 !close output file
@@ -621,12 +618,13 @@ Open(UNIT=1,FILE=potentialFilePath)
 	Character(len=32) :: buffera, bufferb, bufferc, bufferd
 	Character(len=255) :: bufferLongA
 !open output file	
-	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
-	
+    If(mpiProcessID.eq.0)Then
+	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
 !write to output file
-    write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
-	write(999,"(A18,A60)") "Reading from file ",configurationsFilePath
+	  write(999,"(F8.4,A2,A18,A60)") ProgramTime(),"  ",&
+	  "Reading from file ",configurationsFilePath
+	End If
 
 !Count file rows
 	fileRows = 0
@@ -749,76 +747,19 @@ Open(UNIT=1,FILE=potentialFilePath)
 	enddo
 !close file	
 	CLOSE(1) 	
-	
-	!configHeaderI configCoordI
-	
-	write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
-	write(999,"(A21,I8)") "Configurations read: ",configurationCount
-	write(999,"(A21,I8)") "Atoms read:          ",atomCount
-
-	
+	If(mpiProcessID.eq.0)Then
+!write to output file
+	  write(999,"(A6,A21,I8)") "      ","Configurations read: ",configurationCount
+	  write(999,"(A6,A21,I8)") "      ","Atoms read:          ",atomCount
 !close output file
-    close(999)	
+      close(999)	
+	End If  
 	
   End Subroutine readConfiguration
   
 	
 	
   
-!Order eam potentials
-  Subroutine orderEamPotentials()
-  	
-!force declaration of all variables
-	Implicit None
-!declare private variables
-	Integer(kind=StandardInteger) :: ios, i, j, k, sortLoop, sorted, reordered
-    Integer(kind=StandardInteger) :: potStart, potLength
-	Real(kind=SingleReal) :: tempXA, tempYA, tempXB, tempYB
-	
-!open output file	
-	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
-	
-!write to output file
-    write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
-	write(999,"(A21)") "Order eam potentials "	
-	
-	reordered = 0
-	do i=1,size(eamKey)/5
-	  potStart = eamKey(i,4)
-	  potLength = eamKey(i,5)
-	  write(999,"(I8,I8)") potStart, potLength	
-	  
-	  sorted = 1
-	  do while(sorted.eq.1)
-	    sorted = 0
-	    do j=potStart,potStart+potLength-2	    
-	      if(eamData(j,1).gt.eamData(j+1,1))then
-	        sorted = 1
-			reordered = reordered + 1
-!temporarily store variables
-			tempXA = eamData(j,1)
-			tempYA = eamData(j,2)
-			tempXB = eamData(j+1,1)
-			tempYB = eamData(j+1,2)
-!move variables
-			eamData(j,1) = tempXB
-			eamData(j,2) = tempYB
-			eamData(j+1,1) = tempXA
-			eamData(j+1,2) = tempYA
-	      endif
-	    enddo
-	  enddo		
-	enddo
-	
-!Log
-	write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
-	write(999,"(A11,I8)") "Reordered: ",reordered			
-	write(999,"(A21)") "Eam potentials sorted"	
-!close output file
-    close(999)	
-	
-  End Subroutine orderEamPotentials
 	
 	
 	

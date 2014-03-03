@@ -1,0 +1,102 @@
+======================================
+            Output File               
+      University of Birmingham        
+             Ben Palmer               
+======================================
+ 
+Date: 14:14 03/03/2014
+ 
+ 
+  0.0000  Reading user input file examples/input.in                                           
+  0.0000  Reading EAM potential from examples/sheng_al_eam.pot                                   
+Program time:     0.0200
+Element    1: AL
+      Program time:     0.0680
+      Element count:                 1
+      EAM Type:                      1
+      Potentials count:              3
+      Potentials expected:           3
+      Pairs functions:               1
+      Density functions:             1
+      Embedding functions:           1
+      Data points:                    3003
+      Save coords file:           N
+      Save neighbour list file:   N
+      Save potential file:        Y
+      Calculation run type:              1
+      Unit vector:                
+        1.0000  0.0000  0.0000
+        0.0000  1.0000  0.0000
+        0.0000  0.0000  1.0000
+       Summary of potential functions 
+             1       1       1       1       1    1001
+             2       1       0       2    1002    1001
+             3       1       0       3    2003    1001
+  0.1760  Reading from file examples/atoms.conf                                         
+      Configurations read:       11
+      Atoms read:               296
+  0.1840  Start building config neighbour lists
+      Total configurations prepared: 
+  3.1200  Finish building config neighbour lists, total pairs:   409968
+      ----------------------------------------
+      Summary of Configurations
+      ----------------------------------------
+      Configuration:        1    Volume:    8000.000000    Atoms:      500    NL Length:    39000
+      Configuration:        2    Volume:    8060.151367    Atoms:      500    NL Length:    39000
+      Configuration:        3    Volume:    8120.601563    Atoms:      500    NL Length:    39000
+      Configuration:        4    Volume:    8181.354980    Atoms:      500    NL Length:    39000
+      Configuration:        5    Volume:    8242.409180    Atoms:      500    NL Length:    39000
+      Configuration:        6    Volume:    8303.765625    Atoms:      500    NL Length:    39000
+      Configuration:        7    Volume:    8365.425781    Atoms:      500    NL Length:    39000
+      Configuration:        8    Volume:    8213.975586    Atoms:      500    NL Length:    39000
+      Configuration:        9    Volume:    8213.975586    Atoms:      500    NL Length:    39000
+      Configuration:       10    Volume:    4204.462891    Atoms:      256    NL Length:    19968
+      Configuration:       11    Volume:    8213.975586    Atoms:      500    NL Length:    39000
+  3.2520  Order EAM Potentials
+       1    1001
+    1002    1001
+    2003    1001
+  3.2480  Order EAM Potentials
+       1    1001
+    1002    1001
+    2003    1001
+  3.2960  Start calculations (runProcesses)
+Calculating configuration energy  3.2960
+--------------------------------------------
+Program time:     3.5840
+Configuration Details 
+--------------------------------------------
+   1 -1680.758843 eV      500 atoms
+   1   -3.361518 eV per atom
+ 
+   2 -1681.071978 eV      500 atoms
+   2   -3.362144 eV per atom
+ 
+   3 -1681.147007 eV      500 atoms
+   3   -3.362294 eV per atom
+ 
+   4 -1680.990081 eV      500 atoms
+   4   -3.361980 eV per atom
+ 
+   5 -1680.607248 eV      500 atoms
+   5   -3.361214 eV per atom
+ 
+   6 -1680.003917 eV      500 atoms
+   6   -3.360008 eV per atom
+ 
+   7 -1679.185823 eV      500 atoms
+   7   -3.358372 eV per atom
+ 
+   8 -1680.812987 eV      500 atoms
+   8   -3.361626 eV per atom
+ 
+   9 -1680.812987 eV      500 atoms
+   9   -3.361626 eV per atom
+ 
+  10  -860.583183 eV      256 atoms
+  10   -3.361653 eV per atom
+ 
+  11 -1680.812987 eV      500 atoms
+  11   -3.361626 eV per atom
+ 
+Energy calc time:       0.28800011

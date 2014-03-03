@@ -7,7 +7,7 @@ Module output
   Use maths
   Use initialise
   Use input
-  Use neighbour
+  Use prep
   Use calc
 
 
@@ -54,26 +54,25 @@ contains
 	  write(999,"(A7,I4,A1)") "Config ",i,":"
 	  
 !if energy run
-	  if(calcRunType(1:6).eq."ENERGY")then
-	    write(999,"(A21,I8,A1,I8)") "Atoms:          ",configAtomsUnitCell(i),&
-		"/",configAtoms(i) 
-	    write(999,"(A21,F20.14,A8)") "Volume:              ", &
-		configurationVolume(i)," Ang^3  "
-	    write(999,"(A21,F20.14,A8)") "Energy:              ", &
-		configurationEnergy(i)," eV   "
-	  endif
+	  !if(calcRunType(1:6).eq."ENERGY")then
+	  !  write(999,"(A21,I8,A1,I8)") "Atoms:          ",configAtomsUnitCell(i),&
+	!	"/",configAtoms(i) 
+	!    write(999,"(A21,F20.14,A8)") "Volume:              ", &
+!		configurationVolume(i)," Ang^3  "
+!	    write(999,"(A21,F20.14,A8)") "Energy:              ", &
+!!	  endif
 	  
 !if bulk modulus run
-	  if(calcRunType(1:11).eq."BULKMODULUS")then	    
-		write(999,"(A21,I8,A1,I8)") "Atoms:          ",configAtomsUnitCell(i),&
-		"/",configAtoms(i) 
-	    write(999,"(A21,F20.14,A8)") "Opt volume:          ", &
-		configurationOptVolume(i)," Ang^3  "
-	    write(999,"(A21,F20.14,A8)") "Opt energy:          ", &
-		configurationOptEnergy(i)," eV     "
-	    write(999,"(A21,F20.14,A8)") "Bulk modulus:        ", &
-		configurationBM(i)," GPa    "
-	  endif
+	!  if(calcRunType(1:11).eq."BULKMODULUS")then	    
+!		write(999,"(A21,I8,A1,I8)") "Atoms:          ",configAtomsUnitCell(i),&
+!		"/",configAtoms(i) 
+!	    write(999,"(A21,F20.14,A8)") "Opt volume:          ", &
+!		configurationOptVolume(i)," Ang^3  "
+!	    write(999,"(A21,F20.14,A8)") "Opt energy:          ", &
+!		configurationOptEnergy(i)," eV     "
+!	    write(999,"(A21,F20.14,A8)") "Bulk modulus:        ", &
+!		configurationBM(i)," GPa    "
+!	  endif
 	  
 	  
 	  

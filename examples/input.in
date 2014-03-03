@@ -1,0 +1,18 @@
+#potential
+"examples/sheng_al_eam.pot"
+#configurations
+"examples/atoms.conf"
+#savecoords
+no
+#saveneighbourlist
+no
+#savepot
+yes
+#runtype
+energy
+#unitvector
+1 0 0
+0 1 0
+0 0 1
+#eaminterp
+FOURPOINT

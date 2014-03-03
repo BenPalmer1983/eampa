@@ -3,33 +3,28 @@ Module calc
 ! Setup Modules
   Use kinds
   Use constants
+  Use mpif
   Use strings		!string functions
   Use maths
   Use initialise
   Use input
-  Use neighbour
+  Use prep
 
 
 !force declaration of all variables
   Implicit None
-  
+!Include MPI header
+  Include 'mpif.h'   
 !declare global variables 
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationEnergy
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationVolume
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationBM
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationOptVolume
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationOptEnergy
   Integer(kind=StandardInteger) :: functionOutOfRangeCounter
-
 !Privacy of functions/subroutines/variables
   Private
+!variables
+  Public :: functionOutOfRangeCounter 
+!subroutines
   Public :: runCalc		
-  Public :: configurationEnergy	
-  Public :: configurationVolume	
-  Public :: configurationBM	
-  Public :: configurationOptVolume	
-  Public :: configurationOptEnergy	
-  Public :: functionOutOfRangeCounter  
+  Public :: calcConfigEnergies
+!functions
   
 
 !------------------------------------------------------------------------!
@@ -51,66 +46,30 @@ contains
 !declare private variables
 	Integer(kind=StandardInteger) :: i, j, k
 !open output file	
-	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")		
+	!outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	!open(unit=999,file=trim(outputFile),status="old",position="append",action="write")		
 !write to output file
-    write(999,"(A36,F8.4)") "Start calculation:                  ",ProgramTime()
-	
-!initialise any arrays etc
-	
-	
-    if(calcRunType(1:6).eq."ENERGY")then
+    !write(999,"(A36,F8.4)") "Start calculation:                  ",ProgramTime()	
+!initialise any arrays etc	
+	!Call applyUnitVector(0)
+	!Call calcConfigEnergies()	
+    !if(calcRunType(1:6).eq."ENERGY")then
 !write to output file
-      write(999,"(A36,F8.4)") "Calculating configuration energies: ",ProgramTime()
-	  Call applyUnitVector(0)
-	  Call calcConfigEnergies()
-	endif
-	
-	if(calcRunType(1:11).eq."BULKMODULUS")then
+      !write(999,"(A36,F8.4)") "Calculating configuration energies: ",ProgramTime()
+	  !Call applyUnitVector(0)
+	  !Call calcConfigEnergies()
+	!endif	
+	!if(calcRunType(1:11).eq."BULKMODULUS")then
 !write to output file
-      write(999,"(A26,F8.4)") "Calculating bulk modulus: ",ProgramTime()
-	  Call calcBulkModulus()
-	endif
-	
-  
-  
+      !write(999,"(A26,F8.4)") "Calculating bulk modulus: ",ProgramTime()
+	  !Call calcBulkModulus()
+	!endif
 !write to output file
-    write(999,"(A36,F8.4)") "End calculation:                  ",ProgramTime()  
-    close(999)	
+    !write(999,"(A36,F8.4)") "End calculation:                  ",ProgramTime()  
+    !close(999)	
   End Subroutine runCalc
   
-  
-  
-!------------------------------------------------------------------------!
-! ***runCalcInitialise*** 
-!------------------------------------------------------------------------!
-  
-  Subroutine runCalcInitialise()
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i, j, k
-!open output file	
-	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")		
-!write to output file
-    write(999,"(A36,F8.4)") "Start runCalcInitialise:            ",ProgramTime()
-!allocate configurationVolume and fill
-    Allocate(configurationVolume(1:configCount))	
-	do i=1,configCount
-	  configurationVolume(i) = 0.0D0
-	enddo
-!Apply unit vector to neighbour list 
-    write(999,"(A36,F8.4)") "Apply unit vector to neighbour list ",ProgramTime()
-    Call applyUnitVector(0)
-  
-  
-!write to output file
-    write(999,"(A36,F8.4)") "End runCalcInitialise:              ",ProgramTime()  
-    close(999)	 
-  End Subroutine runCalcInitialise 
-  
-  
+
   
   
 !------------------------------------------------------------------------!
@@ -121,7 +80,14 @@ contains
 !force declaration of all variables
 	Implicit None	
 !declare private variables
-	Integer(kind=StandardInteger) :: i	
+	Integer(kind=StandardInteger) :: i,j,k
+	Real(kind=SingleReal) ::  startTime, endTime	
+!mpi variables
+    Integer(kind=StandardInteger) :: selectProcess,status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bufferArray
+!Start Time
+    startTime = ProgramTime()
 !open output file	
 	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
 	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
@@ -133,19 +99,61 @@ contains
     do i=1,configCount
       configurationEnergy(i) = 0.0D0	
 	enddo
-	do i=1,configCount
-	  configurationEnergy(i) = CalcEnergy(i)
-	enddo
-	write(999,"(A44,I4)") "--------------------------------------------"
-	write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
-	write(999,"(A22,I4)") "Configuration Details "
-	write(999,"(A44,I4)") "--------------------------------------------"
-	do i=1,configCount
-	  write(999,"(I4,A1,F12.6,A4,I8,A6)") i," ",(1.0*configurationEnergy(i))," eV ",&
-	  configAtoms(i)," atoms"
-	  write(999,"(I4,F12.6,A12)") i,(configurationEnergy(i)/configAtoms(i))," eV per atom"
-	  write(999,"(A1)") " "
-	enddo    
+!Loop through configurations, and split over MPI processes
+	Do i=1,configCount
+	  selectProcess = mod(i-1,mpiProcessCount)
+	  If(selectProcess.eq.mpiProcessID)Then
+	    configurationEnergy(i) = CalcEnergy(i)
+	  End If
+	End Do
+!Collect data from processes
+    Allocate(bufferArray(1:configCount))
+    If(mpiProcessID.gt.0) Then
+!send buffers from all worker processes
+      processTo = 0
+      Do i=1,(mpiProcessCount-1)
+        If(i.eq.mpiProcessID)Then
+          tag = 1000 + mpiProcessID	
+          Call MPI_send(configurationEnergy,configCount,&
+		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	    End If
+      End Do
+    End If
+    If(mpiProcessID.eq.0) Then
+!read buffers from worker processes
+      Do j=1,(mpiProcessCount-1)
+		processFrom = j
+        tag = 1000 + j
+        Call MPI_recv(bufferArray,configCount,&
+		MPI_double_precision,processFrom,tag,MPI_comm_world,status,error )
+        Do i=1,ceiling(configCount/(1.0D0*mpiProcessCount))
+	      k = (i-1)*mpiProcessCount+j+1
+	      If(k.le.configCount)Then
+	        configurationEnergy(k) = bufferArray(k)
+	      End If
+	    End Do  
+      End Do
+    End If
+!send array from master to worker processes
+	Call MPI_sendout(configurationEnergy,"double")
+
+!Write to file, if master process
+	If(mpiProcessID.eq.0)Then
+	  write(999,"(A44,I4)") "--------------------------------------------"
+	  write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
+	  write(999,"(A22,I4)") "Configuration Details "
+	  write(999,"(A44,I4)") "--------------------------------------------"
+	  Do i=1,configCount
+	    write(999,"(I4,A1,F12.6,A4,I8,A6)") i," ",&
+	      (1.0*configurationEnergy(i))," eV ",&
+	    configAtoms(i)," atoms "
+	    write(999,"(I4,F12.6,A12)") i,(configurationEnergy(i)/configAtoms(i))," eV per atom"
+	    write(999,"(A1)") " "
+	  End Do   
+	End If  
+!End Time
+    endTime = ProgramTime() 
+	write(999,"(A18,F16.8)") "Energy calc time: ",(endTime-startTime)
 	close(999)	
   End Subroutine calcConfigEnergies
   
@@ -215,7 +223,7 @@ Subroutine calcBulkModulus()
 		i,j,dataPoints(j,1),dataPoints(j,2)
 	  enddo
 	  
-	  bmFit = polynomialFit(dataPoints,polyOrder)
+	  bmFit = PolyFit(dataPoints,polyOrder)
 !find minimum volume
       do j=1,polyOrder
 	    volumeCoeffs(j-1) = j*bmFit(j)
@@ -269,118 +277,15 @@ Subroutine calcBulkModulus()
   
   
   
-!------------------------------------------------------------------------!
-! ***applyUnitVector*** 
-!------------------------------------------------------------------------!
-  
-  Subroutine applyUnitVector(configurationID)
-!force declaration of all variables
-	Implicit None	 
-!Internal subroutine variables
-    Integer(kind=StandardInteger) :: configurationID
-	Integer(kind=StandardInteger) :: i, j, k			
-!open output file	
-	!outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	!open(unit=9991,file=trim(outputFile),status="old",position="append",action="write")	
-!loop through configurations
-    if(configurationID.eq.0)then
-	  do i=1,configCount
-!write to output file
-        write(999,"(A40,I8,F8.4)") "Apply unit vector to neighbour list rd: ",i,ProgramTime()
-        Call applyUnitVectorAction(i)
-	  enddo
-	else
-      write(999,"(A40,I8,F8.4)") "Apply unit vector to neighbour list rd: ",configurationID,ProgramTime()
-	  Call applyUnitVectorAction(configurationID)
-	endif
-!close output file
-    !close(9991)	 	
-  End Subroutine applyUnitVector
-  
-  
-!------------------------------------------------------------------------!
-! ***applyUnitVectorAction*** 
-!------------------------------------------------------------------------!
-      
-  Subroutine applyUnitVectorAction(configurationID)
-!force declaration of all variables
-	Implicit None	 
-!Internal subroutine variables
-    Integer(kind=StandardInteger) :: configurationID
-	Integer(kind=StandardInteger) :: i, j, k
-	Integer(kind=StandardInteger) :: configStart, configLength
-	Real(kind=DoubleReal) :: xA, xB, yA, yB, zA, zB, rD		
-	configStart = neighbourListKey(configurationID,1)
-    configLength = neighbourListKey(configurationID,2)	
-!recalculate displacement between atoms
-	do i=configStart,configStart+configLength-1 
-	  xA = neighbourListCoords(i,1) * unitVector(1,1) + &
-	  neighbourListCoords(i,2) * unitVector(2,1) + &
-	  neighbourListCoords(i,3) * unitVector(3,1)
-	  yA = neighbourListCoords(i,1) * unitVector(1,2) + &
-	  neighbourListCoords(i,2) * unitVector(2,2) + &
-	  neighbourListCoords(i,3) * unitVector(3,2)
-	  zA = neighbourListCoords(i,1) * unitVector(1,3) + &
-	  neighbourListCoords(i,2) * unitVector(2,3) + &
-	  neighbourListCoords(i,3) * unitVector(3,3)
-	  xB = neighbourListCoords(i,4) * unitVector(1,1) + &
-	  neighbourListCoords(i,5) * unitVector(2,1) + &
-	  neighbourListCoords(i,6) * unitVector(3,1)
-	  yB = neighbourListCoords(i,4) * unitVector(1,2) + &
-	  neighbourListCoords(i,5) * unitVector(2,2) + &
-	  neighbourListCoords(i,6) * unitVector(3,2)
-	  zB = neighbourListCoords(i,4) * unitVector(1,3) + &
-	  neighbourListCoords(i,5) * unitVector(2,3) + &
-	  neighbourListCoords(i,6) * unitVector(3,3)	  	  
-	  neighbourListR(i) = ((xA-xB)**2+(yA-yB)**2+(zA-zB)**2)**0.5
-	enddo	
-!recalculate configuration volume
-    Call calcConfigurationVolume(configurationID)	
-  End Subroutine applyUnitVectorAction
-  
-!------------------------------------------------------------------------!
-! ***calcConfigurationVolume*** 
-!------------------------------------------------------------------------!
-   
-  Subroutine calcConfigurationVolume(configurationID)
-!force declaration of all variables
-	Implicit None	 
-!Internal subroutine variables
-    Integer(kind=StandardInteger) :: configurationID
-	Integer(kind=StandardInteger) :: i, j, k
-    Real(kind=SingleReal) :: xA, yA, zA
-    Real(kind=SingleReal) :: xB, yB, zB
-    Real(kind=SingleReal) :: xC, yC, zC
-	Real(kind=SingleReal) :: crossProductI,crossProductJ,crossProductK
-	Real(kind=SingleReal) :: volume
 
-!if array not allocated, allocate it
-    if(Allocated(configurationVolume))then
-	else
-	  Allocate(configurationVolume(1:configCount))
-	endif
   
-    xA = configLatticeParameters(configurationID,1) * unitVector(1,1)
-    xB = configLatticeParameters(configurationID,1) * unitVector(1,2)
-    xC = configLatticeParameters(configurationID,1) * unitVector(1,3)
-    yA = configLatticeParameters(configurationID,2) * unitVector(2,1)
-    yB = configLatticeParameters(configurationID,2) * unitVector(2,2)
-    yC = configLatticeParameters(configurationID,2) * unitVector(2,3)
-    zA = configLatticeParameters(configurationID,3) * unitVector(3,1)
-    zB = configLatticeParameters(configurationID,3) * unitVector(3,2)
-    zC = configLatticeParameters(configurationID,3) * unitVector(3,3)
-	
-	crossProductI = (xB*yC-xC*yB)
-	crossProductJ = (xC*yA-xA*yC)
-	crossProductK = (xA*yB-xB*yA)
-	
-	volume = zA*crossProductI+zB*crossProductJ+zC*crossProductK	
-    configurationVolume(configurationID) = 1.0 * volume
-    
-    !unitVector(1,1)
   
-  End Subroutine calcConfigurationVolume
-    
+  
+
+
+  
+  
+  
 !------------------------------------------------------------------------!
 !                                                                        !
 ! MODULE FUNCTIONS                                                       !
@@ -396,72 +301,90 @@ Subroutine calcBulkModulus()
 	Integer(kind=StandardInteger) :: i, j, k, l, configurationID  
 	Integer(kind=StandardInteger) :: configStart, configLength
 	Integer(kind=StandardInteger) :: atoms
-	Real(kind=DoubleReal) :: pairEnergy, embeddingEnergy, energy
+	Real(kind=DoubleReal) :: pairEnergy, embeddingEnergy, energy, time
 	Real(kind=DoubleReal), Dimension( : ), Allocatable :: density  
-	
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayV  
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayP  
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayE  
+!Set Variables
     configStart = neighbourListKey(configurationID,1)
     configLength = neighbourListKey(configurationID,2)
     atoms = configAtoms(configurationID)
 	functionOutOfRangeCounter = 0
-    
 !Allocate density array
     if(Allocated(density))then
 	  Deallocate(density)
 	endif
     Allocate(density(1:(atoms*elementCount)))
+	!Allocate(y(1:2))
 !zero density
     do j=1,(atoms*elementCount)
 	  density(j) = 0.0D0
 	enddo
-	  
 !pair energy contribution and density calculation
 	pairEnergy = 0.0D0
 	embeddingEnergy = 0.0D0
 !sum pair energy and density	
 	do j=configStart,configStart+configLength-1 
-	  pairEnergy = pairEnergy + &
-	  SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),1,neighbourListR(j))
-	  k = neighbourListI(j,3) + (atoms * (neighbourListI(j,2) - 1))
-	  density(k) = density(k) + &
-	  SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),2,neighbourListR(j))		
+	  yArrayV = SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),1,neighbourListR(j))
+	  pairEnergy = pairEnergy + yArrayV(1)
+	  k = neighbourListI(j,3) + (atoms * (neighbourListI(j,2) - 1))	
+	  yArrayP = SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),2,neighbourListR(j))
+	  density(k) = density(k) + yArrayP(1)
 	enddo	
 	pairEnergy = 0.5D0 * pairEnergy
 !sum embedding energy
     do j=1,atoms
 	  do l=1,elementCount
 	    k = atoms + (atoms*(l-1))
-	    embeddingEnergy = embeddingEnergy + &
-	    SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),3,density(k))
+		yArrayE = SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),3,density(k))
+	    embeddingEnergy = embeddingEnergy + yArrayE(1)
+	    !
 	  enddo
 	enddo
 !total energy of configuration
     energy = pairEnergy + embeddingEnergy   
-  
   End function CalcEnergy    
   
   
-  Function SearchPotentialPoint (atomA, atomB, potType, x) RESULT (y)
-    Integer(kind=StandardInteger) :: output 
+  
+  Function SearchPotentialPoint (atomA, atomB, potType, x, calcForce) RESULT (yArray)
+!force declaration of all variables
+	Implicit None
+!declare variables
+    Integer(kind=StandardInteger) :: output
+    Integer(kind=StandardInteger) :: outOfRange, inRange
 	Integer(kind=StandardInteger) :: i, j, k
 	Integer(kind=StandardInteger) :: atomA, atomB, potType, potKey
 	Integer(kind=StandardInteger) :: atomMin, atomMax
-	Integer(kind=StandardInteger) :: potStart, potLength, dataPos
-	Integer(kind=StandardInteger) :: dataPosMin, dataPosMax
+	Integer(kind=StandardInteger) :: potStart, potLength, dataPos, dataPosNext
+	Integer(kind=StandardInteger) :: dataPosMin, dataPosMax, dataPosOffset
+	Integer(kind=StandardInteger) :: interpPointCount
 	Real(kind=DoubleReal) :: x, y, xLower, xUpper, yLower, yUpper, xPos, yPos
+	Real(kind=DoubleReal) :: xPosUpper, xPosLower
 	Real(kind=DoubleReal) :: xDouble, yDouble
 	Real(kind=DoubleReal) :: xA,xB,xC,xD,yA,yB,yC,yD,aA,aB,aC,A,B,C
-	
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: interpPoints
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray  	
+!optional function inputs
+	Integer(kind=StandardInteger),optional :: calcForce
+	Integer(kind=StandardInteger) :: calcForceOption
+!set optional variables	
+	If(present(calcForce))Then
+	  calcForceOption = calcForce
+	Else
+	  calcForceOption = 0
+	End If
 	!potType = 1	Pair
 	!potType = 2	Dens or S-Band Dens
 	!potType = 3	Embe or S-Band Embe
 	!potType = 4	D-Band Dens (dend)
-	!potType = 5	D-Band Embe (embd)
-
+	!potType = 5	D-Band Embe (embd)	
 	!eamType = 1	Standard EAM
-	!eamType = 2	2BMEAM
-	
+	!eamType = 2	2BMEAM	
 	!pairCount, densCount, dendCount, embeCount, embdCount, elementCount
-	
+!Set result array 	
+	Allocate(yArray(1:2))
 !Get the potential key	
 	if(potType.eq.1)then
 	  atomMax = max(atomA,atomB)-1
@@ -499,138 +422,103 @@ Subroutine calcBulkModulus()
 	  if(eamType.eq.2)then
 	    potKey = pairCount + densCount + dendCount + embeCount + atomA
 	  endif
-	endif
-	
+	endif	
 !get the start point and length of potential data
     potStart = eamKey(potKey,4)
     potLength = eamKey(potKey,5)
-!estimate location
+!upper and lower values
     xLower = eamData(potStart,1)
     xUpper = eamData(potStart+potLength-1,1)
-	dataPos = (potStart-1)+floor(potLength*(x/(xUpper-xLower)))
-	dataPosMin = potStart
-	dataPosMax = potStart+potLength-1
-!check if out of range
-    if(dataPos.lt.dataPosMin.or.(dataPos+1).gt.dataPosMax)then
-!out of range, return zero
-      functionOutOfRangeCounter = functionOutOfRangeCounter + 1
-	  y = 0
-	else
-	  xPos = eamData(dataPos,1)
-	  yPos = eamData(dataPos,2)
-	
-!narrow down location
-      if(x.eq.xPos)then
-!done
-        y = eamData(dataPos,2)
-	  else
-!interpolate between data points
-        if(x.gt.xPos)then
-	      do j=1,100
-	        if(x.ge.eamData(dataPos,1).and.x.le.eamData(dataPos+1,1))then
-		      exit  !break out of loop
-		    else
-		      dataPos = dataPos + 1
-		    endif
-	      enddo
-!nearest data point
-          if(eamInterpType.eq.0)then
-		    xLower = eamData(dataPos,1)
-		    xUpper = eamData(dataPos+1,1)
-			if((x-xLower).gt.(xUpper-x))then
-			  y = eamData(dataPos+1,2) !y upper
-			else
-			  y = eamData(dataPos,2) !y lower
-			endif
-		  endif
-!linear interpolation
-          if(eamInterpType.eq.1)then
-		    xPos = eamData(dataPos,1)
-		    xLower = eamData(dataPos,1)
-		    xUpper = eamData(dataPos+1,1)
-		    yLower = eamData(dataPos,2)
-		    yUpper = eamData(dataPos+1,2)
-		    y = yLower + ((x-xLower)/(xUpper-xLower))*(yUpper-yLower)
-		  endif
-!threepoint interpolation
-          if(eamInterpType.eq.2)then
-!dataPos-1, dataPos, dataPos+1
-!choose data points to interpolate between
-		    if((dataPos-1).lt.dataPosMin)then
-			  xA = eamData(dataPos,1)
-			  xB = eamData(dataPos+1,1)
-			  xC = eamData(dataPos+2,1)
-			  yA = eamData(dataPos,2)
-			  yB = eamData(dataPos+1,2)
-			  yC = eamData(dataPos+2,2)
-			elseif((dataPos+1).gt.dataPosMax)then
-			  xA = eamData(dataPos-2,1)
-			  xB = eamData(dataPos-1,1)
-			  xC = eamData(dataPos,1)
-			  yA = eamData(dataPos-2,2)
-			  yB = eamData(dataPos-1,2)
-			  yC = eamData(dataPos,2)
-			else
-			  xA = eamData(dataPos-1,1)
-			  xB = eamData(dataPos,1)
-			  xC = eamData(dataPos+1,1)
-			  yA = eamData(dataPos-1,2)
-			  yB = eamData(dataPos,2)
-			  yC = eamData(dataPos+1,2)
-		    endif			
-!interpolate
-			y = 1.0E0*QuadraticInterpolationCalc&
-			   (1.0D0*xA,1.0D0*yA,1.0D0*xB,1.0D0*yB,1.0D0*xC,1.0D0*yC,1.0D0*x)
-		  endif		  
-!fourpoint interpolation
-          if(eamInterpType.eq.3)then
-!dataPos-1, dataPos, dataPos+1
-!choose data points to interpolate between
-            if((dataPos-2).lt.dataPosMin)then
-			  dataPos = dataPos + 2
-			endif
-			if((dataPos-1).lt.dataPosMin)then
-			  dataPos = dataPos + 1
-			endif			
-			if((dataPos+2).gt.dataPosMax)then
-			  dataPos = dataPos - 2
-			endif		
-			if((dataPos+1).gt.dataPosMax)then
-			  dataPos = dataPos - 1
-			endif			
-			xA = eamData(dataPos,1)
-			xB = eamData(dataPos+1,1)
-			xC = eamData(dataPos+2,1)
-			xD = eamData(dataPos+3,1)
-			yA = eamData(dataPos,2)
-			yB = eamData(dataPos+1,2)
-			yC = eamData(dataPos+2,2)	
-			yD = eamData(dataPos+3,2)			
-!interpolate
-			y = 1.0E0*CubicInterpolationCalc&
-			   (1.0D0*xA,1.0D0*yA,1.0D0*xB,1.0D0*yB,1.0D0*&
-			   xC,1.0D0*yC,1.0D0*xD,1.0D0*yD,1.0D0*x)
-		  endif
-		  
-		  
-	    endif
-	    if(x.lt.xPos)then
-	      do j=1,100
-	        if(x.le.eamData(dataPos,1).and.x.ge.eamData(dataPos-1,1))then
-		      exit  !break out of loop
-		    else
-		      dataPos = dataPos + 1
-		    endif
-	      enddo
-		  xPos = eamData(dataPos,1)
-		  xLower = eamData(dataPos-1,1)
-	      xUpper = eamData(dataPos,1)
-		  yLower = eamData(dataPos-1,2)
-		  yUpper = eamData(dataPos,2)
-		  y = yLower + ((x-xLower)/(xUpper-xLower))*(yUpper-yLower)
-	    endif
-	  endif
-	endif
+!if variable is not in range, zero
+    If(x.lt.xLower.or.x.gt.xUpper)Then
+	  functionOutOfRangeCounter = functionOutOfRangeCounter + 1
+	  yArray(1) = 0.0D0	!Energy to 0 if out of range
+	  yArray(2) = 0.0D0	!Energy to 0 if out of range
+	Else
+!estimate location
+	  dataPos = (potStart-1)+floor(potLength*(x/(1.0D0*(xUpper-xLower))))
+	  dataPosMin = potStart
+	  dataPosMax = potStart+potLength-1
+!check if estimate is in range
+      outOfRange = 0
+	  inRange = 0	  
+	  If(dataPos.eq.dataPosMax)Then
+	    xPosLower = 1.0D0*eamData(dataPos-1,1)
+	    xPosUpper = 1.0D0*eamData(dataPos,1)
+	  Else
+	    xPosLower = 1.0D0*eamData(dataPos,1)
+	    xPosUpper = 1.0D0*eamData(dataPos+1,1)
+	  End If
+	  inRange = 1 !temporary override
+      !If(x.ge.xPosLower.and.x.le.xPosUpper)Then
+      !  inRange = 1
+	  !Else
+	  !  Do k=1,1
+	  !	  outOfRange = outOfRange + 1
+!slot before
+      !    dataPosNext = dataPos - outOfRange
+	!	  If(dataPosNext.eq.dataPosMax)Then
+	!        xPosLower = 1.0D0*eamData(dataPos-1,1)
+	!        xPosUpper = 1.0D0*eamData(dataPos,1)
+	!      Else
+	!        xPosLower = 1.0D0*eamData(dataPos,1)
+	!        xPosUpper = 1.0D0*eamData(dataPos+1,1)
+	!      End If
+	!	  If(x.ge.xPosLower.and.x.le.xPosUpper)Then
+    !        inRange = 1
+	!		dataPos = dataPosNext
+	!		Exit
+	 !     End If	
+!slot after
+     !     dataPosNext = dataPos + outOfRange
+	!	  If(dataPosNext.eq.dataPosMax)Then
+	!        xPosLower = 1.0D0*eamData(dataPos-1,1)
+	!        xPosUpper = 1.0D0*eamData(dataPos,1)
+	!      Else
+	!        xPosLower = 1.0D0*eamData(dataPos,1)
+	!        xPosUpper = 1.0D0*eamData(dataPos+1,1)
+	!      End If
+!		  If(x.ge.xPosLower.and.x.le.xPosUpper)Then
+     !       inRange = 1
+	!		dataPos = dataPosNext
+	!		Exit
+	!      End If	  
+	!    End Do
+	!  End If	  
+      If(inRange.eq.0)Then !If out of range
+	    functionOutOfRangeCounter = functionOutOfRangeCounter + 1
+	    yArray(1) = 0.0D0	!Energy to 0 if out of range
+	    yArray(2) = 0.0D0	!Energy to 0 if out of range
+      Else
+!in range, set 
+	    xPos = eamData(dataPos,1)
+	    yPos = eamData(dataPos,2)	
+!Point interpolation using lagrange's formula
+        If(eamInterpType.lt.2.or.eamInterpType.gt.7)Then
+		  eamInterpType = 4		!Set a default for 5 point interpolation 
+		End If
+        interpPointCount = eamInterpType + 1
+        Allocate(interpPoints(1:interpPointCount,1:2))
+		!dataPosMin dataPosMax
+!prepare set of data points used in interp
+		dataPosOffset = -1*floor(interpPointCount/2.0D0)
+		If((dataPos+dataPosOffset).lt.dataPosMin)Then
+		  dataPosOffset = 0  
+		End If
+		If((dataPos-dataPosOffset).gt.dataPosMax)Then
+		  dataPosOffset = -1*interpPointCount  
+		End If
+		Do i=1,interpPointCount
+		  interpPoints(i,1) = eamData(dataPos+dataPosOffset+i,1)
+		  interpPoints(i,2) = eamData(dataPos+dataPosOffset+i,2)
+		End Do
+!calculate y from interp
+		y = PointInterpolation(interpPoints,x)
+		yArray(1) = 1.0D0*y
+		yArray(2) = 0.0D0
+	  
+	  End If !in data slots 
+	End If !in range of whole potential
 	
 	
 	!endif

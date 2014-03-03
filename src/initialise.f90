@@ -1,26 +1,39 @@
 Module initialise
 
 ! Setup Modules
+  Use mpi
   Use kinds
   Use constants
   Use strings		!string functions
   Use maths
 
-
-!force declaration of all variables
+!Force declaration of all variables
   Implicit None
   
-!declare global variables  
+!Declare Global Variables  
   Real(kind=SingleReal) :: programStartTime
   Character(len=255) :: currentWorkingDirectory
   Character(len=255) :: outputFile
 
+!MPI Global Variables
+  Integer(kind=StandardInteger) :: mpiProcessCount, mpiProcessID  
+
 !Privacy of functions/subroutines/variables
   Private
+  
+!Variables
   Public :: programStartTime		!Variable
   Public :: outputFile      		!Variable
   Public :: currentWorkingDirectory	!Variable
+  
+!MPI Variables  
+  Public :: mpiProcessCount
+  Public :: mpiProcessID
+
+!Subroutines
   Public :: runInitialise		    !Subroutine
+  
+!Functions
   Public :: ProgramTime             !Function
   
   
@@ -42,6 +55,12 @@ contains
 	Integer(kind=StandardInteger), Dimension(1:3) :: theTime, theDate
 	Character(len=255) :: outputFilePath
 	Integer(kind=StandardInteger), Dimension(1:10) :: rnSeed
+    Integer(kind=StandardInteger) :: error  
+	
+!MPI
+	Call MPI_Init(error)
+    Call MPI_Comm_size( MPI_COMM_WORLD ,mpiProcessCount,error)
+    Call MPI_Comm_rank(MPI_COMM_WORLD,mpiProcessID,error)
 	
 !store start time
 	Call cpu_time(programStartTime)
@@ -50,30 +69,25 @@ contains
 	
 !get the working directory
 	Call getcwd(currentWorkingDirectory)
-	
-	!Create output file
+!save output file name
 	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	open(unit=999,file=trim(outputFile))
-	write(999,"(A38)") "======================================"
-	write(999,"(A38)") "            Output File               "
-	write(999,"(A38)") "      University of Birmingham        "
-	write(999,"(A38)") "             Ben Palmer               "
-	write(999,"(A38)") "======================================"
-	write(999,"(A1)") " "
-	write(999,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
-	"Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)	
-	write(999,"(A1)") " "
-	write(999,"(A1)") " "
-	
-!random number seed from cpu
-    do i=1,10
-	  Call SYSTEM_CLOCK(rnSeed(i))
-	enddo
-    Call RANDOM_SEED(put=rnSeed)
-	
+!Create output file
+    If(mpiProcessID.eq.0)Then
+	  open(unit=999,file=trim(outputFile))
+	  write(999,"(A38)") "======================================"
+	  write(999,"(A38)") "            Output File               "
+	  write(999,"(A38)") "      University of Birmingham        "
+	  write(999,"(A38)") "             Ben Palmer               "
+	  write(999,"(A38)") "======================================"
+	  write(999,"(A1)") " "
+	  write(999,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+	  "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)	
+	  write(999,"(A1)") " "
+	  write(999,"(A1)") " "
 !close output file
-	close(999)
-
+	  close(999)
+	End If
+	
   End Subroutine runInitialise
   
   
@@ -101,6 +115,11 @@ function OutputProgramTime () RESULT (outputTime)
 	write(9991,"(A16,F8.4)") "Program time:   ",outputTime
 	close(9991)
 End Function OutputProgramTime    
-  
+
+function ClockTime () RESULT (outputTime)
+    ! -- Argument and result
+	Real(kind=DoubleReal) :: outputTime 
+	Call cpu_time(outputTime)
+End Function ClockTime    
 
 End Module initialise

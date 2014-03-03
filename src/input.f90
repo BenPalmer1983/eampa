@@ -34,6 +34,7 @@ Module input
   Integer(kind=StandardInteger) :: calcRunType
   Integer(kind=StandardInteger) :: configCount
   Integer(kind=StandardInteger) :: eamInterpType
+  Integer(kind=StandardInteger) :: calcForcesOnOff
   
   
 !Privacy of functions/subroutines/variables
@@ -65,6 +66,7 @@ Module input
   Public :: configCount                 !Variable
   Public :: calcRunType                 !Variable
   Public :: eamInterpType               !Variable
+  Public :: calcForcesOnOff             !Variable
 
 !------------------------------------------------------------------------!
 !                                                                        !
@@ -136,6 +138,7 @@ contains
 	unitVector(3,3) = 1			!z3
 	eamInterpType = 1
 	calcRunType = 1
+	calcForcesOnOff = 1
 	
 !open & read in file	
   	Open(UNIT=1,FILE=inputFileName) 
@@ -229,6 +232,19 @@ contains
 		if(buffera(1:9).eq."FIVEPOINT")then
 		  eamInterpType = 4
 		endif
+	  endif
+	  
+	  
+!Calc Forces
+	  if(buffera(1:11).eq."#calcforces")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera
+		buffera = StrToUpper(buffera)	  
+		If(buffera(1:1).eq."Y")Then
+	      calcForcesOnOff = 1
+		Else
+		  calcForcesOnOff = 0
+		End If
 	  endif
 	  
 	  

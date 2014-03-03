@@ -1,7 +1,7 @@
 #potential
-"examples/sheng_al_eam.pot"
+"examples/sheng_zrcu_test_eam.pot"
 #configurations
-"examples/atoms.conf"
+"examples/atomsZrCu.conf"
 #savecoords
 no
 #saveneighbourlist

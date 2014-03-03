@@ -19,6 +19,7 @@ Module prep
   Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: neighbourListI          !neighbour list integer data
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtoms					!count of total atoms for each config
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtomsUnitCell			!
+  Integer(kind=StandardInteger) :: configAtomsTotal
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: neighbourListR
   Real(kind=SingleReal), Dimension( : , : ), Allocatable :: neighbourListCoords
   Real(kind=SingleReal), Dimension( : , : ), Allocatable :: configLatticeParameters
@@ -28,6 +29,8 @@ Module prep
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationBM
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationOptVolume
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationOptEnergy
+  Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configurationForces
+  
 
 !Privacy of functions/subroutines/variables
   Private
@@ -46,6 +49,7 @@ Module prep
   Public :: configurationBM	
   Public :: configurationOptVolume	
   Public :: configurationOptEnergy	
+  Public :: configAtomsTotal
   
 !Subroutines  
   Public :: applyUnitVector
@@ -80,6 +84,9 @@ contains
 	If(mpiProcessID.eq.0)Then
 	  Call storeEAM()
     End If
+	Call synchMpiProcesses()
+	Call prepDataStore()
+	
 	Call synchMpiProcesses()
   End Subroutine runPrep
   
@@ -234,8 +241,8 @@ contains
 					      neighbourListCount = neighbourListCount + 1
 						  configLength = configLength + 1
 !atom type data
-						  neighbourListITemp(neighbourListCount,1) = coordsITemp(atomA) !Atom Type
-						  neighbourListITemp(neighbourListCount,2) = coordsITemp(atomB)	!Atom Type
+						  neighbourListITemp(neighbourListCount,1) = coordsITemp(atomA) !Atom A Type
+						  neighbourListITemp(neighbourListCount,2) = coordsITemp(atomB)	!Atom B Type
 !atom id
 						  neighbourListITemp(neighbourListCount,3) = atomA 	!Atom ID
 						  neighbourListITemp(neighbourListCount,4) = atomB 	!Atom ID
@@ -273,7 +280,7 @@ contains
 	Allocate(neighbourListKey(1:size(configHeaderI)/headerWidth,1:2))
 	Allocate(neighbourListI(1:tempNeighbourListLength,1:4))
 	Allocate(neighbourListR(1:tempNeighbourListLength)) 
-	Allocate(neighbourListCoords(1:tempNeighbourListLength,1:6)) 
+	Allocate(neighbourListCoords(1:tempNeighbourListLength,1:9)) !Ax Ay Az, Bx By Bz, R_ABi R_ABj R_ABk 
 !Transfer key data 
     !do i=1,size(configHeaderI)/headerWidth
     do i=1,configCount
@@ -293,6 +300,9 @@ contains
 	  neighbourListCoords(i,4) = neighbourListCoordsTemp(i,4) !xB
 	  neighbourListCoords(i,5) = neighbourListCoordsTemp(i,5) !yB
 	  neighbourListCoords(i,6) = neighbourListCoordsTemp(i,6) !zB 
+	  neighbourListCoords(i,7) = neighbourListCoordsTemp(i,4)-neighbourListCoordsTemp(i,1)
+	  neighbourListCoords(i,8) = neighbourListCoordsTemp(i,5)-neighbourListCoordsTemp(i,2)
+	  neighbourListCoords(i,9) = neighbourListCoordsTemp(i,6)-neighbourListCoordsTemp(i,3)
 	enddo
 !Deallocate arrays
     Deallocate(neighbourListITemp)
@@ -357,8 +367,9 @@ contains
 	Real(kind=DoubleReal) :: xA, xB, yA, yB, zA, zB, rD		
 	configStart = neighbourListKey(configurationID,1)
     configLength = neighbourListKey(configurationID,2)	
-!recalculate displacement between atoms
+!Loop through neighbour list for the configuration
 	do i=configStart,configStart+configLength-1 
+!calculate atom positions with unitVector applied
 	  xA = neighbourListCoords(i,1) * unitVector(1,1) + &
 	  neighbourListCoords(i,2) * unitVector(2,1) + &
 	  neighbourListCoords(i,3) * unitVector(3,1)
@@ -377,6 +388,11 @@ contains
 	  zB = neighbourListCoords(i,4) * unitVector(1,3) + &
 	  neighbourListCoords(i,5) * unitVector(2,3) + &
 	  neighbourListCoords(i,6) * unitVector(3,3)	  	  
+!store new displacement vector between atom A and B
+	  neighbourListCoords(i,7) = xB-xA
+	  neighbourListCoords(i,8) = yB-yA
+	  neighbourListCoords(i,9) = zB-zA
+!store new distance between atoms		  
 	  neighbourListR(i) = ((xA-xB)**2+(yA-yB)**2+(zA-zB)**2)**0.5
 	enddo	
 !recalculate configuration volume
@@ -446,21 +462,23 @@ contains
 	Implicit None	 
 !Internal subroutine variables
     Integer(kind=StandardInteger) :: i
+!If master process
+	If(mpiProcessID.eq.0)Then
 !open output file	
-	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
+	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
 !save summary of configurations to output file
-    write(999,"(A6,A40)") "      ","----------------------------------------"
-    write(999,"(A6,A25)") "      ","Summary of Configurations"
-    write(999,"(A6,A40)") "      ","----------------------------------------"
-    Do i=1,configCount
-      write(999,"(A6,A15,I8,A12,F14.6,A11,I8,A15,I8)") "      ",&
-	  "Configuration: ",i,"    Volume: ",configurationVolume(i),&
-	  "    Atoms: ",configAtoms(i),"    NL Length: ",neighbourListKey(i,2)
-	End Do
-	
+      write(999,"(A6,A40)") "      ","----------------------------------------"
+      write(999,"(A6,A25)") "      ","Summary of Configurations"
+      write(999,"(A6,A40)") "      ","----------------------------------------"
+      Do i=1,configCount
+        write(999,"(A6,A15,I8,A12,F14.6,A11,I8,A15,I8)") "      ",&
+	    "Configuration: ",i,"    Volume: ",configurationVolume(i),&
+	    "    Atoms: ",configAtoms(i),"    NL Length: ",neighbourListKey(i,2)
+	  End Do	
 !close the output file
-    close(999) 	
+      close(999) 	
+	End If
   End Subroutine summariseConfigurations
   
   
@@ -476,17 +494,21 @@ contains
 	Integer(kind=StandardInteger) :: ios, i, j, k, sortLoop, sorted, reordered
     Integer(kind=StandardInteger) :: potStart, potLength
 	Real(kind=SingleReal) :: tempXA, tempYA, tempXB, tempYB	
+!write if master process
+    If(mpiProcessID.eq.0)Then	
 !open output file	
-	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
+	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
 !write to output file
-	write(999,"(F8.4,A2,A20)") ProgramTime(),"  ","Order EAM Potentials"	
+	  write(999,"(F8.4,A2,A20)") ProgramTime(),"  ","Order EAM Potentials"	
+    End If
 	reordered = 0
 	do i=1,size(eamKey,1)
 	  potStart = eamKey(i,4)
 	  potLength = eamKey(i,5)
-	  write(999,"(I8,I8)") potStart, potLength	
-	  
+	  If(mpiProcessID.eq.0)Then
+	    write(999,"(I8,I8)") potStart, potLength	
+	  End If
 	  sorted = 1
 	  do while(sorted.eq.1)
 	    sorted = 0
@@ -508,8 +530,10 @@ contains
 	    enddo
 	  enddo		
 	enddo	
+	If(mpiProcessID.eq.0)Then
 !close output file
-    close(999)		
+      close(999)	
+    End If	  
   End Subroutine orderEamPotentials
 
   
@@ -716,6 +740,39 @@ contains
   
   
   
+  
+  
+  
+  Subroutine prepDataStore()
+!force declaration of all variables
+	Implicit None	 
+!Internal subroutine variables
+    Integer(kind=StandardInteger) :: i, totalAtoms   
+!Configuration Energies	
+!Allocate array
+	If(Allocated(configurationEnergy))Then
+	  Deallocate(configurationEnergy)
+	End If	  
+    Allocate(configurationEnergy(1:configCount))
+!zero out energies
+    Do i=1,configCount
+      configurationEnergy(i) = 0.0D0	
+	End Do
+!count total atoms	
+	configAtomsTotal = 0
+	Do i=1,configCount
+	  configAtomsTotal = configAtomsTotal + configAtoms(i)
+	End Do
+!configuration atom forces 
+    If(calcForcesOnOff.eq.1)Then
+	  If(Allocated(configurationForces))Then
+	    Deallocate(configurationForces)
+	  End If
+      Allocate(configurationForces(1:configCount,1:configAtomsTotal))
+    End If
+
+    
+  End Subroutine prepDataStore 
    
   
   Subroutine synchMpiProcesses()

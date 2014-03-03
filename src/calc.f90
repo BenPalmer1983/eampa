@@ -94,7 +94,7 @@ contains
 !write to output file
 	write(999,"(A32,F8.4)") "Calculating configuration energy",ProgramTime()
 !Allocate array
-    Allocate(configurationEnergy(1:configCount))
+    !Allocate(configurationEnergy(1:configCount))
 !zero out energies
     do i=1,configCount
       configurationEnergy(i) = 0.0D0	
@@ -293,8 +293,70 @@ Subroutine calcBulkModulus()
 !                                                                        !
 !------------------------------------------------------------------------!   
   
-  Function CalcEnergy (configurationID) RESULT (energy)
+  Function CalcEnergy (configurationID) RESULT (energy)  
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i, j, k, l, configurationID  
+	Integer(kind=StandardInteger) :: configStart, configLength
+	Integer(kind=StandardInteger) :: atoms
+	Integer(kind=StandardInteger) :: densityCount
+	Real(kind=DoubleReal) :: pairEnergy, embeddingEnergy, energy, time
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: density  
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayV  
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayP  
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayE  
+!Info	
+!neighbourListI(j,1) A type, neighbourListI(j,2) B type, 
+!neighbourListI(j,3) A id, neighbourListI(j,4) B id
+!Set Variables
+    configStart = neighbourListKey(configurationID,1)
+    configLength = neighbourListKey(configurationID,2)
+    atoms = configAtoms(configurationID)
+	densityCount = atoms*elementCount
+	functionOutOfRangeCounter = 0
+!Allocate density array
+    if(Allocated(density))then
+	  Deallocate(density)
+	endif
+    Allocate(density(1:atoms))
+!zero density
+    do j=1,atoms
+	  density(j) = 0.0D0
+	enddo
+!pair energy contribution and density calculation
+	pairEnergy = 0.0D0
+	embeddingEnergy = 0.0D0
+!sum pair energy and density	
+	do j=configStart,configStart+configLength-1 
+	  yArrayV = SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),1,neighbourListR(j))
+	  pairEnergy = pairEnergy + yArrayV(1)
+	  !k = neighbourListI(j,3) + (atoms * (neighbourListI(j,2) - 1))	
+	  !yArrayP = SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),2,neighbourListR(j))
+	  !density(k) = density(k) + yArrayP(1)
+	  yArrayP = SearchPotentialPoint(neighbourListI(j,2),0,2,neighbourListR(j))
+	  density(neighbourListI(j,3)) = density(neighbourListI(j,3)) + yArrayP(1)
+	enddo	
+	pairEnergy = 0.5D0 * pairEnergy
+!sum embedding energy
+    do j=1,atoms
+	  !do l=1,elementCount
+	    !k = atoms + (atoms*(l-1))
+		!yArrayE = SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),3,density(k))
+	    !embeddingEnergy = embeddingEnergy + yArrayE(1)
+	  !enddo
+	  yArrayE = SearchPotentialPoint(neighbourListI(j,1),0,3,density(j))
+	  embeddingEnergy = embeddingEnergy + yArrayE(1)
+	enddo
+!total energy of configuration
+    energy = pairEnergy + embeddingEnergy   
+  End function CalcEnergy  
+
   
+  
+  
+  
+ Function CalcForces (configurationID) RESULT (energy)  
 !force declaration of all variables
 	Implicit None	
 !declare private variables
@@ -310,41 +372,15 @@ Subroutine calcBulkModulus()
     configStart = neighbourListKey(configurationID,1)
     configLength = neighbourListKey(configurationID,2)
     atoms = configAtoms(configurationID)
-	functionOutOfRangeCounter = 0
-!Allocate density array
-    if(Allocated(density))then
-	  Deallocate(density)
-	endif
-    Allocate(density(1:(atoms*elementCount)))
-	!Allocate(y(1:2))
-!zero density
-    do j=1,(atoms*elementCount)
-	  density(j) = 0.0D0
-	enddo
-!pair energy contribution and density calculation
-	pairEnergy = 0.0D0
-	embeddingEnergy = 0.0D0
-!sum pair energy and density	
-	do j=configStart,configStart+configLength-1 
-	  yArrayV = SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),1,neighbourListR(j))
-	  pairEnergy = pairEnergy + yArrayV(1)
-	  k = neighbourListI(j,3) + (atoms * (neighbourListI(j,2) - 1))	
-	  yArrayP = SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),2,neighbourListR(j))
-	  density(k) = density(k) + yArrayP(1)
-	enddo	
-	pairEnergy = 0.5D0 * pairEnergy
-!sum embedding energy
-    do j=1,atoms
-	  do l=1,elementCount
-	    k = atoms + (atoms*(l-1))
-		yArrayE = SearchPotentialPoint(neighbourListI(j,1),neighbourListI(j,2),3,density(k))
-	    embeddingEnergy = embeddingEnergy + yArrayE(1)
-	    !
-	  enddo
-	enddo
 !total energy of configuration
-    energy = pairEnergy + embeddingEnergy   
-  End function CalcEnergy    
+
+
+
+
+
+
+
+  End function CalcForces    
   
   
   
@@ -512,17 +548,10 @@ Subroutine calcBulkModulus()
 		  interpPoints(i,1) = eamData(dataPos+dataPosOffset+i,1)
 		  interpPoints(i,2) = eamData(dataPos+dataPosOffset+i,2)
 		End Do
-!calculate y from interp
-		y = PointInterpolation(interpPoints,x)
-		yArray(1) = 1.0D0*y
-		yArray(2) = 0.0D0
-	  
+!calculate y and y' from interp points
+	    yArray = PointInterpolationFull(interpPoints,x)
 	  End If !in data slots 
 	End If !in range of whole potential
-	
-	
-	!endif
-	
   End function SearchPotentialPoint    
   
 

@@ -4,23 +4,22 @@
              Ben Palmer               
 ======================================
  
-Date: 22:45 03/03/2014
+Date: 15:23 06/03/2014
  
  
-  0.0000  Reading user input file examples/inputzrcu.in                                       
-  0.0000  Reading EAM potential from examples/sheng_zrcu_test_eam.pot                            
-Program time:     0.0320
-Element    1: ZR
-Element    2: CU
-      Program time:     0.1280
-      Element count:                 2
+  0.0040  Reading user input file examples/inputAl.in                                         
+  0.0040  Reading EAM potential from examples/sheng_al_eam.pot                                   
+Program time:     0.0200
+Element    1: AL
+      Program time:     0.0480
+      Element count:                 1
       EAM Type:                      1
-      Potentials count:              7
-      Potentials expected:           7
-      Pairs functions:               3
-      Density functions:             2
-      Embedding functions:           2
-      Data points:                    7007
+      Potentials count:              3
+      Potentials expected:           3
+      Pairs functions:               1
+      Density functions:             1
+      Embedding functions:           1
+      Data points:                    3003
       Save coords file:           N
       Save neighbour list file:   N
       Save potential file:        Y
@@ -31,41 +30,72 @@ Element    2: CU
         0.0000  0.0000  1.0000
        Summary of potential functions 
              1       1       1       1       1    1001
-             2       1       2       1    1002    1001
-             3       2       2       1    2003    1001
-             4       1       0       2    3004    1001
-             5       2       0       2    4005    1001
-             6       1       0       3    5006    1001
-             7       2       0       3    6007    1001
-  0.3000  Reading from file examples/atomsZrCu.conf                                     
-      Configurations read:        2
-      Atoms read:                 8
-  0.3000  Start building config neighbour lists
+             2       1       0       2    1002    1001
+             3       1       0       3    2003    1001
+  0.1240  Reading from file examples/atomsAl.conf                                       
+      Configurations read:       12
+      Atoms read:               552
+  0.1360  Start building config neighbour lists
       Total configurations prepared: 
-  0.6080  Finish building config neighbour lists, total pairs:    78000
-      ----------------------------------------
-      Summary of Configurations
-      ----------------------------------------
-      Configuration:        1    Volume:    8000.000000    Atoms:      500    NL Length:    39000
-      Configuration:        2    Volume:    8060.151367    Atoms:      500    NL Length:    39000
-  0.6240  Order EAM Potentials
+  1.7080  Finish building config neighbour lists, total pairs:   429920
+  1.8000  Order EAM Potentials
        1    1001
     1002    1001
     2003    1001
-    3004    1001
-    4005    1001
-    5006    1001
-    6007    1001
-  1.1240  Start calculations (runProcesses)
-Calculating configuration energy  1.1240
+      ----------------------------------------
+      Summary of Configurations
+      ----------------------------------------
+      Configuration:        1    Volume:    4204.462891    Atoms:      256    NL Length:    19952          1     256             0
+      Configuration:        2    Volume:    8000.000000    Atoms:      500    NL Length:    39000        257     756  RF         0
+      Configuration:        3    Volume:    8060.151367    Atoms:      500    NL Length:    39000        757    1256             0
+      Configuration:        4    Volume:    8120.601563    Atoms:      500    NL Length:    39000       1257    1756             0
+      Configuration:        5    Volume:    8181.354980    Atoms:      500    NL Length:    39000       1757    2256             0
+      Configuration:        6    Volume:    8242.409180    Atoms:      500    NL Length:    39000       2257    2756             0
+      Configuration:        7    Volume:    8303.765625    Atoms:      500    NL Length:    39000       2757    3256             0
+      Configuration:        8    Volume:    8365.425781    Atoms:      500    NL Length:    39000       3257    3756             0
+      Configuration:        9    Volume:    8213.975586    Atoms:      500    NL Length:    39000       3757    4256             0
+      Configuration:       10    Volume:    8213.975586    Atoms:      500    NL Length:    39000       4257    4756             0
+      Configuration:       11    Volume:    4204.462891    Atoms:      256    NL Length:    19968       4757    5012             0
+      Configuration:       12    Volume:    8213.975586    Atoms:      500    NL Length:    39000       5013    5512             0
+  1.8280  Start calculations (runProcesses)
 --------------------------------------------
-Program time:     1.2800
+Program time:     2.8880
 Configuration Details 
 --------------------------------------------
-   1 -1680.758843 eV      500 atoms
-   1   -3.361518 eV per atom
+   1  -860.208761 eV      256 atoms           0
+   1   -3.360190 eV per atom
  
-   2 -1681.071964 eV      500 atoms
-   2   -3.362144 eV per atom
+   2 -1680.758843 eV      500 atoms           0
+   2   -3.361518 eV per atom
  
-Energy calc time:       0.15599990
+   3 -1681.071964 eV      500 atoms           0
+   3   -3.362144 eV per atom
+ 
+   4 -1681.146959 eV      500 atoms           0
+   4   -3.362294 eV per atom
+ 
+   5 -1680.990072 eV      500 atoms           0
+   5   -3.361980 eV per atom
+ 
+   6 -1680.607175 eV      500 atoms           0
+   6   -3.361214 eV per atom
+ 
+   7 -1680.003982 eV      500 atoms           0
+   7   -3.360008 eV per atom
+ 
+   8 -1679.185829 eV      500 atoms           0
+   8   -3.358372 eV per atom
+ 
+   9 -1680.812996 eV      500 atoms           0
+   9   -3.361626 eV per atom
+ 
+  10 -1680.812996 eV      500 atoms           0
+  10   -3.361626 eV per atom
+ 
+  11  -860.583183 eV      256 atoms           0
+  11   -3.361653 eV per atom
+ 
+  12 -1680.812996 eV      500 atoms           0
+  12   -3.361626 eV per atom
+ 
+Energy calc time:       1.05999994

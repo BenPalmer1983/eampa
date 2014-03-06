@@ -24,7 +24,7 @@ Module mpif
   
   Contains
 
-!send array
+!send array - just doubles at the moment
   Subroutine MPI_sendout(buffer,dataType,bufferDimensionOption)
  !force declaration of all variables
 	Implicit None
@@ -80,7 +80,41 @@ Module mpif
   End Subroutine MPI_sendout
   
   
-!Send 2D array 
+  
+  Subroutine MPI_sendcollect(buffer)
+!force declaration of all variables
+	Implicit None
+!declare variables  
+    Integer(kind=StandardInteger) :: i,processID,processCount,tag
+	Integer(kind=StandardInteger) :: status,error,bufferSize
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: buffer
+!get process id and count
+	Call MPI_comm_rank( MPI_COMM_WORLD,processID,error )
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)    
+  
+  
+  
+  
+  End Subroutine MPI_sendcollect
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+!Send 2D array - not working yet
   !send array
   Subroutine MPI_sendout2D(buffer,dataType,bufferDimensionOption)
  !force declaration of all variables
@@ -153,6 +187,10 @@ Module mpif
 	
 	
   End Subroutine MPI_sendout2D
+  
+  
+  
+  
   
   
   

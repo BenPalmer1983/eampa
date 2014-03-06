@@ -19,18 +19,33 @@ Module prep
   Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: neighbourListI          !neighbour list integer data
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtoms					!count of total atoms for each config
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtomsUnitCell			!
-  Integer(kind=StandardInteger) :: configAtomsTotal
+  Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtomsStart	
+  Integer(kind=StandardInteger) :: configAtomsTotal											!Total atoms in all configs
+  Integer(kind=StandardInteger) :: configAtomsMax											!Max atoms in 1 config
+  Integer(kind=StandardInteger) :: configAtomsAdd											!Max rounded up to nearest mult of 10
+  Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: configAtomsMap			!Start-End points for atoms by config
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: neighbourListR
   Real(kind=SingleReal), Dimension( : , : ), Allocatable :: neighbourListCoords
   Real(kind=SingleReal), Dimension( : , : ), Allocatable :: configLatticeParameters
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationVolume
   
+!calculated values
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationVolume  
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationEnergy
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationBM
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationOptVolume
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationOptEnergy
-  Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configurationForces
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationForceX
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationForceY
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationForceZ
   
+!Reference energies, forces, stresses etc  
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefEnergy
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceX
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceY
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceZ
+  
+!MPI key for bringing forces back together  
+  Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: configurationForceMPIKey
 
 !Privacy of functions/subroutines/variables
   Private
@@ -42,6 +57,8 @@ Module prep
   Public :: neighbourListR		
   Public :: configAtoms	
   Public :: configAtomsUnitCell  
+  Public :: configAtomsStart
+  Public :: configAtomsMap
   Public :: neighbourListCoords		
   Public :: configLatticeParameters	
   Public :: configurationVolume
@@ -50,6 +67,16 @@ Module prep
   Public :: configurationOptVolume	
   Public :: configurationOptEnergy	
   Public :: configAtomsTotal
+  Public :: configAtomsMax
+  Public :: configAtomsAdd
+  Public :: configurationForceX
+  Public :: configurationForceY
+  Public :: configurationForceZ
+  Public :: configurationForceMPIKey
+  Public :: configurationRefEnergy
+  Public :: configurationRefForceX
+  Public :: configurationRefForceY
+  Public :: configurationRefForceZ
   
 !Subroutines  
   Public :: applyUnitVector
@@ -73,12 +100,11 @@ contains
 	Implicit None	
 !Internal subroutine variables
 	Integer(kind=StandardInteger) :: i, j, k
+!Prep data arrays
+    Call prepDataArrays()
 !Make neighbour list
 	Call makeNeighbourList()
 	Call applyUnitVector(0)
-	If(mpiProcessID.eq.0)Then
-	  Call summariseConfigurations()
-    End If	
 	Call orderEamPotentials()
 	Call calcEAMDerivative()
 	If(mpiProcessID.eq.0)Then
@@ -87,9 +113,96 @@ contains
 	Call synchMpiProcesses()
 	Call prepDataStore()
 	
+	If(mpiProcessID.eq.0)Then
+	  Call summariseConfigurations()
+    End If	
 	Call synchMpiProcesses()
   End Subroutine runPrep
   
+!------------------------------------------------------------------------!
+!                                                                        
+! Data Arrays                                             
+!                                                                        
+!------------------------------------------------------------------------!   
+  
+  Subroutine prepDataArrays() 
+!force declaration of all variables
+	Implicit None	 
+!Internal subroutine variables
+	Integer(kind=StandardInteger) :: i, j, k
+	Integer(kind=StandardInteger) :: inputConfigAtomStart
+!-
+!This sets up important data arrays needed here and elsewhere in the program
+!-  
+!Allocate arrays	  
+    Allocate(configurationRefEnergy(1:configCount))
+    Allocate(configurationEnergy(1:configCount))		!Store calculated configuration energies	  
+	Allocate(configAtoms(1:configCount)) 
+    Allocate(configAtomsStart(1:configCount))	  
+    Allocate(configAtomsMap(1:configCount,1:50))		!information stored about each config
+		
+!zero out/fill arrays
+    configAtomsTotal = 0		!total atoms in all configs
+	configAtomsMax = 0			!max atoms in one config
+	configAtomsStart(1) = 0		!start atom number for each config
+    Do i=1,configCount
+      configurationEnergy(i) = 0.0D0	
+	  configurationRefEnergy(i) = 0.0D0	
+	  configAtoms(i) = configHeaderI(i,10) * configHeaderI(i,11) *&
+	  configHeaderI(i,12) * configHeaderI(i,headerWidth)
+	  configAtomsTotal = configAtomsTotal + configAtoms(i)
+	  If(configAtoms(i).gt.configAtomsMax)Then
+	    configAtomsMax = configAtoms(i)
+	  End If
+!config atoms start	
+      If(i.lt.configCount)Then
+	    configAtomsStart(i+1) = configAtomsStart(i) + configAtoms(i)
+	  End If
+!config atoms start-end map
+	  If(i.eq.1)Then
+        configAtomsMap(i,1) = 1					!start atom
+        configAtomsMap(i,2) = configAtoms(i)    !end atom
+	  Else
+	    configAtomsMap(i,1) = configAtomsMap(i-1,2)+1
+		configAtomsMap(i,2) = configAtomsMap(i,1)+configAtoms(i)-1		
+	  End If
+	  configAtomsMap(i,3) = -1    			!assigned process
+	  configAtomsMap(i,11) =  configHeaderI(i,13)	!start atom in configCoordsR
+	  configAtomsMap(i,12) =  configHeaderI(i,14)	!length/number of atoms in configCoordsR
+	  If(configForcesR(configAtomsMap(i,11),4).lt.0)Then
+        configAtomsMap(i,4) = -1    			!config has forces -1 no 1 yes
+	  Else
+	    configAtomsMap(i,4) = 1    			    !config has forces -1 no 1 yes
+	  End If
+	  
+!MPI details
+	  configAtomsMap(i,21) = mod(i-1,mpiProcessCount)		!Assigned MPI process
+	  
+	End Do
+	
+!If forces are to be calculated
+	If(calcForcesOnOff.eq.1)Then	  
+	  !Keeps track of which MPIprocess calculates which set of forces
+      Allocate(configurationForceMPIKey(1:configCount,1:3))	 
+      Do i=1,configCount
+        configurationForceMPIKey(i,1) = -1  !Process
+        configurationForceMPIKey(i,2) = -1  !Start
+        configurationForceMPIKey(i,3) = -1  !End
+	  End Do
+      Allocate(configurationForceX(1:configAtomsTotal))
+      Allocate(configurationForceY(1:configAtomsTotal))
+      Allocate(configurationForceZ(1:configAtomsTotal))
+	  !zero out forces
+      Do i=1,configAtomsTotal
+        configurationForceX(i) = 0.0D0
+        configurationForceY(i) = 0.0D0
+        configurationForceZ(i) = 0.0D0	
+	  End Do
+    End If
+	
+	
+  
+  End Subroutine prepDataArrays
   
 !------------------------------------------------------------------------!
 !                                                                        
@@ -101,13 +214,14 @@ contains
 !force declaration of all variables
 	Implicit None	 
 !Internal subroutine variables
-	Integer(kind=StandardInteger) :: i, j, k, l, m, n, x, y, z
+	Integer(kind=StandardInteger) :: i, j, k, l, m, mm, n, x, y, z
 	Integer(kind=StandardInteger) :: atoms
 	Integer(kind=StandardInteger) :: atomA, atomB
 	Integer(kind=StandardInteger) :: neighbourListLength, tempNeighbourListLength
 	Integer(kind=StandardInteger) :: neighbourListCount, configStart, configLength
 	Integer(kind=StandardInteger) :: coordsStart, coordsLength
 	Integer(kind=StandardInteger) :: xCopy, yCopy, zCopy
+	Integer(kind=StandardInteger) :: atomCounter
 	Real(kind=SingleReal) :: rCutoff, rCutoffNeg, rCutoffSq
 	Real(kind=SingleReal) :: xcoord, ycoord, zcoord
 	Real(kind=SingleReal) :: xshift, yshift, zshift
@@ -151,14 +265,28 @@ contains
 	Allocate(neighbourListITemp(1:tempNeighbourListLength,1:4))
 	Allocate(neighbourListRTemp(1:tempNeighbourListLength)) 
 	Allocate(neighbourListCoordsTemp(1:tempNeighbourListLength,1:6)) 
-	Allocate(configAtoms(1:configCount)) 
 	Allocate(configAtomsUnitCell(1:configCount)) 
 	Allocate(configLatticeParameters(1:configCount,1:3))
 
+!Config/total atom count
+	configAtomsTotal = 0
+	Do i=1,configCount
+	  xCopy = configHeaderI(i,10)
+	  yCopy = configHeaderI(i,11)
+	  zCopy = configHeaderI(i,12)
+	  configAtoms(i) = xCopy * yCopy * zCopy * configHeaderI(i,headerWidth)
+	  configAtomsTotal = configAtomsTotal + configAtoms(i)
+	End Do
+	
+!Allocate config reference data arrays
+    Allocate(configurationRefForceX(1:configAtomsTotal))
+    Allocate(configurationRefForceY(1:configAtomsTotal))
+    Allocate(configurationRefForceZ(1:configAtomsTotal))
 	
 !loop through configurations - estimate size of
 	configStart = 1
 	neighbourListCount = 0
+	atomCounter = 0
 	do i=1,configCount
 !set variables      
       alat = configHeaderR(i,1)
@@ -166,8 +294,9 @@ contains
 	  yCopy = configHeaderI(i,11)
 	  zCopy = configHeaderI(i,12)	
 !expand unit cell	    
-	  atoms = xCopy * yCopy * zCopy * configHeaderI(i,headerWidth)
-	  configAtoms(i) = atoms
+	  !atoms = xCopy * yCopy * zCopy * configHeaderI(i,headerWidth)
+	  !configAtoms(i) = atoms
+	  atoms = configAtoms(i)
 	  configAtomsUnitCell(i) = configHeaderI(i,headerWidth)
 !Allocate temp array
 	  if(Allocated(coordsITemp))then
@@ -187,6 +316,7 @@ contains
 	      do z=1,zCopy
 		    do n=coordsStart,(coordsStart+coordsLength-1)  
 			  m = m + 1
+			  atomCounter = atomCounter + 1
 			  coordsITemp(m) = configCoordsI(n)
 			  coordsRTemp(m,1) = alat * (x + configCoordsR(n,1) - 1)
 			  coordsRTemp(m,2) = alat * (y + configCoordsR(n,2) - 1)
@@ -195,6 +325,10 @@ contains
 	            write(10,"(I8,I8,I8,F8.4,F8.4,F8.4)") i,m,coordsITemp(m),&
 			    coordsRTemp(m,1),coordsRTemp(m,2),coordsRTemp(m,3)
 			  endif
+!store atom-force data
+              configurationRefForceX(atomCounter) = configForcesR(n,1)
+              configurationRefForceY(atomCounter) = configForcesR(n,2)
+              configurationRefForceZ(atomCounter) = configForcesR(n,3)
 			enddo
 		  enddo
 		enddo
@@ -462,6 +596,7 @@ contains
 	Implicit None	 
 !Internal subroutine variables
     Integer(kind=StandardInteger) :: i
+	Character(2) :: refForce
 !If master process
 	If(mpiProcessID.eq.0)Then
 !open output file	
@@ -472,9 +607,17 @@ contains
       write(999,"(A6,A25)") "      ","Summary of Configurations"
       write(999,"(A6,A40)") "      ","----------------------------------------"
       Do i=1,configCount
-        write(999,"(A6,A15,I8,A12,F14.6,A11,I8,A15,I8)") "      ",&
+	    If(configAtomsMap(i,4).eq.1)Then
+          refForce = "RF"
+        Else
+          refForce = "  "
+        End If		
+	  
+        write(999,"(A6,A15,I8,A12,F14.6,A11,I8,A15,I8,A3,I8,I8,A2,A2,A2,I8)") &
+		"      ",&
 	    "Configuration: ",i,"    Volume: ",configurationVolume(i),&
-	    "    Atoms: ",configAtoms(i),"    NL Length: ",neighbourListKey(i,2)
+	    "    Atoms: ",configAtoms(i),"    NL Length: ",neighbourListKey(i,2),"   ",&
+		configAtomsMap(i,1),configAtomsMap(i,2),"  ",refForce,"  ",configAtomsMap(i,21)
 	  End Do	
 !close the output file
       close(999) 	
@@ -749,27 +892,10 @@ contains
 !Internal subroutine variables
     Integer(kind=StandardInteger) :: i, totalAtoms   
 !Configuration Energies	
-!Allocate array
-	If(Allocated(configurationEnergy))Then
-	  Deallocate(configurationEnergy)
-	End If	  
-    Allocate(configurationEnergy(1:configCount))
-!zero out energies
-    Do i=1,configCount
-      configurationEnergy(i) = 0.0D0	
-	End Do
-!count total atoms	
-	configAtomsTotal = 0
-	Do i=1,configCount
-	  configAtomsTotal = configAtomsTotal + configAtoms(i)
-	End Do
+
+	
 !configuration atom forces 
-    If(calcForcesOnOff.eq.1)Then
-	  If(Allocated(configurationForces))Then
-	    Deallocate(configurationForces)
-	  End If
-      Allocate(configurationForces(1:configCount,1:configAtomsTotal))
-    End If
+    
 
     
   End Subroutine prepDataStore 

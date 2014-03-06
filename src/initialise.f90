@@ -14,6 +14,8 @@ Module initialise
   Real(kind=SingleReal) :: programStartTime
   Character(len=255) :: currentWorkingDirectory
   Character(len=255) :: outputFile
+  Character(len=255) :: outputFileEnergies
+  Character(len=255) :: outputFileForces
 
 !MPI Global Variables
   Integer(kind=StandardInteger) :: mpiProcessCount, mpiProcessID  
@@ -24,6 +26,8 @@ Module initialise
 !Variables
   Public :: programStartTime		!Variable
   Public :: outputFile      		!Variable
+  Public :: outputFileEnergies    	!Variable
+  Public :: outputFileForces    	!Variable
   Public :: currentWorkingDirectory	!Variable
   
 !MPI Variables  
@@ -86,6 +90,24 @@ contains
 	  write(999,"(A1)") " "
 !close output file
 	  close(999)
+	End If
+	!save output file name
+	outputFileForces = trim(currentWorkingDirectory)//"/"//"outputForces.dat"
+!Create output file
+    If(mpiProcessID.eq.0)Then
+	  open(unit=989,file=trim(outputFileForces))
+	  write(989,"(A38)") "======================================"
+	  write(989,"(A38)") "            Forces File               "
+	  write(989,"(A38)") "      University of Birmingham        "
+	  write(989,"(A38)") "             Ben Palmer               "
+	  write(989,"(A38)") "======================================"
+	  write(989,"(A1)") " "
+	  write(989,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+	  "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)	
+	  write(989,"(A1)") " "
+	  write(989,"(A1)") " "
+!close output file
+	  close(989)
 	End If
 	
   End Subroutine runInitialise

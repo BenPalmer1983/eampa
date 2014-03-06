@@ -5,6 +5,7 @@ Module input
   Use constants
   Use strings		!string functions
   Use maths
+  Use units
   Use initialise
 
 
@@ -25,6 +26,7 @@ Module input
   Real(kind=SingleReal), Dimension( : , : ), Allocatable :: configHeaderR
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configCoordsI
   Real(kind=SingleReal), Dimension( : , : ), Allocatable :: configCoordsR
+  Real(kind=SingleReal), Dimension( : , : ), Allocatable :: configForcesR
   Integer(kind=StandardInteger), Parameter :: headerWidth = 14 
   Integer(kind=StandardInteger) :: numberPotentials
   Integer(kind=StandardInteger) :: pairCount, densCount, dendCount, embeCount, embdCount
@@ -49,6 +51,7 @@ Module input
   Public :: configHeaderR             	!Variable
   Public :: configCoordsI          		!Variable
   Public :: configCoordsR             	!Variable
+  Public :: configForcesR             	!Variable
   Public :: headerWidth             	!Variable
   Public :: numberPotentials           	!Variable
   Public :: eamType           	        !Variable
@@ -86,6 +89,7 @@ contains
 	Call readUserInput()
 	Call readInputFile()
 	Call readEamPot()
+	Call readDFTFiles()
 	Call readConfiguration()
 		
 
@@ -245,9 +249,7 @@ contains
 		Else
 		  calcForcesOnOff = 0
 		End If
-	  endif
-	  
-	  
+	  endif  
     enddo
 !close file	
 	CLOSE(1) 
@@ -619,6 +621,131 @@ Open(UNIT=1,FILE=potentialFilePath)
 	
 	
 	
+!Read in configuration file
+  Subroutine readDFTFiles()
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
+	Integer(kind=StandardInteger) :: ios, i, j, k, fileRows
+	Character(len=255) :: filePath
+	
+!If 
+    filePath = "examples/pwscf/Al.1839.out"
+	Call readPWSCFFile(filePath)
+    filePath = "examples/pwscf/Al.1101.out"
+	Call readPWSCFFile(filePath)
+	
+	
+		
+  End Subroutine readDFTFiles
+  
+  
+  
+  
+  
+  
+  	
+!Read in configuration file
+  Subroutine readPWSCFFile(filePath)
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
+	Integer(kind=StandardInteger) :: ios, i, j, k, fileRows
+	Character(len=255) :: filePath
+	Character(len=255) :: fileLineBuffer
+	Character(len=255) :: tempBuffer, bufferA, bufferB, bufferC
+	Character(len=255) :: bufferD, bufferE, bufferF
+    Integer(kind=StandardInteger) :: readType, lastScf
+	Real(kind=DoubleReal) :: configTotalEnergy
+	Real(kind=DoubleReal), Dimension(1:3,1:3) :: stress
+	
+	print *,filePath
+  
+!set variables
+    readType = 0  
+  	
+!Check file type
+  	Open(UNIT=1,FILE=filePath) 
+    Do i=1,maxFileRows 
+!Read in line
+	  Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+	  If(fileLineBuffer(1:54).eq.&
+	  "     A final scf calculation at the relaxed structure.")Then
+	    readType = 1
+	  End If
+	  !Print *,fileLineBuffer
+!break out if end of file
+	  If (ios /= 0) then
+	    EXIT 
+	  End If
+	End Do
+!close file	
+	CLOSE(1)  
+	
+!Read in data
+	If(readType.eq.1)Then
+	  lastScf = 0
+	Else
+	  lastScf = 1
+	End If
+  	Open(UNIT=1,FILE=filePath) 
+    Do i=1,maxFileRows 
+!Read in line
+	  Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+	  If(fileLineBuffer(1:54).eq.&
+	  "     A final scf calculation at the relaxed structure.")Then
+	    lastScf = 1
+	  End If
+      If(lastScf.eq.1)Then
+!Total energy
+		If(fileLineBuffer(1:17).eq."!    total energy")Then
+		  tempBuffer = fileLineBuffer(34:100)
+		  read(tempBuffer,*) bufferA, bufferB
+		  read(bufferA,*) configTotalEnergy
+		  configTotalEnergy = UnitConvert(configTotalEnergy,"RY","EV")
+		End If
+!Stresses		
+		If(fileLineBuffer(1:38).eq."          total   stress  (Ry/bohr**3)")Then
+	      Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+		  read(fileLineBuffer,*) bufferA, bufferB, bufferC
+		  read(bufferA,*) stress(1,1)
+		  read(bufferB,*) stress(1,2)
+		  read(bufferC,*) stress(1,3)
+	      Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+		  read(fileLineBuffer,*) bufferA, bufferB, bufferC
+		  read(bufferA,*) stress(2,1)
+		  read(bufferB,*) stress(2,2)
+		  read(bufferC,*) stress(2,3)
+	      Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+		  read(fileLineBuffer,*) bufferA, bufferB, bufferC
+		  read(bufferA,*) stress(3,1)
+		  read(bufferB,*) stress(3,2)
+		  read(bufferC,*) stress(3,3)
+		End If
+	  End If
+!break out if end of file
+	  If (ios /= 0) then
+	    EXIT 
+	  End If
+	End Do
+!close file	
+	CLOSE(1) 
+	
+  
+
+  
+  
+		
+  End Subroutine readPWSCFFile
+  
+  
+  
+  
+  
+  
+  
 	
   
 !Read in configuration file
@@ -630,9 +757,11 @@ Open(UNIT=1,FILE=potentialFilePath)
 	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
 	Integer(kind=StandardInteger) :: ios, i, j, k, fileRows
 	Integer(kind=StandardInteger) :: configurationCount, atomCount
-	Integer(kind=StandardInteger) :: startConfig, configLength
+	Integer(kind=StandardInteger) :: startConfig, configLength, readForces
 	Character(len=32) :: buffera, bufferb, bufferc, bufferd
+	Character(len=32) :: buffere, bufferf, bufferg
 	Character(len=255) :: bufferLongA
+	Character(len=255) :: fileRowBuffer
 !open output file	
     If(mpiProcessID.eq.0)Then
 	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
@@ -676,14 +805,26 @@ Open(UNIT=1,FILE=potentialFilePath)
 	enddo
 !close file	
 	CLOSE(1) 
-
 !allocate arrays
     configCount = configurationCount
 	Allocate(configHeaderI(1:configurationCount,1:headerWidth))
 	Allocate(configHeaderR(1:configurationCount,1:2))
 	Allocate(configCoordsI(1:atomCount))
 	Allocate(configCoordsR(1:atomCount,1:3))
-	
+	Allocate(configForcesR(1:atomCount,1:4))
+!Initialise arrays
+	Do i=1,atomCount
+	  configCoordsI(i) = 0
+	  configCoordsR(i,1) = 0.0E0
+	  configCoordsR(i,2) = 0.0E0
+	  configCoordsR(i,3) = 0.0E0
+	  configForcesR(i,1) = 0.0E0
+	  configForcesR(i,2) = 0.0E0
+	  configForcesR(i,3) = 0.0E0
+	  configForcesR(i,4) = -1.0E0
+	End Do	
+!Defaults	
+	readForces = 0
 !Load Data
     configurationCount = 0
 	atomCount = 0
@@ -695,6 +836,8 @@ Open(UNIT=1,FILE=potentialFilePath)
 	  Read(1,*,IOSTAT=ios) buffera
 !Check for the header of a configuration
       if(StrToUpper(buffera(1:4)).eq."#NEW")then
+!Set defaults for new configuration
+	readForces = 0
 !count new configuration, adjust startConfig, reset configLength
 		configurationCount = configurationCount + 1	
 		startConfig = startConfig + configLength
@@ -710,6 +853,15 @@ Open(UNIT=1,FILE=potentialFilePath)
 		Backspace(1)		
 	    Read(1,*,IOSTAT=ios) buffera, bufferb
 		Read(bufferb,*) configHeaderR(configurationCount,1)
+	  endif
+	  if(StrToUpper(buffera(1:2)).eq."#F")then     !Read forces
+!re-read row
+		Backspace(1)		
+	    Read(1,*,IOSTAT=ios) buffera, bufferb
+		bufferb = StrToUpper(bufferb)
+		If(bufferb(1:1).eq."Y")Then
+		  readForces = 1
+		End If
 	  endif
 	  if(StrToUpper(buffera(1:2)).eq."#X")then     !x unit vector
 !re-read row
@@ -754,11 +906,30 @@ Open(UNIT=1,FILE=potentialFilePath)
 		configLength = configLength + 1
 !re-read row
 		Backspace(1)
-	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd		
-		configCoordsI(atomCount) = QueryUniqueElement(buffera)
-		Read(bufferb,*) configCoordsR(atomCount,1)
-		Read(bufferc,*) configCoordsR(atomCount,2)
-		Read(bufferd,*) configCoordsR(atomCount,3)
+		If(readForces.eq.0)Then	
+		  Read(1,"(A255)",IOSTAT=ios) fileRowBuffer
+		  Read(fileRowBuffer,*) buffera, bufferb, bufferc, bufferd
+		  configCoordsI(atomCount) = QueryUniqueElement(buffera)
+		  Read(bufferb,*) configCoordsR(atomCount,1)
+		  Read(bufferc,*) configCoordsR(atomCount,2)
+		  Read(bufferd,*) configCoordsR(atomCount,3)
+		End If
+		If(readForces.eq.1)Then	
+		  !Read(1,"(A255)",IOSTAT=ios) fileRowBuffer
+		  !Read(fileRowBuffer,*) buffera, bufferb, bufferc, bufferd,&
+		  !buffere, bufferf, bufferg
+		  Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd,&
+		  buffere, bufferf, bufferg
+		  configCoordsI(atomCount) = QueryUniqueElement(buffera)
+		  Read(bufferb,*) configCoordsR(atomCount,1)
+		  Read(bufferc,*) configCoordsR(atomCount,2)
+		  Read(bufferd,*) configCoordsR(atomCount,3)
+		  !print *,buffere,bufferf,bufferg
+		  Read(buffere,*) configForcesR(atomCount,1)
+	      Read(bufferf,*) configForcesR(atomCount,2)
+	      Read(bufferg,*) configForcesR(atomCount,3)
+	      configForcesR(atomCount,4) = 1.0E0
+		End If
 	  endif
 	enddo
 !close file	

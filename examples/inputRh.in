@@ -1,9 +1,9 @@
 #potential
-"examples/sheng_al_eam.pot"
+"examples/sheng_rh_eam.pot"
+#pottype
+normal
 #configurations
-"examples/atomsAl.conf"
-#datadir
-"examples"
+"examples/atomsRh.conf"
 #savecoords
 no
 #saveneighbourlist

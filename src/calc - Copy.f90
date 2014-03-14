@@ -111,9 +111,6 @@ contains
         configurationForceZ(i) = 0.0D0	
 	  End Do
 	End If  
-	Do i=1,size(neighbourListR,1)
-	  !print *,i,neighbourListR(i)
-	End Do
 !-----------------------------------------------------
 ! Split over MPI processes and calc energies, forces
 !-----------------------------------------------------
@@ -554,17 +551,17 @@ Subroutine calcBulkModulus()
 	  If(Allocated(atomForceComponent))Then
 	    Deallocate(atomForceComponent)
 	  End If
-	  Allocate(atomForceComponent(1:configLength,1:3))
+	  Allocate(atomForceComponent(1:atoms,1:3))
 	End If
 !configurationForceMPIKey(i,1)
 !zero density and atomForce
-    Do j=1,atoms
+    do j=1,atoms
 	  density(j) = 0.0D0 	  
 	  If(calcForcesOnOff.eq.1)Then 
 	    atomForce(j) = 0.0D0
 	    embeddingGrad(j) = 0.0D0
 	  End If	
-	End Do
+	enddo
 !pair energy contribution and density calculation
 	pairEnergy = 0.0D0
 	pairEnergyDifferential = 0.0D0
@@ -585,11 +582,19 @@ Subroutine calcBulkModulus()
 	  density(atomI) = density(atomI) + yArrayP(1)
 	  If(calcForcesOnOff.eq.1)Then	  
 !Add pair potential to each force component
-        atomForceComponent(k,1) = 1.0D0*yArrayV(2)*neighbourListCoords(j,10)
-        atomForceComponent(k,2) = 1.0D0*yArrayV(2)*neighbourListCoords(j,11)
-        atomForceComponent(k,3) = 1.0D0*yArrayV(2)*neighbourListCoords(j,12)
-!Store density gradient for atom i-j pair
-		densityGrad(k) = yArrayP(2)
+        atomForceComponent(k,1) = 1.0D0*yArrayP(2)*neighbourListCoords(j,10)
+        atomForceComponent(k,2) = 1.0D0*yArrayP(2)*neighbourListCoords(j,11)
+        atomForceComponent(k,3) = 1.0D0*yArrayP(2)*neighbourListCoords(j,12)
+
+
+		!forceKey = configAtomsStart(configurationID)+atomI
+		!configurationForceX(forceKey) = 1.0D0*configurationForceX(forceKey)-&
+		!    1.0D0*yArrayP(2)*neighbourListCoords(j,10)
+		!configurationForceY(forceKey) = 1.0D0*configurationForceY(forceKey)-&
+		!    1.0D0*yArrayP(2)*neighbourListCoords(j,11)
+		!configurationForceZ(forceKey) = 1.0D0*configurationForceZ(forceKey)-&
+		!    1.0D0*yArrayP(2)*neighbourListCoords(j,12)	
+		!densityGrad(k) = yArrayP(2)
 	  End If
 	End Do	
 	pairEnergy = 0.5D0 * pairEnergy
@@ -614,14 +619,25 @@ Subroutine calcBulkModulus()
 		atomJ = neighbourListI(j,4)
 		yArrayEi = SearchPotentialPoint(atomIType,0,3,density(atomI))
 		yArrayEj = SearchPotentialPoint(atomJType,0,3,density(atomJ))
-		embedForce = 1.0D0*(yArrayEj(2)-yArrayEi(2))*densityGrad(k)
+		embedForce = 1.0D0*(yArrayEi(2)+yArrayEj(2))*densityGrad(k)
+		
 !Add embedding potential to each force component
         atomForceComponent(k,1) = atomForceComponent(k,1) + &
-		    1.0D0*embedForce*neighbourListCoords(j,10)
+		    1.0D0*yArrayP(2)*neighbourListCoords(j,10)
         atomForceComponent(k,2) = atomForceComponent(k,2) + &
-		    1.0D0*embedForce*neighbourListCoords(j,11)
+		    1.0D0*yArrayP(2)*neighbourListCoords(j,11)
 		atomForceComponent(k,3) = atomForceComponent(k,3) + &
-		    1.0D0*embedForce*neighbourListCoords(j,12)
+		    1.0D0*yArrayP(2)*neighbourListCoords(j,12)
+		
+!store embedding energy contribution to force
+	    !forceKey = configAtomsStart(configurationID)+atomI
+		!configurationForceX(forceKey) = configurationForceX(forceKey) - &
+		!  embedForce*neighbourListCoords(j,10)
+		!configurationForceY(forceKey) = configurationForceY(forceKey) - &
+		!  embedForce*neighbourListCoords(j,11)
+		!configurationForceZ(forceKey) = configurationForceZ(forceKey) - &
+		!  embedForce*neighbourListCoords(j,12)	
+		
 !sum up forces by atom
         forceKey = configAtomsStart(configurationID)+atomI
 		configurationForceX(forceKey) = configurationForceX(forceKey) + &
@@ -630,42 +646,55 @@ Subroutine calcBulkModulus()
 		atomForceComponent(k,2)
 		configurationForceZ(forceKey) = configurationForceZ(forceKey) + &
 		atomForceComponent(k,3)
-!calculate stress
-		!If(calcStressOnOff.eq.1)Then
-		  !Do ii=1,3
-	      !  Do jj=1,3
-	      !    n = ((configurationID-1)*9)+3*(ii-1)+jj
-	!		  configurationStress(n) = configurationStress(n)+&
-	!		  neighbourListCoords(j,6+ii)*atomForceComponent(k,jj)
-	!		End Do  
-	!	  End Do  
-	!	End If		
+		
+		If(calcStressOnOff.eq.1)Then
+		  Do ii=1,3
+	        Do jj=1,3
+	          n = ((configurationID-1)*9)+3*(ii-1)+jj
+			  configurationStress(n) = configurationStress(n)+&
+			  neighbourListCoords(j,6+ii)*atomForceComponent(k,jj)
+			End Do  
+		  End Do  
+		End If		
 	  End Do
 	End If	
-!calculate stress	
-    If(calcStressOnOff.eq.1)Then
-	  k = 0
-	  Do j=configStart,configStart+configLength-1 
-	    k = k + 1
-		Do ii=1,3
-	      Do jj=1,3
-	        n = ((configurationID-1)*9)+3*(ii-1)+jj
-			configurationStress(n) = configurationStress(n)+&
-			neighbourListCoords(j,6+ii)*atomForceComponent(k,jj)
-		  End Do  
-		End Do 
-	  End Do	
-	End If
 !total energy of configuration
     energy = pairEnergy + embeddingEnergy   
-!Convert stress to GPa
-	If(calcStressOnOff.eq.1)Then
+
+	!If stress is to be calculated
+	If(calcStressOnOff.eq.7)Then
+	  Do ii=1,3
+	    Do jj=1,3
+	      n = ((configurationID-1)*9)+3*(ii-1)+jj
+		  If(jj.eq.1)Then !X component of force
+	        Do j=configStart,configStart+configLength-1 
+		      forceKey = configAtomsStart(configurationID)+neighbourListI(j,3)
+		      configurationStress(n) = configurationStress(n)+&
+		      neighbourListCoords(j,6+ii)*configurationForceX(forceKey)	
+		    End Do
+		  End If	
+		  If(jj.eq.2)Then !Y component of force
+	        Do j=configStart,configStart+configLength-1 
+		      forceKey = configAtomsStart(configurationID)+neighbourListI(j,3)
+		      configurationStress(n) = configurationStress(n)+&
+		      neighbourListCoords(j,6+ii)*configurationForceY(forceKey)
+		    End Do
+		  End If	
+		  If(jj.eq.3)Then !Z component of force
+	        Do j=configStart,configStart+configLength-1 
+		      forceKey = configAtomsStart(configurationID)+neighbourListI(j,3)
+		      configurationStress(n) = configurationStress(n)+&
+		      neighbourListCoords(j,6+ii)*configurationForceZ(forceKey)
+		    End Do
+		  End If
+		End Do  
+      End Do	
       Do ii=1,3
 	    Do jj=1,3
-          n = ((configurationID-1)*9)+3*(ii-1)+jj
+		  n = ((configurationID-1)*9)+3*(ii-1)+jj
           configurationStress(n) = UnitConvert(configurationStress(n),"EVAN3","GPA")
           configurationStress(n) = &
-	      (1.0D0/(2.0D0*configurationVolume(configurationID))) * configurationStress(n)
+		    (1.0D0/(2.0D0*configurationVolume(configurationID))) * configurationStress(n)
         End Do
       End Do		
 	End If

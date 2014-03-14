@@ -183,7 +183,7 @@ End Function NormaliseDensity
 !-------------------------
 
 !Stresses - input factor - convert to Pa
-    If(inputUnit(1:6).eq."RYBOHR")Then
+    If(inputUnit(1:6).eq."RYBOH3")Then
 	  factorInput = 1.471050658D13
 	End If
     If(inputUnit(1:4).eq."PA  ")Then
@@ -192,15 +192,49 @@ End Function NormaliseDensity
     If(inputUnit(1:4).eq."GPA ")Then
 	  factorInput = 1.0D9
 	End If
+    If(inputUnit(1:5).eq."EVAN3")Then
+	  factorInput = 1.602176568D11
+	End If
  !Stresses - output factor - convert from Pa
-    If(outputUnit(1:6).eq."RYBOHR")Then
+    If(outputUnit(1:6).eq."RYBOH3")Then
 	  factorOutput = 1.0D0/1.471050658D13
 	End If
-    If(inputUnit(1:4).eq."PA  ")Then
+    If(outputUnit(1:4).eq."PA  ")Then
 	  factorOutput = 1.0D0
 	End If
-    If(inputUnit(1:4).eq."GPA ")Then
+    If(outputUnit(1:4).eq."GPA ")Then
 	  factorOutput = 1.0D-9
+	End If
+    If(outputUnit(1:5).eq."EVAN3")Then
+	  factorOutput = 1.0D0/1.602176568D-11
+	End If
+ 
+ 
+ 
+  
+!-------------------------
+! Forces
+!-------------------------
+
+!Forces - input factor - convert to N
+    If(inputUnit(1:6).eq."RYBOHR")Then
+	  factorInput = 4.11936139295036D-8
+	End If
+    If(inputUnit(1:4).eq."N   ")Then
+	  factorInput = 1.602176568D-9
+	End If
+    If(inputUnit(1:5).eq."EVANG")Then
+	  factorInput = 1.602176568D-9
+	End If
+ !Stresses - output factor - convert from Pa
+    If(outputUnit(1:6).eq."RYBOHR")Then
+	  factorOutput = 1.0D0/4.11936139295036D-8
+	End If
+    If(outputUnit(1:4).eq."N   ")Then
+	  factorOutput = 1.0D0
+	End If
+    If(outputUnit(1:5).eq."EVANG")Then
+	  factorOutput = 1.0D0/1.602176568D-9
 	End If
  
  

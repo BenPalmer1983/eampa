@@ -6,7 +6,7 @@ Module maths
 !--------------------------------------------------------------!
 
 !----------------------------------------
-! Updated: 26th February 2014
+! Updated: 10th March 2014
 !----------------------------------------
 
 
@@ -38,8 +38,12 @@ Module maths
 ! Laplace Transforms  
   Public :: GaverStehfestCoeffs
 ! Decay Equations    
-  Public :: CalcIsotopeAmount
+  Public :: CalcIsotopeAmount  
+! Rounding functions
+  Public :: Ceil     
 ! Useful Miscellaneous Functions
+  
+
   
   
 Contains
@@ -536,18 +540,137 @@ Contains
   
   
   
-  Function PointInterpolation(inputPoints,x) RESULT (y) 
+  Function PointInterpolation(inputPoints,x,subsetSizeIn,orderDataIn) RESULT (y) 
 !Lagrange Formula Point Interpolation, returns y
 !force declaration of all variables
 	Implicit None
 !declare variables
-    Integer(kind=StandardInteger) :: n,k
+    Integer(kind=StandardInteger) :: i,n,k
 	Integer(kind=StandardInteger) :: order
     Real(kind=DoubleReal) :: x,y,numerator,denominator
     Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: inputPoints
+    Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: inputPointsSubset
     Real(kind=DoubleReal), Dimension( : ), Allocatable :: coefficients
+!Optional vars
+	Integer(kind=StandardInteger), optional :: subsetSizeIn
+	Character(3), optional :: orderDataIn
+!Sort vars
+	Character(3) :: orderData
+	Real(kind=DoubleReal) :: sortXA, sortXB, sortYA, sortYB
+	Logical :: sorting
+!Subset vars	
+	Integer(kind=StandardInteger) :: subsetSize, dataSize, xPos, posOffset
+	Real(kind=DoubleReal) :: xLower, xUpper
+!Set variables	
+	dataSize = size(inputPoints,1)
+!Order data - don't do by default as it takes time
+    If(present(orderDataIn))Then
+	  orderData = orderDataIn
+	  If(StrToUpper(orderData(1:3)).eq."ASC")Then
+	    sorting = .true.
+		Do While(sorting.eqv..true.)
+		  sorting = .false.
+	      Do i=1,(dataSize-1)
+		    If(inputPoints(i,1).gt.inputPoints(i+1,1))Then			  
+			  sorting = .true.
+			  sortXA = inputPoints(i,1)
+			  sortXB = inputPoints(i+1,1)
+			  sortYA = inputPoints(i,2)
+			  sortYB = inputPoints(i+1,2)
+			  inputPoints(i,1) = sortXB
+			  inputPoints(i+1,1) = sortXA
+			  inputPoints(i,2) = sortYB
+			  inputPoints(i+1,2) = sortYA
+			End If
+		  End Do
+		End Do
+	  End If
+	  If(StrToUpper(orderData(1:3)).eq."DES")Then
+	    sorting = .true.
+		Do While(sorting.eqv..true.)
+		  sorting = .false.
+	      Do i=1,(dataSize-1)
+		    If(inputPoints(i,1).lt.inputPoints(i+1,1))Then			  
+			  sorting = .true.
+			  sortXA = inputPoints(i,1)
+			  sortXB = inputPoints(i+1,1)
+			  sortYA = inputPoints(i,2)
+			  sortYB = inputPoints(i+1,2)
+			  inputPoints(i,1) = sortXB
+			  inputPoints(i+1,1) = sortXA
+			  inputPoints(i,2) = sortYB
+			  inputPoints(i+1,2) = sortYA
+			End If
+		  End Do
+		End Do
+	  End If
+	End If
+!If interpolating a subset of inputPoints, make the subset
+	If(present(subsetSizeIn))Then
+	  subsetSize = subsetSizeIn
+!Check size
+	  If(subsetSize.lt.2)Then
+	    subsetSize = 2
+	  End If
+	  If(subsetSize.gt.size(inputPoints,1))Then
+	    subsetSize = size(inputPoints,1)
+	  End If	  
+!reduce set of data points
+      xLower = inputPoints(1,1)
+	  xUpper = inputPoints(dataSize,1)
+	  If(x.lt.xLower)Then
+	    xPos = 1
+	  Elseif(x.gt.dataSize)Then
+	    xPos = dataSize
+	  Else
+!Estimate position
+		xPos = Floor(((x - xLower) / (xUpper - xLower)) * 1.0D0 * dataSize) + 1
+		xLower = inputPoints(xPos,1)
+		xUpper = inputPoints(xPos+1,1)
+		If(x.ge.xLower.and.x.le.xUpper)Then
+!Position found  
+		Else
+!Find position	
+		  Do i=1,dataSize
+		    xLower = inputPoints(xPos+i,1)
+		    xUpper = inputPoints(xPos+i+1,1)
+		    If((xPos+i+1).eq.dataSize.or.(x.ge.xLower.and.x.le.xUpper))Then
+			  xPos = xPos + i
+			  Exit
+			End If
+		    xLower = inputPoints(xPos-i,1)
+		    xUpper = inputPoints(xPos-i+1,1)
+		    If((xPos-i).eq.1.or.(x.ge.xLower.and.x.le.xUpper))Then
+			  xPos = xPos-i
+			  Exit
+			End If		  
+		  End Do
+!Set offset
+          posOffset = -1*floor(subsetSize/2.0D0)
+		  If((xPos+posOffset).lt.1)Then
+		    posOffset = 0  
+		  End If
+		  If((xPos-posOffset).gt.dataSize)Then
+		    posOffset = -1*subsetSize  
+		  End If
+!Allocate temporary array
+          Allocate(inputPointsSubset(1:subsetSize,1:2))
+		  Do i=1,subsetSize
+		    inputPointsSubset(i,1) = inputPoints(xPos+posOffset+i-1,1)
+		    inputPointsSubset(i,2) = inputPoints(xPos+posOffset+i-1,2)
+		  End Do
+          Deallocate(inputPoints)
+          Allocate(inputPoints(1:subsetSize,1:2))
+		  Do i=1,subsetSize
+		    inputPoints(i,1) = inputPointsSubset(i,1)
+		    inputPoints(i,2) = inputPointsSubset(i,2)
+		  End Do
+		  dataSize = subsetSize		  
+		End If
+	  End If
+	End If
 !set variables
-    order = size(inputPoints,1)-1
+    order = dataSize-1
 !Allocate coefficients array	
 	Allocate(coefficients(0:order))
 !make coefficients for Lagrange's formula	
@@ -1706,6 +1829,28 @@ Contains
 	  isotopeChange(i,2) = isotopeChange(i,4) - isotopeChange(i,3)
 	End Do
   End Function CalcIsotopeAmount  
+    
+  
+  
+  
+  
+!------------------------------------------------------------------------!
+! Rounding Functions
+!------------------------------------------------------------------------! 
+  
+  
+  Function Ceil (input) RESULT (output)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Integer(kind=StandardInteger) :: tempInt, output
+	Real(kind=DoubleReal) :: input
+    output = input
+	If(input.gt.(1.0D0*output))Then
+	  output = output + 1
+	End If
+  End Function Ceil 
+  
   
   
   
@@ -1764,6 +1909,40 @@ Contains
 	  End Do	
 	End Do  
   End Function ArraySize2DDouble 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+!------------------------------------------------------------------------!
+! Closed scope string functions
+!------------------------------------------------------------------------! 
+  
+  Function StrToUpper (input) RESULT (output)
+    ! -- Argument and result
+    CHARACTER(*), INTENT(IN) :: input
+    CHARACTER(LEN(input)) :: output
+	character( * ), PARAMETER :: LOWER_CASE = 'abcdefghijklmnopqrstuvwxyz'
+    character( * ), PARAMETER :: UPPER_CASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 
+    ! -- Local variables
+    Integer(kind=StandardInteger) :: i, n
+    ! -- Copy input string
+    output = input
+    ! -- Loop over string elements
+    Do i=1,LEN(output)
+      n = INDEX( LOWER_CASE, output( i:i ) )
+      If (n/=0) output( i:i ) = UPPER_CASE( n:n )
+    End Do
+  End Function StrToUpper 
+  
   
   
   

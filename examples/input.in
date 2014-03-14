@@ -18,3 +18,10 @@ energy
 FOURPOINT
 #calcforces
 yes
+#calcstress
+yes
+#dftin-rc
+6.5
+#dftin-replacesym
+1
+N Al

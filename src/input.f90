@@ -11,10 +11,13 @@ Module input
 
 !force declaration of all variables
   Implicit None
+!Include MPI header
+  Include 'mpif.h'  
   
 !declare global variables  
   Character(len=255)  :: inputFileName
   Character(len=255)  :: potentialFilePath
+  Character(len=255)  :: potentialFilePathTemp
   Character(len=255)  :: configurationsFilePath
   Character(len=2), Dimension( : ), Allocatable :: elements
   Integer(kind=StandardInteger) :: elementCount
@@ -33,17 +36,28 @@ Module input
   Character(len=1) :: saveFileCoords
   Character(len=1) :: saveFileNeighbourList
   Character(len=1) :: saveFilePot
+  Integer(kind=StandardInteger) :: potType
   Integer(kind=StandardInteger) :: calcRunType
   Integer(kind=StandardInteger) :: configCount
   Integer(kind=StandardInteger) :: eamInterpType
   Integer(kind=StandardInteger) :: calcForcesOnOff
-  
+  Integer(kind=StandardInteger) :: calcStressOnOff
+  Real(kind=SingleReal) :: dftInRadiusCutoff
+  Character(len=3), Dimension( : , : ), Allocatable :: dftInReplaceSym
+  Real(kind=SingleReal) :: dftInOptEnergy
+  Real(kind=SingleReal) :: dftInCohEnergy
+!Isotope/Element Arrays
+  Character(len=2), Dimension( : ), Allocatable :: isotopesChar
+  Integer, Dimension( : , : ), Allocatable :: isotopesInt
+  Real, Dimension( : , : ), Allocatable :: isotopesReal
+  Character(len=2), Dimension( : ), Allocatable :: elementSymbol
   
 !Privacy of functions/subroutines/variables
   Private
   Public :: runInput				    !Subroutine  
   Public :: inputFileName			    !Variable
   Public :: potentialFilePath			!Variable
+  Public :: potentialFilePathTemp	    !Variable
   Public :: configurationsFilePath		!Variable
   Public :: elements             		!Variable
   Public :: unitVector           		!Variable
@@ -55,6 +69,7 @@ Module input
   Public :: headerWidth             	!Variable
   Public :: numberPotentials           	!Variable
   Public :: eamType           	        !Variable
+  Public :: potType
   Public :: pairCount           	    !Variable
   Public :: densCount           	    !Variable
   Public :: dendCount           	    !Variable
@@ -70,6 +85,16 @@ Module input
   Public :: calcRunType                 !Variable
   Public :: eamInterpType               !Variable
   Public :: calcForcesOnOff             !Variable
+  Public :: calcStressOnOff
+  Public :: dftInRadiusCutoff           !Variable
+  Public :: dftInReplaceSym             !Variable
+  Public :: dftInOptEnergy
+  Public :: dftInCohEnergy
+  Public :: elementSymbol
+  Public :: isotopesChar			!Variable
+  Public :: isotopesInt  			!Variable
+  Public :: isotopesReal			!Variable
+  
 
 !------------------------------------------------------------------------!
 !                                                                        !
@@ -87,9 +112,21 @@ contains
 	!Internal subroutine variables
 	Integer(kind=StandardInteger) :: i, j, k
 	Call readUserInput()
+	Call readIsotopeData()
 	Call readInputFile()
+	If(mpiProcessID.eq.0)Then
+	  Call readEamPotPrep()
+	End If  
+	Call synchMpiProcesses()
 	Call readEamPot()
-	Call readDFTFiles()
+	If(mpiProcessID.eq.0)Then
+	  Call copyConfigFile()
+	End If  
+	Call synchMpiProcesses()
+	If(mpiProcessID.eq.0)Then
+	  Call readDFTFiles()
+	End If
+	Call synchMpiProcesses()
 	Call readConfiguration()
 		
 
@@ -108,6 +145,140 @@ contains
   End Subroutine readUserInput
   
   
+!Read in any data files (isotope data etc)
+  
+!read in isotope data  
+  Subroutine readIsotopeData()
+!force declaration of all variables
+	Implicit None	
+!declare variables
+	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
+	Integer(kind=StandardInteger) :: ios, i, j, k, isotopeCounter, fileRows
+	Integer(kind=StandardInteger) :: maxZ
+	Character(len=25) :: buffera, bufferb, bufferc, bufferd, buffere, bufferf
+	Character(len=255) :: bufferLong
+	Character(len=255) :: dataFilesDir,dataFilesFile
+!set default variables	
+	dataFilesDir = "data"
+!open output file
+	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
+!write to output file
+    write(999,"(A36,F8.4)") "Read Isotope Data                   ",ProgramTime()	 
+!read isotope file path from input file
+    Open(UNIT=1,FILE=inputFileName) 
+    Do i=1,maxFileRows 
+	  !Read in line
+	  Read(1,"(A255)",IOSTAT=ios) bufferLong
+	  !break out
+	  if (ios /= 0) then
+	    EXIT 
+	  end if 
+	  if(bufferLong(1:8).eq."#datadir")then
+	    Read(1,*,IOSTAT=ios) bufferLong
+	    dataFilesDir = TrimSpaces(bufferLong)
+	  endif	  
+    enddo
+	CLOSE(1) !close file
+!make file name/path	
+    dataFilesFile = Trim(dataFilesDir)//"/"//"isotopes.dat"
+!count isotopes
+	isotopeCounter = 0
+	fileRows = 0
+	Open(UNIT=1,FILE=dataFilesFile) 
+    do i=1,maxFileRows 
+	  !Read in line
+	  Read(1,*,IOSTAT=ios) buffera, bufferb
+	  !break out
+	  if (ios /= 0) then
+	    EXIT 
+	  end if
+	  fileRows = fileRows + 1
+	  if(buffera(1:6).eq."Atomic".and.bufferb(1:6).eq."Number")then
+		isotopeCounter = isotopeCounter + 1
+	  endif	  
+    enddo
+	CLOSE(1) !close file	
+!Allocate Arrays
+    Allocate(isotopesChar(1:isotopeCounter))
+    Allocate(isotopesInt(1:isotopeCounter,1:10))
+    Allocate(isotopesReal(1:isotopeCounter,1:10))
+!Read in data
+	isotopeCounter = 0
+	Open(UNIT=1,FILE=dataFilesFile) 
+	maxZ = 0
+    do i=1,fileRows 
+	  !Read in line
+	  Read(1,*,IOSTAT=ios) buffera, bufferb
+	  !break out
+	  if (ios /= 0) then
+	    EXIT 
+	  end if
+	  if(buffera(1:6).eq."Atomic".and.bufferb(1:6).eq."Number")then
+		isotopeCounter = isotopeCounter + 1
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd
+		read(bufferd,*) isotopesInt(isotopeCounter,1) 		
+		if(isotopesInt(isotopeCounter,1).gt.maxZ)then
+		  maxZ = isotopesInt(isotopeCounter,1)
+		endif
+	  endif	  
+	  if(buffera(1:6).eq."Atomic".and.bufferb(1:6).eq."Symbol")then
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd
+		isotopesChar(isotopeCounter) = StrToUpper(bufferd(1:2))		
+	  endif	 
+	  if(buffera(1:4).eq."Mass".and.bufferb(1:6).eq."Number")then
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd
+		read(bufferd,*) isotopesInt(isotopeCounter,2) 		
+	  endif	  
+	  if(buffera(1:8).eq."Relative".and.bufferb(1:6).eq."Atomic")then
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd, buffere
+		buffere = NumericOnly(buffere)
+		if(buffere(1:5).eq."     ")then
+		  isotopesReal(isotopeCounter,1) = 1.0 * isotopesInt(isotopeCounter,2)
+		else
+		  read(buffere,*) isotopesReal(isotopeCounter,1) 		
+		endif
+	  endif	  
+	  if(buffera(1:8).eq."Isotopic".and.bufferb(1:11).eq."Composition")then
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd
+		bufferd = NumericOnly(bufferd)
+		if(bufferd(1:5).eq."     ")then
+		  isotopesReal(isotopeCounter,2) = 0.0
+		else
+		  read(bufferd,*) isotopesReal(isotopeCounter,2) 		
+		endif
+	  endif	
+    enddo
+	CLOSE(1) !close file	
+!make element array
+    Allocate(elementSymbol(0:maxZ))	
+!store Z and element symbol
+    elementSymbol(0) = "NN" !Neutron
+    do i=1,size(isotopesInt,1)
+	  elementSymbol(isotopesInt(i,1)) = isotopesChar(i)
+	enddo
+!close output file
+    close(999) 
+  End Subroutine readIsotopeData  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
 !read in input file
@@ -117,8 +288,12 @@ contains
 !declare private variables
 	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
 	Integer(kind=StandardInteger) :: ios, i, j, k, elementCounter, headerRow
+	Integer(kind=StandardInteger) :: replaceSymCount
+	Character(len=3) :: bufferShortA, bufferShortB
 	Character(len=32) :: buffera, bufferb, bufferc, bufferd
 	Character(len=255) :: bufferLongA
+	Integer(kind=StandardInteger) :: bufferIA
+	Real(kind=DoubleReal) :: bufferDA
 	
 !open output file	
 	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
@@ -129,8 +304,11 @@ contains
 	  "Reading user input file ",inputFileName
 	End If
 	
-!set defaults, overridden by user input
+!Allocate arrays	
 	Allocate(unitVector(1:3,1:3))
+	Allocate(dftInReplaceSym(1:20,1:2))
+	
+!set defaults, overridden by user input
 	unitVector(1,1) = 1			!x1
 	unitVector(2,1) = 0			!x2
 	unitVector(3,1) = 0			!x3
@@ -140,9 +318,16 @@ contains
 	unitVector(1,3) = 0			!z1
 	unitVector(2,3) = 0			!z2
 	unitVector(3,3) = 1			!z3
+	potType = 1
 	eamInterpType = 1
 	calcRunType = 1
 	calcForcesOnOff = 1
+	dftInRadiusCutoff = 6.5
+	Do i=1,size(dftInReplaceSym,1)
+	  Do j=1,size(dftInReplaceSym,2)
+	    dftInReplaceSym(i,j) = "   "
+	  End Do
+	End Do
 	
 !open & read in file	
   	Open(UNIT=1,FILE=inputFileName) 
@@ -156,6 +341,17 @@ contains
 	  if(buffera(1:10).eq."#potential")then
 !read next line
 	    Read(1,*,IOSTAT=ios) potentialFilePath
+	  endif
+	  if(buffera(1:8).eq."#pottype")then
+!read next line
+	    Read(1,*,IOSTAT=ios) bufferb
+		If(StrToUpper(bufferb(1:6)).eq."NORMAL")Then
+		  potType = 1
+		End If
+		If(StrToUpper(bufferb(1:6)).eq."LAMMPS")Then
+		  potType = 2
+		End If
+		
 	  endif
 	  if(buffera(1:15).eq."#configurations")then
 !read next line
@@ -237,20 +433,62 @@ contains
 		  eamInterpType = 4
 		endif
 	  endif
-	  
-	  
+	  	  
 !Calc Forces
-	  if(buffera(1:11).eq."#calcforces")then
+	  If(buffera(1:11).eq."#calcforces")then
 !read next line
 	    Read(1,*,IOSTAT=ios) buffera
 		buffera = StrToUpper(buffera)	  
-		If(buffera(1:1).eq."Y")Then
+		If(buffera(1:1).eq."Y".or.buffera(1:1).eq."1")Then
 	      calcForcesOnOff = 1
 		Else
 		  calcForcesOnOff = 0
 		End If
-	  endif  
-    enddo
+	  End If 
+	  
+!Calc Stress
+	  If(buffera(1:11).eq."#calcstress")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera
+		buffera = StrToUpper(buffera)	  
+		If(buffera(1:1).eq."Y".or.buffera(1:1).eq."1")Then
+	      calcStressOnOff = 1
+		Else
+		  calcStressOnOff = 0
+		End If
+	  End If 
+	  
+	  
+!Dft Input Settings
+	  If(buffera(1:9).eq."#dftin-rc")then
+	    Read(1,*,IOSTAT=ios) buffera
+	    Read(buffera,*) dftInRadiusCutoff
+	  End If
+	  If(buffera(1:17).eq."#dftin-replacesym")then
+	    Read(1,*,IOSTAT=ios) buffera
+		Read(buffera,*) replaceSymCount
+		Do j=1,replaceSymCount
+	      Read(1,*,IOSTAT=ios) bufferShortA, bufferShortB
+          dftInReplaceSym(j,1) = TrimSpaces(bufferShortA)
+          dftInReplaceSym(j,2) = TrimSpaces(bufferShortB)
+		End Do  
+	  End If
+	  If(buffera(1:16).eq."#dftin-optenergy")then
+	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc
+	    Read(buffera,*) bufferDA
+	    Read(bufferc,*) bufferIA
+		dftInOptEnergy = UnitConvert(bufferDA,TrimSpaces(bufferb),"EV")
+		dftInOptEnergy = dftInOptEnergy / (1.0D0 * bufferIA)
+	  End If
+	  If(buffera(1:16).eq."#dftin-cohenergy")then
+	    Read(1,*,IOSTAT=ios) buffera, bufferb
+	    Read(buffera,*) bufferDA
+		dftInCohEnergy = UnitConvert(bufferDA,TrimSpaces(bufferb),"EV")
+	  End If
+	  
+	  !dftInOptEnergy
+	  
+    End Do
 !close file	
 	CLOSE(1) 
 	  
@@ -262,9 +500,300 @@ contains
   
   
   
-!read eam.pot subroutine  
-  Subroutine readEamPot()
+  
+  
+  Subroutine readEamPotPrep()  
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
+	Integer(kind=StandardInteger) :: ios, i, j, k, n  
+	Integer(kind=StandardInteger) :: rowCount
+	Character(len=255) :: fileRow
+	Character(len=128) :: bufferA, bufferB, bufferC, bufferD, bufferE, bufferF
+	Integer(kind=StandardInteger) :: bufferIntA, bufferIntB
+	Real(kind=DoubleReal) :: bufferDoubleA, bufferDoubleB
+	Integer(kind=StandardInteger) :: elementTypeCount, elementZ
+	Integer(kind=StandardInteger) :: nrho, nr, potentialLinesRho, potentialLinesR
+	Real(kind=DoubleReal) :: drho, dr, cutoff
+	Real(kind=DoubleReal) :: radius, rho, tempDouble
+	Character(len=2), Dimension( : ), Allocatable ::  functionElements
 	
+!--------------------  
+! NORMAL
+!--------------------
+    If(potType.eq.1)Then
+	  !Normal type, use file as provided
+	  potentialFilePathTemp = potentialFilePath
+    End If
+!--------------------  
+! LAMMPS
+!--------------------	
+	If(potType.eq.2)Then
+	  !LAMMPS type
+	  potentialFilePathTemp = trim(potentialFilePath)//".temp"
+!open output potential file
+	  Open(UNIT=2,FILE=trim(potentialFilePathTemp)) 
+!open LAMMPS input potential file
+	  Open(UNIT=1,FILE=trim(potentialFilePath)) 
+	  rowCount = 0
+      Do i=1,maxFileRows 
+!Read in line
+	    Read(1,"(A255)",IOSTAT=ios) fileRow
+!break out if end of file
+	    If (ios /= 0) then
+	      EXIT 
+	    End If		
+	    If(fileRow(1:1).ne."#")Then		  
+		  rowCount = rowCount + 1
+		  If(rowCount.eq.1)Then
+		    Read(fileRow,*) elementTypeCount	
+			Allocate(functionElements(1:elementTypeCount))
+		  End If
+		  If(rowCount.eq.2)Then
+		    Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE
+		    Read(bufferA,*) nrho	!number of points at which p(r) is evaluated
+		    Read(bufferB,*) drho	
+		    Read(bufferC,*) nr	    !number of points at which V(r) and F(p) are evaluated
+		    Read(bufferD,*) dr	
+		    Read(bufferE,*) cutoff		    
+			!print *,rowCount,nrho,drho,nr,dr,cutoff
+			potentialLinesR = Ceil(1.0D0*(nrho/5))
+			potentialLinesRho = Ceil((1.0D0*nrho)/5.0D0)
+		  End If
+		  If(rowCount.eq.3)Then
+!Read in embedding function and density function for each element
+		    Do j=1,elementTypeCount
+			  If(j.gt.1)Then
+			    !Read in next element row
+                Read(1,"(A255)",IOSTAT=ios) fileRow	
+			  End If
+!Read element type	       	 
+			  Read(fileRow,*) elementZ
+!Embedding function
+			  write(2,"(A8,A2)") "EMBE    ",elementSymbol(elementZ)
+			  functionElements(j) = elementSymbol(elementZ)
+			  rho = 0.0D0
+!Embedding function
+			  Do k=1,potentialLinesRho
+			    Read(1,"(A255)",IOSTAT=ios) fileRow
+				If(k.lt.potentialLinesRho.or.mod(nrho,5).eq.0)Then
+			      Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE	 
+				  Read(bufferA,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				  rho = rho + drho 
+				  Read(bufferB,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				  rho = rho + drho
+				  Read(bufferC,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				  rho = rho + drho
+				  Read(bufferD,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				  rho = rho + drho
+				  Read(bufferE,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				  rho = rho + drho
+				Else  
+				  If(mod(nrho,5).eq.1)Then
+				    Read(fileRow,*) bufferA	 
+				    Read(bufferA,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				  End If 
+				  If(mod(nrho,5).eq.2)Then
+				    Read(fileRow,*) bufferA, bufferB
+				    Read(bufferA,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				    rho = rho + drho 
+				    Read(bufferB,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				  End If
+				  If(mod(nrho,5).eq.3)Then
+				    Read(fileRow,*) bufferA, bufferB, bufferC
+				    Read(bufferA,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				    rho = rho + drho 
+				    Read(bufferB,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				    rho = rho + drho 
+				    Read(bufferC,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				  End If
+				  If(mod(nrho,5).eq.3)Then
+				    Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
+				    Read(bufferA,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				    rho = rho + drho 
+				    Read(bufferB,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				    rho = rho + drho 
+				    Read(bufferC,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				    rho = rho + drho 
+				    Read(bufferD,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+				  End If				  
+				End If
+			  End Do
+!Density function
+              write(2,"(A8,A2)") "DENS    ",elementSymbol(elementZ)
+			  radius = 0.0D0  
+!Density function
+			  Do k=1,potentialLinesR+1
+			    Read(1,"(A255)",IOSTAT=ios) fileRow
+				If(k.lt.(potentialLinesR+1).or.(k.eq.(potentialLinesR+1).and.mod(nr,5).eq.0))Then
+			      Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE	 
+				  Read(bufferA,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				  radius = radius + dr 
+				  Read(bufferB,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				  radius = radius + dr
+				  Read(bufferC,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				  radius = radius + dr
+				  Read(bufferD,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				  radius = radius + dr
+				  Read(bufferE,*) tempDouble 
+				  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				  radius = radius + dr
+				Else  
+				  If(mod(nr,5).eq.1)Then
+				    Read(fileRow,*) bufferA	 
+				    Read(bufferA,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				  End If 
+				  If(mod(nr,5).eq.2)Then
+				    Read(fileRow,*) bufferA, bufferB
+				    Read(bufferA,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				    radius = radius + dr 
+				    Read(bufferB,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				  End If
+				  If(mod(nr,5).eq.3)Then
+				    Read(fileRow,*) bufferA, bufferB, bufferC
+				    Read(bufferA,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				    radius = radius + dr 
+				    Read(bufferB,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				    radius = radius + dr 
+				    Read(bufferC,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				  End If
+				  If(mod(nr,5).eq.3)Then
+				    Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
+				    Read(bufferA,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				    radius = radius + dr 
+				    Read(bufferB,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				    radius = radius + dr 
+				    Read(bufferC,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				    radius = radius + dr 
+				    Read(bufferD,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+				  End If				  
+				End If
+			  End Do
+			End Do !Element count			
+!Pair potentials
+            Do j=1,elementTypeCount
+			  Do n=j,elementTypeCount
+			    write(2,"(A8,A2,A4,A2)") "PAIR    ",&
+				functionElements(j),"    ",functionElements(n)
+				radius = 0.0D0
+!Pair function
+			    Do k=1,potentialLinesR+1
+			      Read(1,"(A255)",IOSTAT=ios) fileRow
+				  If(k.lt.(potentialLinesR+1).or.&
+				  (k.eq.(potentialLinesR+1).and.mod(nr,5).eq.0))Then
+			        Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE	 
+				    Read(bufferA,*) tempDouble 
+					If(radius.eq.0.0D0)Then
+					  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",0.0D0
+					Else
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+					End If
+				    radius = radius + dr 
+				    Read(bufferB,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				    radius = radius + dr
+				    Read(bufferC,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				    radius = radius + dr
+				    Read(bufferD,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				    radius = radius + dr
+				    Read(bufferE,*) tempDouble 
+				    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				    radius = radius + dr
+				  Else  
+				    If(mod(nr,5).eq.1)Then
+				      Read(fileRow,*) bufferA	 
+				      Read(bufferA,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				    End If 
+				    If(mod(nr,5).eq.2)Then
+				      Read(fileRow,*) bufferA, bufferB
+				      Read(bufferA,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				      radius = radius + dr 
+				      Read(bufferB,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				    End If
+				    If(mod(nr,5).eq.3)Then
+				      Read(fileRow,*) bufferA, bufferB, bufferC
+				      Read(bufferA,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				      radius = radius + dr 
+				      Read(bufferB,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				      radius = radius + dr 
+				      Read(bufferC,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				    End If
+				    If(mod(nr,5).eq.3)Then
+				      Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
+				      Read(bufferA,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				      radius = radius + dr 
+				      Read(bufferB,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				      radius = radius + dr 
+				      Read(bufferC,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				      radius = radius + dr 
+				      Read(bufferD,*) tempDouble 
+				      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+				    End If				  
+				  End If
+			    End Do
+			  End Do
+            End Do
+		  End If
+		End If		
+	  End Do
+!Update path to potential
+      !potentialFilePath = potentialFilePathTemp
+    End If
+  
+    Close(1)
+	Close(2)
+  
+  
+   
+  End Subroutine readEamPotPrep
+  
+  
+  
+  
+  
+!read eam.pot subroutine  
+  Subroutine readEamPot()	
 !force declaration of all variables
 	Implicit None
 !declare private variables
@@ -291,23 +820,21 @@ contains
 !write to output file
     If(mpiProcessID.eq.0)Then
 	  write(999,"(F8.4,A2,A27,A60)") ProgramTime(),"  ",&
-	  "Reading EAM potential from ",potentialFilePath
-	endif
-	
+	  "Reading EAM potential from ",potentialFilePathTemp
+	  !"Reading EAM potential from ",potentialFilePath
+	endif	
 !Set EAM type
-    eamType = 1		!1 = default type/standard   2 = 2BMEAM
-	
+    eamType = 1		!1 = default type/standard   2 = 2BMEAM	
 !allocate elements array
     Allocate(elements(1:300))
     Allocate(elementsTemp(1:300))
 !"blank" elements array
 	do i=1,size(elements)
 	  elements(i) = "ZZ"
-	enddo
-	
+	enddo	
 !Count file rows
 	fileRows = 0
-  	Open(UNIT=1,FILE=potentialFilePath) 
+  	Open(UNIT=1,FILE=potentialFilePathTemp) 
     do i=1,maxFileRows 
 !count file rows
 	  fileRows = fileRows + 1
@@ -319,11 +846,10 @@ contains
 	  end if
 	enddo
 !close file	
-	CLOSE(1)  	
-		
+	CLOSE(1)  		
 !Read eam pot file and store unique elements
 	potentialCounter = 0
-  	Open(UNIT=1,FILE=potentialFilePath) 
+  	Open(UNIT=1,FILE=potentialFilePathTemp) 
     do i=1,fileRows 
 !Read in line
 	  Read(1,*,IOSTAT=ios) buffera
@@ -363,8 +889,7 @@ contains
 	  endif
 	enddo
 !close file	
-	CLOSE(1)   
-	  
+	CLOSE(1)   	  
 !adjust elements array
     elementCounter = 0
 	do i=1,size(elements)
@@ -381,19 +906,17 @@ contains
 	  elements(i) = elementsTemp(i)
 	enddo
 	Deallocate(elementsTemp)
-	elementCount = elementCounter
-	
+	elementCount = elementCounter	
 !store/output elements	
     If(mpiProcessID.eq.0)Then
       write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
 	  Do i=1,size(elements)
 	    write(999,"(A8,I4,A2,A2)") "Element ",i,": ",elements(i)
 	  End Do
-	End If
-			
+	End If			
 !count data points
 	dataCounter = 0	
-Open(UNIT=1,FILE=potentialFilePath) 
+Open(UNIT=1,FILE=potentialFilePathTemp) 
     do i=1,fileRows 
 !Read in line
 	  Read(1,'(A64)',IOSTAT=ios) fileRowData
@@ -420,14 +943,12 @@ Open(UNIT=1,FILE=potentialFilePath)
       endif
 	enddo
 	CLOSE(1) 
-
 !potential counts
     if(eamType.eq.1)then
 	  numberPotentials = (elementCounter * ( elementCounter + 5)) / 2
 	  pairCount = (elementCounter * ( elementCounter + 1)) / 2
 	  densCount = elementCounter
 	  embeCount = elementCounter
-	  
 	elseif(eamType.eq.2)then
 	  if(elementCounter.eq.1)then
 	    numberPotentials = 1 + (elementCounter * ( elementCounter + 7)) / 2
@@ -444,8 +965,7 @@ Open(UNIT=1,FILE=potentialFilePath)
 	    embeCount = elementCounter
 	    embdCount = elementCounter
 	  endif
-	endif
-	
+	endif	
 !store/output potential count etc
     If(mpiProcessID.eq.0)Then
     write(999,"(A6,A16,F8.4)") "      ","Program time:   ",ProgramTime()
@@ -463,8 +983,7 @@ Open(UNIT=1,FILE=potentialFilePath)
 	  write(999,"(A6,A28,I4)") "      ","D-band Density functions:   ",dendCount
 	  write(999,"(A6,A28,I4)") "      ","S-band Embedding functions: ",embeCount	
 	  write(999,"(A6,A28,I4)") "      ","S-band Embedding functions: ",embdCount	
-	endif
-	
+	endif	
 	write(999,"(A6,A28,I8)") "      ","Data points:                ",dataCounter
 	write(999,"(A6,A28,A1)") "      ","Save coords file:           ",saveFileCoords
 	write(999,"(A6,A28,A1)") "      ","Save neighbour list file:   ",saveFileNeighbourList
@@ -474,25 +993,22 @@ Open(UNIT=1,FILE=potentialFilePath)
 	write(999,"(A6,F8.4,F8.4,F8.4)") "      ",unitVector(1,1),unitVector(2,1),unitVector(3,1)
 	write(999,"(A6,F8.4,F8.4,F8.4)") "      ",unitVector(1,2),unitVector(2,2),unitVector(3,2)
 	write(999,"(A6,F8.4,F8.4,F8.4)") "      ",unitVector(1,3),unitVector(2,3),unitVector(3,3)
-	End If
-		
+	End If		
 !Allocate eam keys/data
     Allocate(eamKey(1:numberPotentials,1:5))	
-    Allocate(eamData(1:dataCounter,1:3))	
-	  
+    Allocate(eamData(1:dataCounter,1:3))
 !Initialise data array
     Do i=1,size(eamData,1)
       Do j=1,size(eamData,2)
 	    eamData(i,j) = 0.0D0
 	  End Do
 	End Do
-	
 	potentialCounter = 0
 	eamType = 1
 	dataCounter = 0
 	potDataStart = 1
 	potDataLength = 0
-	Open(UNIT=1,FILE=potentialFilePath) 
+	Open(UNIT=1,FILE=potentialFilePathTemp) 
     do i=1,fileRows 
 !Read in line
 	  Read(1,'(A64)',IOSTAT=ios) fileRowData
@@ -501,7 +1017,8 @@ Open(UNIT=1,FILE=potentialFilePath)
 	    EXIT 
 	  endif
 !skip blank or commented line   
-	  if(fileRowData(1:8).ne."        ".and.fileRowData(1:1).ne."#".and.fileRowData(1:1).ne."!")then
+	  If(fileRowData(1:8).ne."        ".and.fileRowData(1:1)&
+	    .ne."#".and.fileRowData(1:1).ne."!")Then
 !check if PAIR DENS or EMBE - store pot data start/length	
 		read(fileRowData,*) potTypeText 
 		potTypeText = trim(potTypeText)
@@ -601,23 +1118,70 @@ Open(UNIT=1,FILE=potentialFilePath)
 !save last start/length entry
 	eamKey(potKey,4) = potDataStart
 	eamKey(potKey,5) = potDataLength
-	CLOSE(1) 
-	
+	CLOSE(1) 	
 !output/store potentials	
     If(mpiProcessID.eq.0)Then
       write(999,"(A6,A32)") "      ","Summary of potential functions "
-      do i=1,size(eamKey)/5
-	    write(999,"(A6,I8,I8,I8,I8,I8,I8)") "      ",i,eamKey(i,1),eamKey(i,2),&
-	    eamKey(i,3),eamKey(i,4),eamKey(i,5)
+      do i=1,size(eamKey,1)
+	    If(eamKey(i,2).gt.0)Then
+	      write(999,"(A6,I8,A4,A4,I8,I8,I8,I8,I8)") "      ",i,&
+		  elements(eamKey(i,1)),elements(eamKey(i,2)),&
+		  eamKey(i,1),eamKey(i,2),&
+	      eamKey(i,3),eamKey(i,4),eamKey(i,5)
+		Else
+		  write(999,"(A6,I8,A4,A4,I8,I8,I8,I8,I8)") "      ",i,&
+		  elements(eamKey(i,1)),"    ",&
+		  eamKey(i,1),eamKey(i,2),&
+	      eamKey(i,3),eamKey(i,4),eamKey(i,5)
+		End If
       enddo
 	End If
-	
-
-	
 !close output file
     close(999)	
-	
   End Subroutine readEamPot
+	
+	
+	
+	
+	
+  
+  
+
+  Subroutine copyConfigFile()
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
+	Integer(kind=StandardInteger) :: ios, i, j, k, fileRows
+    Character(len=255)  :: configurationsFilePathTemp
+    Character(len=255)  :: fileRow
+!temp config file
+    configurationsFilePathTemp = trim(configurationsFilePath)//".temp"
+!make temp config file
+    Open(unit=301,file=trim(configurationsFilePathTemp))
+	Open(UNIT=1,FILE=configurationsFilePath)   	
+    Do i=1,maxFileRows 
+	  Read(1,"(A255)",IOSTAT=ios) fileRow
+	  If (ios /= 0) Then !break out if end of file
+	    EXIT 
+	  End If
+	  write(301,"(A255)") fileRow
+	End Do 
+!close input file
+	close(1)
+!close output file
+	close(301)		
+  End Subroutine copyConfigFile
+  	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	
 	
@@ -631,10 +1195,10 @@ Open(UNIT=1,FILE=potentialFilePath)
 	Character(len=255) :: filePath
 	
 !If 
-    filePath = "examples/pwscf/Al.1839.out"
-	Call readPWSCFFile(filePath)
-    filePath = "examples/pwscf/Al.1101.out"
-	Call readPWSCFFile(filePath)
+    !filePath = "examples/pwscf/Al.1839.out"
+	!Call readPWSCFFile(filePath)
+    !filePath = "examples/pwscf/Al.1101.out"
+	!Call readPWSCFFile(filePath)
 	
 	
 		
@@ -657,11 +1221,23 @@ Open(UNIT=1,FILE=potentialFilePath)
 	Character(len=255) :: fileLineBuffer
 	Character(len=255) :: tempBuffer, bufferA, bufferB, bufferC
 	Character(len=255) :: bufferD, bufferE, bufferF
+	Character(len=3) :: atomTypeBuffer
     Integer(kind=StandardInteger) :: readType, lastScf
+	Integer(kind=StandardInteger) :: numberOfAtoms
+	Real(kind=DoubleReal) :: aLat
 	Real(kind=DoubleReal) :: configTotalEnergy
+	Real(kind=DoubleReal) :: configEnergyPerAtom
 	Real(kind=DoubleReal), Dimension(1:3,1:3) :: stress
-	
-	print *,filePath
+	Real(kind=DoubleReal), Dimension(1:3,1:3) :: crystalAxes	!Unit vector
+	Character(len=3), Dimension( : ), Allocatable :: atomType
+	Real(kind=SingleReal), Dimension( : , : ), Allocatable :: atomCoords
+	Real(kind=SingleReal), Dimension( : , : ), Allocatable :: atomForcess
+	Character(len=255) :: configurationsFilePathTemp
+
+  
+!set temp config file name
+    configurationsFilePathTemp = trim(configurationsFilePath)//".temp"
+  
   
 !set variables
     readType = 0  
@@ -675,7 +1251,11 @@ Open(UNIT=1,FILE=potentialFilePath)
 	  "     A final scf calculation at the relaxed structure.")Then
 	    readType = 1
 	  End If
-	  !Print *,fileLineBuffer
+	  If(fileLineBuffer(1:33).eq.&
+	  "     number of atoms/cell      = ")Then
+	    tempBuffer = fileLineBuffer(34:100)
+		read(tempBuffer,*) numberOfAtoms
+	  End If	  
 !break out if end of file
 	  If (ios /= 0) then
 	    EXIT 
@@ -683,6 +1263,11 @@ Open(UNIT=1,FILE=potentialFilePath)
 	End Do
 !close file	
 	CLOSE(1)  
+	
+!Allocate arrays
+    Allocate(atomType(1:numberOfAtoms))
+    Allocate(atomCoords(1:numberOfAtoms,1:3))
+    Allocate(atomForcess(1:numberOfAtoms,1:3))
 	
 !Read in data
 	If(readType.eq.1)Then
@@ -694,17 +1279,19 @@ Open(UNIT=1,FILE=potentialFilePath)
     Do i=1,maxFileRows 
 !Read in line
 	  Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
-	  If(fileLineBuffer(1:54).eq.&
-	  "     A final scf calculation at the relaxed structure.")Then
+	  If(fileLineBuffer(1:23).eq.&
+	  "Begin final coordinates")Then
 	    lastScf = 1
 	  End If
       If(lastScf.eq.1)Then
 !Total energy
 		If(fileLineBuffer(1:17).eq."!    total energy")Then
-		  tempBuffer = fileLineBuffer(34:100)
+		  tempBuffer = fileLineBuffer(33:100)
 		  read(tempBuffer,*) bufferA, bufferB
 		  read(bufferA,*) configTotalEnergy
 		  configTotalEnergy = UnitConvert(configTotalEnergy,"RY","EV")
+		  configEnergyPerAtom = (configTotalEnergy/(1.0D0*numberOfAtoms))-&
+		    (dftInOptEnergy-dftInCohEnergy)  
 		End If
 !Stresses		
 		If(fileLineBuffer(1:38).eq."          total   stress  (Ry/bohr**3)")Then
@@ -723,7 +1310,118 @@ Open(UNIT=1,FILE=potentialFilePath)
 		  read(bufferA,*) stress(3,1)
 		  read(bufferB,*) stress(3,2)
 		  read(bufferC,*) stress(3,3)
+		  Do j=1,3
+		    Do k=1,3
+			  stress(j,k) = UnitConvert(stress(j,k),"RYBOH3","GPA")
+			End Do
+          End Do			
 		End If
+!Lattice Parameter		
+	    If(fileLineBuffer(1:32).eq."     lattice parameter (alat)  =")Then
+		  tempBuffer = fileLineBuffer(33:100)
+		  read(tempBuffer,*) bufferA, bufferB
+		  read(bufferA,*) aLat
+		  aLat = UnitConvert(aLat,"Bohr","A")
+		End If
+!Crystal Axes/Unit Vector - scf
+        If(readType.eq.0.and.fileLineBuffer(1:18).eq."     crystal axes:")Then
+		  Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+		  tempBuffer = fileLineBuffer(24:100)
+		  read(tempBuffer,*) bufferA, bufferB, bufferC
+		  read(bufferA,*) crystalAxes(1,1)
+		  read(bufferB,*) crystalAxes(1,2)
+		  read(bufferC,*) crystalAxes(1,3)
+	      Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+		  tempBuffer = fileLineBuffer(24:100)
+		  read(tempBuffer,*) bufferA, bufferB, bufferC
+		  read(bufferA,*) crystalAxes(2,1)
+		  read(bufferB,*) crystalAxes(2,2)
+		  read(bufferC,*) crystalAxes(2,3)
+	      Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+		  tempBuffer = fileLineBuffer(24:100)
+		  read(tempBuffer,*) bufferA, bufferB, bufferC
+		  read(bufferA,*) crystalAxes(3,1)
+		  read(bufferB,*) crystalAxes(3,2)
+		  read(bufferC,*) crystalAxes(3,3)
+		End If
+!Crystal Axes/Unit Vector - vc-relax
+        If(readType.eq.1.and.fileLineBuffer(1:15).eq."CELL_PARAMETERS")Then
+		  Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+		  tempBuffer = fileLineBuffer(1:100)
+		  read(tempBuffer,*) bufferA, bufferB, bufferC
+		  read(bufferA,*) crystalAxes(1,1)
+		  read(bufferB,*) crystalAxes(1,2)
+		  read(bufferC,*) crystalAxes(1,3)
+	      Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+		  tempBuffer = fileLineBuffer(1:100)
+		  read(tempBuffer,*) bufferA, bufferB, bufferC
+		  read(bufferA,*) crystalAxes(2,1)
+		  read(bufferB,*) crystalAxes(2,2)
+		  read(bufferC,*) crystalAxes(2,3)
+	      Read(1,"(A255)",IOSTAT=ios) fileLineBuffer
+		  tempBuffer = fileLineBuffer(1:100)
+		  read(tempBuffer,*) bufferA, bufferB, bufferC
+		  read(bufferA,*) crystalAxes(3,1)
+		  read(bufferB,*) crystalAxes(3,2)
+		  read(bufferC,*) crystalAxes(3,3)
+		End If		
+!Symbol/Coords - scf
+        If(readType.eq.0.and.fileLineBuffer(1:22).eq."     site n.     atom ")Then
+		  Do j=1,numberOfAtoms
+		    Read(1,"(A255)",IOSTAT=ios) fileLineBuffer	
+			atomType(j) = TrimSpaces(fileLineBuffer(11:23))
+			Do k=1,size(dftInReplaceSym,1)
+			  If(Adjustl(StrToUpper(dftInReplaceSym(k,1))).eq.&
+			    Adjustl(StrToUpper(atomType(j))))Then
+				atomType(j) = dftInReplaceSym(k,2)
+				Exit
+			  End If
+		    End Do
+			tempBuffer = fileLineBuffer(39:75)
+		    read(tempBuffer,*) bufferA, bufferB, bufferC
+		    read(bufferA,*) atomCoords(j,1)
+		    read(bufferB,*) atomCoords(j,2)
+		    read(bufferC,*) atomCoords(j,3)
+		  End Do
+		End If
+!Symbol/Coords - vcrelax
+		If(fileLineBuffer(1:16).eq."ATOMIC_POSITIONS")Then
+		  Do j=1,numberOfAtoms
+		    Read(1,"(A255)",IOSTAT=ios) fileLineBuffer	
+			atomType(j) = TrimSpaces(fileLineBuffer(1:7))
+			Do k=1,size(dftInReplaceSym,1)
+			  If(Adjustl(StrToUpper(dftInReplaceSym(k,1))).eq.&
+			    Adjustl(StrToUpper(atomType(j))))Then
+				atomType(j) = dftInReplaceSym(k,2)
+				Exit
+			  End If
+		    End Do
+			tempBuffer = fileLineBuffer(8:48)
+		    read(tempBuffer,*) bufferA, bufferB, bufferC
+		    read(bufferA,*) atomCoords(j,1)
+		    read(bufferB,*) atomCoords(j,2)
+		    read(bufferC,*) atomCoords(j,3)
+		  End Do
+		End If		
+!atom forces
+        If(fileLineBuffer(1:27).eq."     Forces acting on atoms")Then
+		  Read(1,"(A255)",IOSTAT=ios) fileLineBuffer !read blank line
+		  Do j=1,numberOfAtoms
+		    Read(1,"(A255)",IOSTAT=ios) fileLineBuffer	
+			tempBuffer = fileLineBuffer(33:76)
+		    read(tempBuffer,*) bufferA, bufferB, bufferC
+		    read(bufferA,*) atomForcess(j,1)
+		    read(bufferB,*) atomForcess(j,2)
+		    read(bufferC,*) atomForcess(j,3)
+		  End Do
+		  Do j=1,numberOfAtoms
+		    Do k=1,3
+			  atomForcess(j,k) = 1.0E0*UnitConvert(1.0D0*atomForcess(j,k),"RYBOHR","EVANG")
+			End Do  
+		  End Do
+		End If
+		
+		
 	  End If
 !break out if end of file
 	  If (ios /= 0) then
@@ -733,15 +1431,47 @@ Open(UNIT=1,FILE=potentialFilePath)
 !close file	
 	CLOSE(1) 
 	
-  
+	
+!Write to file	
+    If(mpiProcessID.eq.0)Then	
+!open temp config file	
+	  open(unit=801,file=trim(configurationsFilePathTemp),&
+	  status="old",position="append",action="write")	
+	  
+	  
+!write to output file
+	  write(801,"(A4)") "#new"	
+	  write(801,"(A21,I8,A9,E20.10)") "#added config, atoms ",numberOfAtoms,&
+	    ", energy ",configTotalEnergy 	
+	  write(801,"(A4,E20.10)") "#LP ",aLat
+	  write(801,"(A3,F12.7,F12.7,F12.7)") "#X ",crystalAxes(1,1),crystalAxes(1,2),crystalAxes(1,3)
+	  write(801,"(A3,F12.7,F12.7,F12.7)") "#Y ",crystalAxes(2,1),crystalAxes(2,2),crystalAxes(2,3)
+	  write(801,"(A3,F12.7,F12.7,F12.7)") "#Z ",crystalAxes(3,1),crystalAxes(3,2),crystalAxes(3,3)
+	  write(801,"(A4,F12.7,F12.7,F12.7)") "#SX ",stress(1,1),stress(1,2),stress(1,3)
+	  write(801,"(A4,F12.7,F12.7,F12.7)") "#SY ",stress(2,1),stress(2,2),stress(2,3)
+	  write(801,"(A4,F12.7,F12.7,F12.7)") "#SZ ",stress(3,1),stress(3,2),stress(3,3)
+	  write(801,"(A9)") "#CC 1 1 1"
+	  write(801,"(A4,F10.7)") "#RC ",dftInRadiusCutoff
+	  write(801,"(A5,F10.7,A3)") "#EPA ",configEnergyPerAtom," eV"
+	  write(801,"(A4)") "#F Y"
+	  Do i=1,size(atomType,1)
+	    write(801,"(A3,A2,F10.7,A1,F10.7,A1,F10.7,A1,F10.7,A1,F10.7,A1,F10.7)") &
+		atomType(i),"  ",atomCoords(i,1)," ",atomCoords(i,2)," ",atomCoords(i,3),&
+		" ",atomForcess(i,1)," ",atomForcess(i,2)," ",atomForcess(i,3)
+	  End Do
+	  write(801,"(A4)") "#end"	
+	  Close(801)
+    End If
 
-  
-  
 		
   End Subroutine readPWSCFFile
   
   
   
+  
+  
+  
+
   
   
   
@@ -758,10 +1488,15 @@ Open(UNIT=1,FILE=potentialFilePath)
 	Integer(kind=StandardInteger) :: ios, i, j, k, fileRows
 	Integer(kind=StandardInteger) :: configurationCount, atomCount
 	Integer(kind=StandardInteger) :: startConfig, configLength, readForces
-	Character(len=32) :: buffera, bufferb, bufferc, bufferd
-	Character(len=32) :: buffere, bufferf, bufferg
+	Integer(kind=StandardInteger) :: absolutePosition
+	Real(kind=DoubleReal) :: bufferDa
+	Character(len=128) :: buffera, bufferb, bufferc, bufferd
+	Character(len=128) :: buffere, bufferf, bufferg
 	Character(len=255) :: bufferLongA
-	Character(len=255) :: fileRowBuffer
+	Character(len=255) :: fileRowBuffer    
+	Character(len=255) :: configurationsFilePathTemp
+!Use the temp file as the configuration input file
+    configurationsFilePath = trim(configurationsFilePath)//".temp"	
 !open output file	
     If(mpiProcessID.eq.0)Then
 	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
@@ -791,24 +1526,29 @@ Open(UNIT=1,FILE=potentialFilePath)
 	configurationCount = 0
 	atomCount = 0
   	Open(UNIT=1,FILE=configurationsFilePath) 
-    do i=1,fileRows 
+    Do i=1,fileRows 
 !Read in line
-	  Read(1,*,IOSTAT=ios) buffera
+	  Read(1,*,IOSTAT=ios) buffera	  
+!skip blank or commented lines
+	  If(buffera(1:1).eq."!".or.buffera(1:10).eq."          ")Then
+	    !skip
+	  Else
 !Check for the header of a configuration
-      if(StrToUpper(buffera(1:4)).eq."#NEW")then
+        If(StrToUpper(buffera(1:4)).eq."#NEW")then
 !count new configuration
-		configurationCount = configurationCount + 1		
-	  endif
-      if(buffera(1:1).ne."#".and.CheckIfElement(buffera(1:2)).eq.1)then
-	    atomCount = atomCount + 1
-	  endif
-	enddo
+		  configurationCount = configurationCount + 1		
+	    End If
+        If(buffera(1:1).ne."#".and.CheckIfElement(buffera(1:2)).eq.1)then
+	      atomCount = atomCount + 1
+	    End If
+	  End If
+	End Do
 !close file	
 	CLOSE(1) 
 !allocate arrays
     configCount = configurationCount
 	Allocate(configHeaderI(1:configurationCount,1:headerWidth))
-	Allocate(configHeaderR(1:configurationCount,1:2))
+	Allocate(configHeaderR(1:configurationCount,1:15))
 	Allocate(configCoordsI(1:atomCount))
 	Allocate(configCoordsR(1:atomCount,1:3))
 	Allocate(configForcesR(1:atomCount,1:4))
@@ -825,113 +1565,143 @@ Open(UNIT=1,FILE=potentialFilePath)
 	End Do	
 !Defaults	
 	readForces = 0
+	absolutePosition = 0
 !Load Data
     configurationCount = 0
 	atomCount = 0
 	startConfig = 1
 	configLength = 0
   	Open(UNIT=1,FILE=configurationsFilePath) 
-    do i=1,fileRows 
+    Do i=1,fileRows 
 !Read in line
 	  Read(1,*,IOSTAT=ios) buffera
+!skip blank or commented lines
+	  If(buffera(1:1).eq."!".or.buffera(1:10).eq."          ")Then
+	    !skip
+	  Else
 !Check for the header of a configuration
-      if(StrToUpper(buffera(1:4)).eq."#NEW")then
+        if(StrToUpper(buffera(1:4)).eq."#NEW")then
 !Set defaults for new configuration
-	readForces = 0
+	      readForces = 0
 !count new configuration, adjust startConfig, reset configLength
-		configurationCount = configurationCount + 1	
-		startConfig = startConfig + configLength
-		configLength = 0	
-	  endif
-	  if(StrToUpper(buffera(1:4)).eq."#END")then
+		  configurationCount = configurationCount + 1	
+		  startConfig = startConfig + configLength
+		  configLength = 0	
+	    End If
+	    if(StrToUpper(buffera(1:4)).eq."#END")then
 !store header information start/length
-        configHeaderI(configurationCount,headerWidth-1) = startConfig
-        configHeaderI(configurationCount,headerWidth) = configLength	
-	  endif
-	  if(StrToUpper(buffera(1:3)).eq."#LP")then     !Lattice parameter
+          configHeaderI(configurationCount,headerWidth-1) = startConfig
+          configHeaderI(configurationCount,headerWidth) = configLength	
+	    End If
+	    if(StrToUpper(buffera(1:3)).eq."#LP")then     !Lattice parameter
 !re-read row
-		Backspace(1)		
-	    Read(1,*,IOSTAT=ios) buffera, bufferb
-		Read(bufferb,*) configHeaderR(configurationCount,1)
-	  endif
-	  if(StrToUpper(buffera(1:2)).eq."#F")then     !Read forces
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb
+		  Read(bufferb,*) configHeaderR(configurationCount,1)
+	    End If
+	    if(StrToUpper(buffera(1:4)).eq."#EPA")then     !Energy per atom
 !re-read row
-		Backspace(1)		
-	    Read(1,*,IOSTAT=ios) buffera, bufferb
-		bufferb = StrToUpper(bufferb)
-		If(bufferb(1:1).eq."Y")Then
-		  readForces = 1
-		End If
-	  endif
-	  if(StrToUpper(buffera(1:2)).eq."#X")then     !x unit vector
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc
+		  Read(bufferb,*) bufferDa 
+		  configHeaderR(configurationCount,12) = &
+		    UnitConvert(bufferDa,TrimSpaces(bufferc),"EV")
+	    End If
+	    if(StrToUpper(buffera(1:2)).eq."#F")then     !Read forces
 !re-read row
-		Backspace(1)		
-	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd	
-		Read(bufferb,*) configHeaderI(configurationCount,1)
-		Read(bufferc,*) configHeaderI(configurationCount,2)
-		Read(bufferd,*) configHeaderI(configurationCount,3)
-	  endif
-	  if(StrToUpper(buffera(1:2)).eq."#Y")then     !Y unit vector
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb
+		  bufferb = StrToUpper(bufferb)
+		  If(bufferb(1:1).eq."Y")Then
+		    readForces = 1
+		  End If
+	    End If
+		if(StrToUpper(buffera(1:3)).eq."#AP")then     !Absolute positions not crystal 
 !re-read row
-		Backspace(1)		
-	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd	
-		Read(bufferb,*) configHeaderI(configurationCount,4)
-		Read(bufferc,*) configHeaderI(configurationCount,5)
-		Read(bufferd,*) configHeaderI(configurationCount,6)
-	  endif
-	  if(StrToUpper(buffera(1:2)).eq."#Z")then     !Z unit vector
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb
+		  bufferb = StrToUpper(bufferb)
+		  If(bufferb(1:1).eq."Y")Then
+		    absolutePosition = 1
+		  End If
+	    End If
+!Unit vectors
+	    If(StrToUpper(buffera(1:2)).eq."#X")then     !x unit vector
 !re-read row
-		Backspace(1)		
-	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd	
-		Read(bufferb,*) configHeaderI(configurationCount,7)
-		Read(bufferc,*) configHeaderI(configurationCount,8)
-		Read(bufferd,*) configHeaderI(configurationCount,9)
-	  endif
-	  if(StrToUpper(buffera(1:3)).eq."#CC")then     !Cell Copies
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd	
+		  Read(bufferb,*) configHeaderR(configurationCount,3)
+		  Read(bufferc,*) configHeaderR(configurationCount,4)
+		  Read(bufferd,*) configHeaderR(configurationCount,5)
+	    End If
+	    if(StrToUpper(buffera(1:2)).eq."#Y")then     !Y unit vector
 !re-read row
-		Backspace(1)		
-	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd	
-		Read(bufferb,*) configHeaderI(configurationCount,10)
-		Read(bufferc,*) configHeaderI(configurationCount,11)
-		Read(bufferd,*) configHeaderI(configurationCount,12)
-	  endif
-	  if(StrToUpper(buffera(1:3)).eq."#RC")then     !radius cutoff
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd	
+		  Read(bufferb,*) configHeaderR(configurationCount,6)
+		  Read(bufferc,*) configHeaderR(configurationCount,7)
+		  Read(bufferd,*) configHeaderR(configurationCount,8)
+	    End If
+	    if(StrToUpper(buffera(1:2)).eq."#Z")then     !Z unit vector
 !re-read row
-		Backspace(1)		
-	    Read(1,*,IOSTAT=ios) buffera, bufferb
-		Read(bufferb,*) configHeaderR(configurationCount,2)
-	  endif
-      if(buffera(1:1).ne."#".and.CheckIfElement(buffera(1:2)).eq.1)then
-	    atomCount = atomCount + 1
-		configLength = configLength + 1
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd	
+		  Read(bufferb,*) configHeaderR(configurationCount,9)
+		  Read(bufferc,*) configHeaderR(configurationCount,10)
+		  Read(bufferd,*) configHeaderR(configurationCount,11)
+	    End If
+	    if(StrToUpper(buffera(1:3)).eq."#CC")then     !Cell Copies
 !re-read row
-		Backspace(1)
-		If(readForces.eq.0)Then	
-		  Read(1,"(A255)",IOSTAT=ios) fileRowBuffer
-		  Read(fileRowBuffer,*) buffera, bufferb, bufferc, bufferd
-		  configCoordsI(atomCount) = QueryUniqueElement(buffera)
-		  Read(bufferb,*) configCoordsR(atomCount,1)
-		  Read(bufferc,*) configCoordsR(atomCount,2)
-		  Read(bufferd,*) configCoordsR(atomCount,3)
-		End If
-		If(readForces.eq.1)Then	
-		  !Read(1,"(A255)",IOSTAT=ios) fileRowBuffer
-		  !Read(fileRowBuffer,*) buffera, bufferb, bufferc, bufferd,&
-		  !buffere, bufferf, bufferg
-		  Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd,&
-		  buffere, bufferf, bufferg
-		  configCoordsI(atomCount) = QueryUniqueElement(buffera)
-		  Read(bufferb,*) configCoordsR(atomCount,1)
-		  Read(bufferc,*) configCoordsR(atomCount,2)
-		  Read(bufferd,*) configCoordsR(atomCount,3)
-		  !print *,buffere,bufferf,bufferg
-		  Read(buffere,*) configForcesR(atomCount,1)
-	      Read(bufferf,*) configForcesR(atomCount,2)
-	      Read(bufferg,*) configForcesR(atomCount,3)
-	      configForcesR(atomCount,4) = 1.0E0
-		End If
-	  endif
-	enddo
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd	
+		  Read(bufferb,*) configHeaderI(configurationCount,10)
+		  Read(bufferc,*) configHeaderI(configurationCount,11)
+		  Read(bufferd,*) configHeaderI(configurationCount,12)
+	    End If
+	    if(StrToUpper(buffera(1:3)).eq."#RC")then     !radius cutoff
+!re-read row
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb
+		  Read(bufferb,*) configHeaderR(configurationCount,2)
+	    End If
+        if(buffera(1:1).ne."#".and.CheckIfElement(buffera(1:2)).eq.1)then
+	      atomCount = atomCount + 1
+		  configLength = configLength + 1
+!re-read row
+		  Backspace(1)
+		  If(readForces.eq.0)Then	
+		    Read(1,"(A255)",IOSTAT=ios) fileRowBuffer
+		    Read(fileRowBuffer,*) buffera, bufferb, bufferc, bufferd
+		    configCoordsI(atomCount) = QueryUniqueElement(buffera)
+		    Read(bufferb,*) configCoordsR(atomCount,1)
+		    Read(bufferc,*) configCoordsR(atomCount,2)
+		    Read(bufferd,*) configCoordsR(atomCount,3)
+		  End If
+		  If(readForces.eq.1)Then	
+		    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd,&
+		    buffere, bufferf, bufferg
+		    configCoordsI(atomCount) = QueryUniqueElement(buffera)
+		    Read(bufferb,*) configCoordsR(atomCount,1)
+		    Read(bufferc,*) configCoordsR(atomCount,2)
+		    Read(bufferd,*) configCoordsR(atomCount,3)
+		    !print *,buffere,bufferf,bufferg
+		    Read(buffere,*) configForcesR(atomCount,1)
+	        Read(bufferf,*) configForcesR(atomCount,2)
+	        Read(bufferg,*) configForcesR(atomCount,3)
+	        configForcesR(atomCount,4) = 1.0E0
+		  End If
+		  If(absolutePosition.eq.1)Then
+!Adjust if absolute positions are given (divide by alat)
+		    configCoordsR(atomCount,1) = configCoordsR(atomCount,1)/&
+			  configHeaderR(configurationCount,1)
+		    configCoordsR(atomCount,2) = configCoordsR(atomCount,2)/&
+			  configHeaderR(configurationCount,1)
+		    configCoordsR(atomCount,3) = configCoordsR(atomCount,3)/&
+			  configHeaderR(configurationCount,1)
+		  End If
+		End If  
+	  End If
+	End Do
 !close file	
 	CLOSE(1) 	
 	If(mpiProcessID.eq.0)Then
@@ -946,10 +1716,38 @@ Open(UNIT=1,FILE=potentialFilePath)
   
 	
 	
+	
+	
+	
+	
+  Subroutine synchMpiProcesses()
+!force declaration of all variables
+	Implicit None	 
+!Internal subroutine variables
+    Integer(kind=StandardInteger) :: i,send,receive,tag 
+    Integer(kind=StandardInteger) :: processID,processCount,error,status 
+!call mpi subroutines
+    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
+!Send out data to all processes
+    send = 0
+    If(processID.eq.0) Then
+      Do i=1,(processCount-1)
+        tag = 1000 + i	
+        Call MPI_send(send,1,MPI_integer,i,tag,&
+		MPI_comm_world,error)
+      End Do
+    Else
+      tag = 1000 + processID
+	  Call MPI_recv(receive,1,MPI_integer,0,tag,&
+      MPI_comm_world,status,error)  
+    End If  
+  End Subroutine synchMpiProcesses 
+	
+	
+	
   
-	
-	
-	
+  
   
 !------------------------------------------------------------------------!
 !                                                                        !

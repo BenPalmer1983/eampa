@@ -1,9 +1,13 @@
 #potential
-"examples/sheng_zrcu_test_eam.pot"
+"examples/ZrCu.lammps.eam"
+#pottype
+LAMMPS
+#datadir
+"data"
 #configurations
 "examples/atomsZrCu.conf"
 #savecoords
-no
+yes
 #saveneighbourlist
 no
 #savepot
@@ -17,4 +21,6 @@ energy
 #eaminterp
 FOURPOINT
 #calcforces
+yes
+#calcstress
 yes

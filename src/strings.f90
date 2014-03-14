@@ -10,6 +10,7 @@ Module strings
   Public :: NumericOnly
   Public :: RemoveSpaces
   Public :: CorrectFilePath
+  Public :: TrimSpaces
   
   character( * ), PRIVATE, PARAMETER :: LOWER_CASE = 'abcdefghijklmnopqrstuvwxyz'
   character( * ), PRIVATE, PARAMETER :: UPPER_CASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 
@@ -95,6 +96,17 @@ Contains
 	
   
   END FUNCTION RemoveSpaces   
+  
+  
+  Function TrimSpaces (input) RESULT (output)
+    CHARACTER(*), INTENT(IN) :: input
+	CHARACTER(LEN(input)) :: output
+    output = trim(adjustl(input))
+  
+  End Function TrimSpaces   
+  
+  
+  
   
   
   

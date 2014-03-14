@@ -17,6 +17,7 @@ Module prep
 !declare global variables  
   Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: neighbourListKey		!key for atom neighbour list
   Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: neighbourListI          !neighbour list integer data
+  Integer(kind=StandardInteger), Dimension( : ), Allocatable :: atomTypeKey                 !atom types by atom id
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtoms					!count of total atoms for each config
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtomsUnitCell			!
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtomsStart	
@@ -37,12 +38,14 @@ Module prep
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationForceX
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationForceY
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationForceZ
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationStress
   
 !Reference energies, forces, stresses etc  
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefEnergy
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceX
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceY
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceZ
+  
   
 !MPI key for bringing forces back together  
   Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: configurationForceMPIKey
@@ -77,6 +80,8 @@ Module prep
   Public :: configurationRefForceX
   Public :: configurationRefForceY
   Public :: configurationRefForceZ
+  Public :: configurationStress
+  Public :: atomTypeKey
   
 !Subroutines  
   Public :: applyUnitVector
@@ -140,14 +145,17 @@ contains
 	Allocate(configAtoms(1:configCount)) 
     Allocate(configAtomsStart(1:configCount))	  
     Allocate(configAtomsMap(1:configCount,1:50))		!information stored about each config
+	Allocate(configurationStress(1:(9*configCount)))
+	Allocate(configurationVolume(1:configCount))
 		
 !zero out/fill arrays
     configAtomsTotal = 0		!total atoms in all configs
 	configAtomsMax = 0			!max atoms in one config
 	configAtomsStart(1) = 0		!start atom number for each config
     Do i=1,configCount
+	  configurationVolume(i) = 0.0D0
       configurationEnergy(i) = 0.0D0	
-	  configurationRefEnergy(i) = 0.0D0	
+	  configurationRefEnergy(i) = configHeaderR(i,12)
 	  configAtoms(i) = configHeaderI(i,10) * configHeaderI(i,11) *&
 	  configHeaderI(i,12) * configHeaderI(i,headerWidth)
 	  configAtomsTotal = configAtomsTotal + configAtoms(i)
@@ -173,11 +181,9 @@ contains
         configAtomsMap(i,4) = -1    			!config has forces -1 no 1 yes
 	  Else
 	    configAtomsMap(i,4) = 1    			    !config has forces -1 no 1 yes
-	  End If
-	  
+	  End If	  
 !MPI details
-	  configAtomsMap(i,21) = mod(i-1,mpiProcessCount)		!Assigned MPI process
-	  
+	  configAtomsMap(i,21) = mod(i-1,mpiProcessCount)		!Assigned MPI process	  
 	End Do
 	
 !If forces are to be calculated
@@ -198,9 +204,17 @@ contains
         configurationForceY(i) = 0.0D0
         configurationForceZ(i) = 0.0D0	
 	  End Do
-    End If
+    End If	
 	
+!If stress is to be calculated
+	If(calcStressOnOff.eq.1)Then
+	  Do i=1,(9*configCount)
+	    configurationStress(i) = 0.0D0
+	  End Do
+	End If
 	
+!Atom type key array
+	Allocate(atomTypeKey(1:configAtomsTotal))
   
   End Subroutine prepDataArrays
   
@@ -269,14 +283,14 @@ contains
 	Allocate(configLatticeParameters(1:configCount,1:3))
 
 !Config/total atom count
-	configAtomsTotal = 0
-	Do i=1,configCount
-	  xCopy = configHeaderI(i,10)
-	  yCopy = configHeaderI(i,11)
-	  zCopy = configHeaderI(i,12)
-	  configAtoms(i) = xCopy * yCopy * zCopy * configHeaderI(i,headerWidth)
-	  configAtomsTotal = configAtomsTotal + configAtoms(i)
-	End Do
+	!configAtomsTotal = 0
+	!Do i=1,configCount
+	!  xCopy = configHeaderI(i,10)
+	!  yCopy = configHeaderI(i,11)
+	!  zCopy = configHeaderI(i,12)
+	!  configAtoms(i) = xCopy * yCopy * zCopy * configHeaderI(i,headerWidth)
+	!  configAtomsTotal = configAtomsTotal + configAtoms(i)
+	!End Do
 	
 !Allocate config reference data arrays
     Allocate(configurationRefForceX(1:configAtomsTotal))
@@ -287,6 +301,7 @@ contains
 	configStart = 1
 	neighbourListCount = 0
 	atomCounter = 0
+	neighbourListLength = 0
 	do i=1,configCount
 !set variables      
       alat = configHeaderR(i,1)
@@ -317,18 +332,37 @@ contains
 		    do n=coordsStart,(coordsStart+coordsLength-1)  
 			  m = m + 1
 			  atomCounter = atomCounter + 1
+!get co-ords with lattice parameter and copy applied
 			  coordsITemp(m) = configCoordsI(n)
 			  coordsRTemp(m,1) = alat * (x + configCoordsR(n,1) - 1)
 			  coordsRTemp(m,2) = alat * (y + configCoordsR(n,2) - 1)
 			  coordsRTemp(m,3) = alat * (z + configCoordsR(n,3) - 1)
+!Apply configuration unit vector to these co-ordinates
+!x-coord
+              coordsRTemp(m,1) = & 		
+			  coordsRTemp(m,1) * configHeaderR(i,3) + &
+              coordsRTemp(m,2) * configHeaderR(i,4) + &
+              coordsRTemp(m,3) * configHeaderR(i,5)
+!y-coord
+              coordsRTemp(m,2) = & 		
+			  coordsRTemp(m,1) * configHeaderR(i,6) + &
+              coordsRTemp(m,2) * configHeaderR(i,7) + &
+              coordsRTemp(m,3) * configHeaderR(i,8)
+!z-coord
+              coordsRTemp(m,3) = & 		
+			  coordsRTemp(m,1) * configHeaderR(i,9) + &
+              coordsRTemp(m,2) * configHeaderR(i,10) + &
+              coordsRTemp(m,3) * configHeaderR(i,11)
+!save coords to file if required
               if(saveFileCoords.eq."Y")then
-	            write(10,"(I8,I8,I8,F8.4,F8.4,F8.4)") i,m,coordsITemp(m),&
+	            write(10,"(I8,I8,I8,F16.8,F16.8,F16.8)") i,m,coordsITemp(m),&
 			    coordsRTemp(m,1),coordsRTemp(m,2),coordsRTemp(m,3)
 			  endif
 !store atom-force data
               configurationRefForceX(atomCounter) = configForcesR(n,1)
               configurationRefForceY(atomCounter) = configForcesR(n,2)
               configurationRefForceZ(atomCounter) = configForcesR(n,3)
+			  atomTypeKey(atomCounter) = configCoordsI(n)
 			enddo
 		  enddo
 		enddo
@@ -371,6 +405,7 @@ contains
 				      zdSq = (zA-zB)**2
 				      if(zdSq.le.rCutoffSq)then
 					    rdSq = xdSq + ydSq + zdSq
+						
 					    if(rdSq.le.rCutoffSq)then
 					      neighbourListCount = neighbourListCount + 1
 						  configLength = configLength + 1
@@ -387,7 +422,7 @@ contains
 						  neighbourListCoordsTemp(neighbourListCount,4) = xB
 						  neighbourListCoordsTemp(neighbourListCount,5) = yB
 						  neighbourListCoordsTemp(neighbourListCount,6) = zB
-						  neighbourListRTemp(neighbourListCount) = rdSq**0.5
+						  neighbourListRTemp(neighbourListCount) = rdSq**0.5						  
 !Save neighbour list file
 					    endif
 					  endif
@@ -406,15 +441,13 @@ contains
 	  configStart = configStart + configLength
 	enddo
 !end loop through configurations
-
-
     
 	
 !Move from temp arrays - Allocate arrays
 	Allocate(neighbourListKey(1:size(configHeaderI)/headerWidth,1:2))
-	Allocate(neighbourListI(1:tempNeighbourListLength,1:4))
-	Allocate(neighbourListR(1:tempNeighbourListLength)) 
-	Allocate(neighbourListCoords(1:tempNeighbourListLength,1:9)) !Ax Ay Az, Bx By Bz, R_ABi R_ABj R_ABk 
+	Allocate(neighbourListI(1:neighbourListCount,1:4))
+	Allocate(neighbourListR(1:neighbourListCount)) 
+	Allocate(neighbourListCoords(1:neighbourListCount,1:12)) !Ax Ay Az, Bx By Bz, R_ABi R_ABj R_ABk 
 !Transfer key data 
     !do i=1,size(configHeaderI)/headerWidth
     do i=1,configCount
@@ -434,9 +467,15 @@ contains
 	  neighbourListCoords(i,4) = neighbourListCoordsTemp(i,4) !xB
 	  neighbourListCoords(i,5) = neighbourListCoordsTemp(i,5) !yB
 	  neighbourListCoords(i,6) = neighbourListCoordsTemp(i,6) !zB 
-	  neighbourListCoords(i,7) = neighbourListCoordsTemp(i,4)-neighbourListCoordsTemp(i,1)
-	  neighbourListCoords(i,8) = neighbourListCoordsTemp(i,5)-neighbourListCoordsTemp(i,2)
-	  neighbourListCoords(i,9) = neighbourListCoordsTemp(i,6)-neighbourListCoordsTemp(i,3)
+	  neighbourListCoords(i,7) = neighbourListCoordsTemp(i,4)-neighbourListCoordsTemp(i,1) !xB-xA
+	  neighbourListCoords(i,8) = neighbourListCoordsTemp(i,5)-neighbourListCoordsTemp(i,2) !yA-yB
+	  neighbourListCoords(i,9) = neighbourListCoordsTemp(i,6)-neighbourListCoordsTemp(i,3) !zA-zB
+	  neighbourListCoords(i,10) = neighbourListCoords(i,7)/(1.0D0*neighbourListR(i)) !(xB-xA)/(|B-A|)
+	  neighbourListCoords(i,11) = neighbourListCoords(i,8)/(1.0D0*neighbourListR(i)) !(yB-yA)/(|B-A|) 
+	  neighbourListCoords(i,12) = neighbourListCoords(i,9)/(1.0D0*neighbourListR(i)) !(zB-zA)/(|B-A|) 
+	  !print *,&
+	  !neighbourListR(i),&
+	  !neighbourListCoords(i,10),neighbourListCoords(i,11),neighbourListCoords(i,12)
 	enddo
 !Deallocate arrays
     Deallocate(neighbourListITemp)
@@ -526,8 +565,8 @@ contains
 	  neighbourListCoords(i,7) = xB-xA
 	  neighbourListCoords(i,8) = yB-yA
 	  neighbourListCoords(i,9) = zB-zA
-!store new distance between atoms		  
-	  neighbourListR(i) = ((xA-xB)**2+(yA-yB)**2+(zA-zB)**2)**0.5
+!store new distance between atoms	
+	  neighbourListR(i) = ((xA-xB)**2+(yA-yB)**2+(zA-zB)**2)**0.5	  
 	enddo	
 !recalculate configuration volume
     Call calcConfigurationVolume(configurationID)	

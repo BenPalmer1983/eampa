@@ -1,9 +1,11 @@
 #potential
-"examples/sheng_al_eam.pot"
+"examples/Al.lammps.eam"
+#pottype
+LAMMPS
 #configurations
 "examples/atomsAl.conf"
 #datadir
-"examples"
+"data"
 #savecoords
 no
 #saveneighbourlist

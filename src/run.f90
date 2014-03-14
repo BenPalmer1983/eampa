@@ -70,7 +70,8 @@ contains
 	
 !choose type of calculation: eval energy forces bulkmodulus elasticconstants 
 	If(calcRunType.eq.1)Then	!Energy
-	  Call calcConfigEnergies()
+	  Call calcConfigEnergies(.true.,.true.)
+	  Call calcDifference(.true.)
 	End If
 	
 	

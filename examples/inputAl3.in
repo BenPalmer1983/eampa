@@ -1,0 +1,37 @@
+#potential
+"examples/AuB.pot"
+#configurations
+"examples/atomsAl.conf"
+#datadir
+"examples"
+#savecoords
+no
+#saveneighbourlist
+no
+#savepot
+yes
+#runtype
+ene
+#unitvector
+1.0 0.0 0.0
+0.0 1.0 0.0
+0.0 0.0 1.0
+#eaminterp
+FOURPOINT
+#eamreducedpoints 
+50 50 30
+#eamtrialpoints 
+1000 1000 1000
+#calcforces
+yes
+#calcstress
+yes
+#dftin-rc
+6.5
+#dftin-replacesym
+1
+N Al
+#dftin-optenergy
+-10112.77814219 Ry 256
+#dftin-cohenergy
+-3.36 eV

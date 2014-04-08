@@ -13,7 +13,11 @@ no
 #savepot
 yes
 #runtype
-energy
+eval
+#eamreducedpoints 
+50 50 30
+#weighting energy stress forces
+100 20 1
 #unitvector
 1 0 0
 0 1 0

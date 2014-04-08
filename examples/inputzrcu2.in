@@ -1,0 +1,26 @@
+#potential
+"examples/ZrCu.lammps.eam"
+#pottype
+LAMMPS
+#datadir
+"data"
+#configurations
+"examples/atomsZrCu2.conf"
+#savecoords
+yes
+#saveneighbourlist
+no
+#savepot
+yes
+#runtype
+energy
+#unitvector
+1 0 0
+0 1 0
+0 0 1
+#eaminterp
+FOURPOINT
+#calcforces
+yes
+#calcstress
+yes

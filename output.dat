@@ -4,76 +4,138 @@
              Ben Palmer               
 ======================================
  
-Date: 01:11 14/03/2014
+Date: 22:33 08/04/2014
  
  
-Read Isotope Data                     0.0000
-  0.1040  Reading user input file examples/inputzrcu.in                                       
-  0.1880  Reading EAM potential from examples/ZrCu.lammps.eam.temp                               
-Program time:     0.2240
-Element    1: ZR
-Element    2: CU
-      Program time:     0.2920
-      Element count:                 2
+  0.1120  Reading user input file examples/inputAl.in                                         
+  0.1120  Reading EAM potential from examples/besttrial.pot                                      
+Program time:     0.1280
+Element    1: AL
+      Program time:     0.1600
+      Element count:                 1
       EAM Type:                      1
-      Potentials count:              7
-      Potentials expected:           7
-      Pairs functions:               3
-      Density functions:             2
-      Embedding functions:           2
-      Data points:                    7007
-      Save coords file:           Y
+      Potentials count:              3
+      Potentials expected:           3
+      Pairs functions:               1
+      Density functions:             1
+      Embedding functions:           1
+      Data points:                    3003
+      Save coords file:           N
       Save neighbour list file:   N
       Save potential file:        Y
-      Calculation run type:              1
+      Calculation run type:              5
       Unit vector:                
         1.0000  0.0000  0.0000
         0.0000  1.0000  0.0000
         0.0000  0.0000  1.0000
        Summary of potential functions 
-             1  ZR  ZR       1       1       1    4005    1001
-             2  ZR  CU       1       2       1    5006    1001
-             3  CU  CU       2       2       1    6007    1001
-             4  ZR           1       0       2    1002    1001
-             5  CU           2       0       2    3004    1001
-             6  ZR           1       0       3       1    1001
-             7  CU           2       0       3    2003    1001
-  0.4400  Reading from file examples/atomsZrCu.conf.temp                                
-      Configurations read:        2
-      Atoms read:               132
-  0.4480  Start building config neighbour lists
-      Total configurations prepared: 
-  0.4600  Finish building config neighbour lists, total pairs:     6340
-  0.4640  Order EAM Potentials
-    4005    1001
-    5006    1001
-    6007    1001
-    1002    1001
-    3004    1001
+             1  AL  AL       1       1       1       1    1001
+             2  AL           1       0       2    1002    1001
+             3  AL           1       0       3    2003    1001
+  0.3960  Reading from file examples/atomsAl.conf.temp                                  
+      Configurations read:       10
+      Atoms read:              1804
+  0.4760  Start building config neighbour lists
+      Total configurations prepared:       10
+  1.2520  Finish building config neighbour lists, total pairs:   232138
+  1.2520  Order EAM Potentials
        1    1001
+    1002    1001
     2003    1001
       ----------------------------------------
       Summary of Configurations
       ----------------------------------------
-      Configuration:        1    Volume:      46.655994    Atoms:        4    NL Length:      296          1       4             0
-      Configuration:        2    Volume:    3126.049561    Atoms:      128    NL Length:     6044          5     132  RF         0
-  0.5280  Start calculations (runProcesses)
+      Configuration:        1    Volume:       0.000000    Atoms:      500    NL Length:    39000          1     500             0
+      Configuration:        2    Volume:       0.000000    Atoms:      500    NL Length:    27000        501    1000             1
+      Configuration:        3    Volume:       0.000000    Atoms:      500    NL Length:    39000       1001    1500             0
+      Configuration:        4    Volume:       0.000000    Atoms:      256    NL Length:    19680       1501    1756  RF         1
+      Configuration:        5    Volume:       0.000000    Atoms:      256    NL Length:    18840       1757    2012  RF         0
+      Configuration:        6    Volume:       0.000000    Atoms:      256    NL Length:    17664       2013    2268  RF         1
+      Configuration:        7    Volume:       0.000000    Atoms:      256    NL Length:    17734       2269    2524  RF         0
+      Configuration:        8    Volume:       0.000000    Atoms:      256    NL Length:    17716       2525    2780  RF         1
+      Configuration:        9    Volume:       0.000000    Atoms:      256    NL Length:    17752       2781    3036  RF         0
+      Configuration:       10    Volume:       0.000000    Atoms:      256    NL Length:    17752       3037    3292  RF         1
+  1.3160  Start calculations (runProcesses)
+Calculating configuration energy   1.3160      1
+ Evaluation count:    1, RSS:     0.8050383919E+03
 --------------------------------------------
-Program time:     0.5600
-Configuration Details 
+Calculation count:    1
 --------------------------------------------
-   1   -10.227395 eV        4 atoms           0
-   1   -2.556849 eV per atom (    0.000000 eV Ref)
-   1  Sxx:   -140.5970916064 Sxy:     -0.0000000017 Sxz:     -0.0000000017
-   1  Syx:     -0.0000000017 Syy:   -140.5970916064 Syz:     -0.0000000017
-   1  Szx:     -0.0000000017 Szy:     -0.0000000017 Szz:   -140.5970916064
+   1 -1667.757574 eV      500 atoms           0
+   1   -3.335515 eV per atom (no ref)
+   1  Sxx:         -Infinity Sxy:         -Infinity Sxz:         -Infinity
+   1  Syx:         -Infinity Syy:         -Infinity Syz:          Infinity
+   1  Szx:         -Infinity Szy:          Infinity Szz:         -Infinity
  
-   2  -747.564911 eV      128 atoms           0
-   2   -5.840351 eV per atom (    0.000000 eV Ref)
-   2  Sxx:    -19.5954443572 Sxy:      0.1303626876 Sxz:      0.6298759216
-   2  Syx:      0.1303626468 Syy:    -17.8060491498 Syz:      1.0009345747
-   2  Szx:      0.6298759253 Szy:      1.0009345741 Szz:    -17.6903691268
+   2 -1619.384444 eV      500 atoms           1
+   2   -3.238769 eV per atom (   -3.256000 eV Ref)
+   2  Sxx:               NaN Sxy:               NaN Sxz:               NaN
+   2  Syx:               NaN Syy:               NaN Syz:               NaN
+   2  Szx:               NaN Szy:               NaN Szz:               NaN
+   2  Energy RSS:       0.0002969127
  
-Energy calc time:       0.03200001
-Energy difference:           0.4064717354E+02
-Force difference:            0.9640083031E+02
+   3 -1623.002964 eV      500 atoms           0
+   3   -3.246006 eV per atom (   -3.344000 eV Ref)
+   3  Sxx:         -Infinity Sxy:          Infinity Sxz:          Infinity
+   3  Syx:          Infinity Syy:         -Infinity Syz:          Infinity
+   3  Szx:          Infinity Szy:          Infinity Szz:         -Infinity
+   3  Energy RSS:       0.0096028580
+ 
+   4  -860.169340 eV      256 atoms           1
+   4   -3.360036 eV per atom (   -3.360009 eV Ref)
+   4  Sxx:               NaN Sxy:               NaN Sxz:               NaN
+   4  Syx:               NaN Syy:               NaN Syz:               NaN
+   4  Szx:               NaN Szy:               NaN Szz:               NaN
+   4  Energy RSS:       0.0000000008
+   4  Force RSS:      24.4809035835
+ 
+   5  -819.656094 eV      256 atoms           0
+   5   -3.201782 eV per atom (   -3.358942 eV Ref)
+   5  Sxx:         -Infinity Sxy:         -Infinity Sxz:          Infinity
+   5  Syx:         -Infinity Syy:         -Infinity Syz:         -Infinity
+   5  Szx:          Infinity Szy:          Infinity Szz:         -Infinity
+   5  Energy RSS:       0.0246993208
+   5  Force RSS:     380.8289933984
+ 
+   6  -795.712185 eV      256 atoms           1
+   6   -3.108251 eV per atom (   -3.164018 eV Ref)
+   6  Sxx:               NaN Sxy:               NaN Sxz:               NaN
+   6  Syx:               NaN Syy:               NaN Syz:               NaN
+   6  Szx:               NaN Szy:               NaN Szz:               NaN
+   6  Energy RSS:       0.0031099533
+   6  Force RSS:      18.3252140635
+ 
+   7  -754.430972 eV      256 atoms           0
+   7   -2.946996 eV per atom (   -2.910878 eV Ref)
+   7  Sxx:         -Infinity Sxy:         -Infinity Sxz:          Infinity
+   7  Syx:          Infinity Syy:         -Infinity Syz:          Infinity
+   7  Szx:          Infinity Szy:          Infinity Szz:         -Infinity
+   7  Energy RSS:       0.0013044958
+   7  Force RSS:      97.1004605432
+ 
+   8  -744.767800 eV      256 atoms           1
+   8   -2.909249 eV per atom (   -2.866678 eV Ref)
+   8  Sxx:               NaN Sxy:               NaN Sxz:               NaN
+   8  Syx:               NaN Syy:               NaN Syz:               NaN
+   8  Szx:               NaN Szy:               NaN Szz:               NaN
+   8  Energy RSS:       0.0018122682
+   8  Force RSS:      91.9236885349
+ 
+   9  -746.906792 eV      256 atoms           0
+   9   -2.917605 eV per atom (   -2.879996 eV Ref)
+   9  Sxx:         -Infinity Sxy:          Infinity Sxz:          Infinity
+   9  Syx:          Infinity Syy:         -Infinity Syz:          Infinity
+   9  Szx:         -Infinity Szy:          Infinity Szz:         -Infinity
+   9  Energy RSS:       0.0014144242
+   9  Force RSS:      93.3280730051
+ 
+  10  -755.145456 eV      256 atoms           1
+  10   -2.949787 eV per atom (   -2.909541 eV Ref)
+  10  Sxx:               NaN Sxy:               NaN Sxz:               NaN
+  10  Syx:               NaN Syy:               NaN Syz:               NaN
+  10  Szx:               NaN Szy:               NaN Szz:               NaN
+  10  Energy RSS:       0.0016197058
+  10  Force RSS:      94.6650647940
+ 
+RSS all configurations:     0.8050383919E+03
+ 

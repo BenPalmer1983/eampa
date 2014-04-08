@@ -1,9 +1,7 @@
 #potential
-"examples/Al.lammps.pot"
-#pottype
-NORMAL
+"examples/sheng_al_eam.pot"
 #configurations
-"examples/atomsAl.conf"
+"examples/atomsAl2.conf"
 #datadir
 "examples"
 #savecoords

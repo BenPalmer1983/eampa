@@ -57,6 +57,8 @@ Module input
 !Optimisation eam reduced points size
   Integer(kind=StandardInteger) :: eamReducedPointsV, eamReducedPointsP, eamReducedPointsF
   Integer(kind=StandardInteger) :: eamTrialPointsV, eamTrialPointsP, eamTrialPointsF
+!OPtimization weights
+  Integer(kind=StandardInteger) :: eamEnergyOptWeight, eamStressOptWeight, eamForceOptWeight
 
   
 !Privacy of functions/subroutines/variables
@@ -103,6 +105,7 @@ Module input
   Public :: isotopesReal			!Variable
   Public :: eamReducedPointsV, eamReducedPointsP, eamReducedPointsF !Variable
   Public :: eamTrialPointsV, eamTrialPointsP, eamTrialPointsF
+  Public :: eamEnergyOptWeight, eamStressOptWeight, eamForceOptWeight
   !User input variables
   Public :: saCycles
   
@@ -352,6 +355,9 @@ contains
 	eamTrialPointsV = 1001
 	eamTrialPointsP = 1001
 	eamTrialPointsF = 1001
+	eamEnergyOptWeight = 100
+	eamStressOptWeight = 10
+	eamForceOptWeight = 1
 	saCycles = 50
 	Do i=1,1000
 	  pwscfFiles(i) = "__empty__"
@@ -483,6 +489,15 @@ contains
 		!Read(buffera,*) eamTrialPointsV
 		!Read(bufferb,*) eamTrialPointsP
 		!Read(bufferc,*) eamTrialPointsF
+	  endif	 
+
+!#weighting	  
+	  if(buffera(1:10).eq."#weighting")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc
+		Read(buffera,*) eamEnergyOptWeight
+		Read(bufferb,*) eamStressOptWeight
+		Read(bufferc,*) eamForceOptWeight
 	  endif	 
 
 !#saCycles	  simulated annealing cycles	  
@@ -1658,10 +1673,16 @@ Open(UNIT=1,FILE=potentialFilePathTemp)
 	absolutePosition = 0
 !Default
     Do i=1,configurationCount
+!References
 	  configHeaderR(i,12) = -2.1E20		!Set no ref energy
 	  configHeaderR(i,13) = -2.1E20		!Set no ref forces
 	  configHeaderR(i,14) = -2.1E20		!Set no ref stresses
 	  configHeaderR(i,15) = -2.1E20		!Set no bulk modulus
+!Weighting
+      configHeaderR(i,16) = 1.0E0		!configuration energy weighting
+      configHeaderR(i,17) = 1.0E0		!configuration forces weighting
+      configHeaderR(i,18) = 1.0E0		!configuration stresses weighting
+      configHeaderR(i,19) = 1.0E0		!configuration stresses weighting
 	End Do
 !Load Data
     configurationCount = 0
@@ -1773,6 +1794,18 @@ Open(UNIT=1,FILE=potentialFilePathTemp)
           configHeaderR(configurationCount,15) = &
 		  UnitConvert(1.0D0*configHeaderR(configurationCount,15),bufferc,"GPA")		  
 		End If
+		
+if(StrToUpper(buffera(1:3)).eq."#CW")then     !Configuration weighting
+!re-read row
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd, buffere	
+		  Read(bufferb,*) configHeaderR(configurationCount,16)
+		  Read(bufferc,*) configHeaderR(configurationCount,17)
+		  Read(bufferd,*) configHeaderR(configurationCount,18)
+		  Read(buffere,*) configHeaderR(configurationCount,19)
+	    End If
+		
+		
 !Read potential radius cutoff
 	    if(StrToUpper(buffera(1:3)).eq."#RC")Then     !radius cutoff
 !re-read row

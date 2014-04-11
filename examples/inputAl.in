@@ -11,9 +11,9 @@ no
 #savepot
 yes
 #runtype
-eval
+opt
 #weighting energy stress forces
-100 20 1
+1000 20 1
 #unitvector
 1.0 0.0 0.0
 0.0 1.0 0.0
@@ -23,7 +23,7 @@ FOURPOINT
 #eamreducedpoints 
 50 50 30
 #saCycles
-100
+1
 #calcforces
 yes
 #calcstress
@@ -46,3 +46,5 @@ N Al
 "examples/pwscf/Al.1831.out"
 "examples/pwscf/Al.1839.out"
 "examples/pwscf/Al.1854.out"
+"examples/pwscf/Al.1857.out"
+"examples/pwscf/Al.1862.out"

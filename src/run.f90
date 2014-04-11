@@ -186,7 +186,7 @@ contains
   
   
   Subroutine runOptimisePointVary()
-  !force declaration of all variables
+!force declaration of all variables
 	Implicit None	
 !declare private variables
 	Integer(kind=StandardInteger) :: i, j, k, point, potPoints, fileCounter
@@ -242,18 +242,17 @@ contains
         eamDataReduced = VaryPoints(eamDataReduced,varyAmount,point)
 !Make set of points to use in calculations
 	    Call makeTrialEAMSet()
-!Get function wobbliness
-        wobbliness = eamTotalWobbliness(eamKeyTrial, eamDataTrial, 10000)
-	    curveLength = eamCurveLength(eamKeyTrial, eamDataTrial, 10000)
-	    curveLengthValue = curveLength(size(curveLength,1))
 !Evaluate
 	  Call calcEval()
 	  If(mpiProcessID.eq.0)Then
 		  potX = eamDataReduced(point,1)
 		  potY = eamDataReduced(point,2)
 		  !print *,i,point,potX,potYb,potY,varyAmount,trialResidualSquareSum
-		  print *,i,point,potX,potYb,potY,varyAmount,trialResidualSquareSum,&
-		  wobbliness,curveLengthValue
+		  If((1.0D0*trialResidualSquareSum).lt.(1.0D0*bestRSS))Then
+		    print *,i,point,potX,potYb,potY,varyAmount,trialResidualSquareSum,"*"
+		  Else
+            print *,i,point,potX,potYb,potY,varyAmount,trialResidualSquareSum
+          End If		  
 	  End If
 !If better, store these points
       If((1.0D0*trialResidualSquareSum).lt.(1.0D0*bestRSS))Then
@@ -267,12 +266,6 @@ contains
 		    "bestreducedlong"//".pot",10000)
 		  End If
 	  End If	
-	  !If(point.eq.size(eamDataReduced,1))Then
-	    !fileCounter = fileCounter + 1
-	    !write (fileName, "(A7,I2,A4)") "reduced", fileCounter,".pot"
-		!Call storeEAMToFile(eamKeyReduced, eamDataReduced, trim(fileName))
-		!print *,trim(fileName)
-	  !End If
 	End Do
   End Subroutine runOptimisePointVary
   
@@ -366,14 +359,14 @@ contains
 	Integer(kind=StandardInteger) :: i, j, k, point, potPoints
 	Integer(kind=StandardInteger) :: reducedPointCount, bestPotCounter
 	Real(kind=DoubleReal) :: startingRSS, bestRSS
-	Real(kind=DoubleReal) :: varyAmount, unperturbed, perturbAmount, x, y, dy, ddy, dr
+	Real(kind=DoubleReal) :: varyAmount, unperturbed, perturbAmount, x, y, yb, dyb, dy, ddy, dr
 	Real(kind=DoubleReal) :: potX, potY, potYb, wobbliness
 	Integer(kind=StandardInteger) :: potStart, potEnd
 	Integer(kind=StandardInteger) :: potStartNew, potLengthNew
 	Integer(kind=StandardInteger) :: varyType
 	Integer(kind=StandardInteger), Dimension(:), Allocatable :: potType
 	Real(kind=DoubleReal), Dimension(:,:), Allocatable :: interpPoints, makeJacobianMatrix
-	Real(kind=DoubleReal), Dimension(:), Allocatable :: yArray
+	Real(kind=DoubleReal), Dimension(:), Allocatable :: yArray, yArrayB
 	Real(kind=DoubleReal), Dimension(:,:), Allocatable :: potentialResponseResults
 ! Choose set of eam data points for eam calculations
     eamDataSet = 3	!eamDataTrial
@@ -442,13 +435,23 @@ contains
 	  If(interpPoints(1,2).eq.interpPoints(2,2).and.&
 	    interpPoints(1,2).eq.interpPoints(3,2).and.&
 	    interpPoints(1,2).eq.interpPoints(4,2))Then
+		x = 1.0D0 * interpPoints(2,1)
 		y = 0.0D0
 		dy = 0.0D0
-		dr = 0.0D0
-	  Else
-		yArray = PointInterpolationArr(interpPoints,interpPoints(2,1),4)
-		y = yArray(1)
-		dy = yArray(2)
+		ddy = 0.0D0
+		dr = 0.0D0		
+		yb = 0.0D0
+		dyb = 0.0D0
+	  Else   
+	    x = 1.0D0 * interpPoints(2,1)
+	    interpPoints = 1.0D0*interpPoints
+		yArrayB = PointInterpolationArr(interpPoints,x,4)	
+		yb = yArrayB(1)
+		dyb = yArrayB(2)
+		yArray = MatrixInterpolation(interpPoints,x)
+		y = yArray(2)
+		dy = yArray(3)
+		ddy = yArray(4)
 		dr = 1.0D0*abs(1.0D0*interpPoints(2,2)-1.0D0*interpPoints(1,2))+&
 		     1.0D0*abs(1.0D0*interpPoints(3,2)-1.0D0*interpPoints(2,2))+&
 		     1.0D0*abs(1.0D0*interpPoints(4,2)-1.0D0*interpPoints(3,2))
@@ -457,12 +460,12 @@ contains
       potentialResponseResults(i,1) = i
       potentialResponseResults(i,2) = y
       potentialResponseResults(i,3) = dy
-      potentialResponseResults(i,4) = 0.0D0
+      potentialResponseResults(i,4) = ddy
       potentialResponseResults(i,5) = potX
       potentialResponseResults(i,6) = potY		
 !Print out      
 	  If(mpiProcessID.eq.0)Then
-	    print *,i,potX,potY,dy,dr
+	    print *,i,potX,potY,yb,dyb,y,dy,ddy,dr
 	  End If
 	End Do
   End Subroutine runPerturbationResponse 

@@ -11,6 +11,8 @@ Program test
   Use maths				!maths functions
   
 !Variables
+  Integer(kind=StandardInteger) :: i
+  Real(kind=DoubleReal) :: x,y
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: coefficients
   Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: splineXY
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
@@ -19,6 +21,9 @@ Program test
   Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: dataPointsC
   Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: dataPointsD
   Real(kind=DoubleReal) :: valueA
+  Real(kind=SingleReal) :: startTime, endTime
+  
+  Call cpu_time(startTime)
 
   Allocate(dataPointsA(1:3,1:2))
   Allocate(dataPointsB(1:4,1:2))
@@ -78,12 +83,12 @@ Program test
   
   !print *,coefficients(1),coefficients(2),coefficients(3)
   
-  splineXY = Spline(dataPointsD, 1001, 3, 4)
+  !splineXY = Spline(dataPointsD, 1001, 3, 4)
   
-  print *,splineXY(1,1),splineXY(1,2)
-  print *,splineXY(500,1),splineXY(500,2)
-  print *,splineXY(1000,1),splineXY(1000,2)
-  print *,splineXY(1001,1),splineXY(1001,2)
+  !print *,splineXY(1,1),splineXY(1,2)
+  !print *,splineXY(500,1),splineXY(500,2)
+  !print *,splineXY(1000,1),splineXY(1000,2)
+  !print *,splineXY(1001,1),splineXY(1001,2)
   
   
   !dataPoints(1,1) = -0.5
@@ -108,6 +113,22 @@ Program test
   !print *,BinomialCoefficient(4,4)
   
   !valueA = PermutationCoefficients(dataPointsC,1,0)
+  
+  !x = 100
+  !Do i=1,1000
+  !  y = VaryPoint(x,0.01D0,1)
+!	print *,i,x,y
+  !End Do
+  
+  x = 1.25
+  Do i=1,1000000
+    yArray = PointInterpolationArr(dataPointsD,x)
+  End Do
+  print *,yArray(1),yArray(2)
+  
+  
+  Call cpu_time(endTime)
+  print *,(endTime-startTime)
   
   
 End

@@ -776,7 +776,7 @@ Contains
   
   
   Function PointInterpolationArr(inputPoints,x,subsetSizeIn,inputSetStartIn,&
-    inputSetLengthIn,verboseIn,orderDataIn) RESULT (yArray) 
+    inputSetLengthIn,interpTypeIn) RESULT (yArray) 
 !Lagrange Formula Point Interpolation, returns y
 !force declaration of all variables
 	Implicit None
@@ -789,21 +789,25 @@ Contains
     Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: inputPointsSubset
     Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: inputPointsInterp
     Real(kind=DoubleReal), Dimension( : ), Allocatable :: coefficients
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray, yArrayTemp
+	Integer(kind=StandardInteger) :: interpType
 !Optional vars
 	Integer(kind=StandardInteger), optional :: subsetSizeIn
 	Integer(kind=StandardInteger), optional :: inputSetStartIn
 	Integer(kind=StandardInteger), optional :: inputSetLengthIn
-	Character(3), optional :: orderDataIn
-	Character(1), optional :: verboseIn
+	Integer(kind=StandardInteger), optional :: interpTypeIn
 !Sort vars
-	Character(3) :: orderData
+	Integer(kind=StandardInteger) :: orderData
 	Real(kind=DoubleReal) :: sortXA, sortXB, sortYA, sortYB
 	Logical :: sorting
 !Subset vars	
 	Integer(kind=StandardInteger) :: subsetSize, dataSize, xPos, posOffset
 	Real(kind=DoubleReal) :: xLower, xUpper
 !Set variables	
+    interpType = 1		!1 lagrange, 2 matrix
+	If(Present(interpTypeIn))Then
+	  interpType = interpTypeIn
+	End If
 	dataSize = size(inputPoints,1)
 	If(present(inputSetStartIn))Then
 	  inputSetStart = inputSetStartIn
@@ -817,11 +821,6 @@ Contains
 	  inputSetEnd = dataSize
 	End If	
 	verbose = 0
-	If(present(verboseIn))Then
-	  If(verboseIn(1:1).eq."y".or.verboseIn(1:1).eq."Y")Then
-	    verbose = 1
-	  End If
-	End If
 !Order data - don't do by default as it takes time
     If(verbose.eq.1)Then
       print *,"Interp start"
@@ -832,9 +831,8 @@ Contains
 	    print *,"   ",inputPoints(i,1),inputPoints(i,2)
 	  End Do
 	End If
-    If(present(orderDataIn))Then
-	  orderData = orderDataIn
-	  If(StrToUpper(orderData(1:3)).eq."ASC")Then
+	orderData = 0
+    If(orderData.eq.1)Then
 	    sorting = .true.
 		Do While(sorting.eqv..true.)
 		  sorting = .false.
@@ -853,8 +851,8 @@ Contains
 			End If
 		  End Do
 		End Do
-	  End If
-	  If(StrToUpper(orderData(1:3)).eq."DES")Then
+	End If	
+    If(orderData.eq.1)Then
 	    sorting = .true.
 		Do While(sorting.eqv..true.)
 		  sorting = .false.
@@ -873,7 +871,6 @@ Contains
 			End If
 		  End Do
 		End Do
-	  End If
 	End If
 !If interpolating a subset of inputPoints, make the subset
 	If(present(subsetSizeIn))Then
@@ -984,52 +981,62 @@ Contains
 !Allocate coefficients array	
 	Allocate(coefficients(0:order))
 !make coefficients for Lagrange's formula	
-	Do n=0,order
-	  numerator = 1.0D0
-	  denominator = 1.0D0 
-	  Do k=0,order
-	    If(k.ne.n)Then
-	      numerator=numerator*(x-inputPointsInterp(k+1,1))
-		  denominator=denominator*(inputPointsInterp(n+1,1)-inputPointsInterp(k+1,1))
-		End If  
-	  End Do
-	  coefficients(n)=1.0D0*(numerator/denominator)
-    End Do  
+    If(interpType.eq.1)Then 		!If Lagrange formula
+	  Do n=0,order
+	    numerator = 1.0D0
+	    denominator = 1.0D0 
+	    Do k=0,order
+	      If(k.ne.n)Then
+	        numerator=numerator*(x-inputPointsInterp(k+1,1))
+		    denominator=denominator*(inputPointsInterp(n+1,1)-inputPointsInterp(k+1,1))
+		  End If  
+	    End Do
+	    coefficients(n)=1.0D0*(numerator/denominator)
+      End Do  
 !Calculate y
-    y = 0.0D0
-	Do n=0,order
-	  y=y+inputPointsInterp(n+1,2)*coefficients(n)
-	End Do
-!make coefficients for Lagrange's formula for y'(x)
-	Do n=0,order
-	  numerator = 0.0D0
-	  denominator = 1.0D0 
-	  Do k=0,order
-	    If(k.ne.n)Then
-		  denominator=denominator*(inputPointsInterp(n+1,1)-inputPointsInterp(k+1,1))
-		  numeratorPart = 1.0D0
-		  Do i=0,order
-		    If(i.ne.n.and.i.ne.k)Then
-			  numeratorPart=numeratorPart*(x-inputPointsInterp(i+1,1)) 
-			End If
-		  End Do
-		  numerator=numerator+numeratorPart
-		End If  
+      y = 0.0D0
+	  Do n=0,order
+	    y=y+inputPointsInterp(n+1,2)*coefficients(n)
 	  End Do
-	  coefficients(n)=1.0D0*(numerator/denominator)
-    End Do  
+!make coefficients for Lagrange's formula for y'(x)
+	  Do n=0,order
+	    numerator = 0.0D0
+	    denominator = 1.0D0 
+	    Do k=0,order
+	      If(k.ne.n)Then
+		    denominator=denominator*(inputPointsInterp(n+1,1)-inputPointsInterp(k+1,1))
+		    numeratorPart = 1.0D0
+		    Do i=0,order
+		      If(i.ne.n.and.i.ne.k)Then
+			    numeratorPart=numeratorPart*(x-inputPointsInterp(i+1,1)) 
+			  End If
+		    End Do
+		    numerator=numerator+numeratorPart
+		  End If  
+	    End Do
+	    coefficients(n)=1.0D0*(numerator/denominator)
+      End Do  
 !Calculate dy
-    dy = 0.0D0
-  	Do n=0,order
-	  dy=dy+inputPointsInterp(n+1,2)*coefficients(n)
-	End Do
+      dy = 0.0D0
+  	  Do n=0,order
+	    dy=dy+inputPointsInterp(n+1,2)*coefficients(n)
+	  End Do
 !Store results in array
-	Allocate(yArray(1:2))
-	yArray(1) = y
-	yArray(2) = dy
-	If(verbose.eq.1)Then
-	  print *,"Interp end"
+	  Allocate(yArray(1:2))
+	  yArray(1) = y
+	  yArray(2) = dy
+	  If(verbose.eq.1)Then
+	    print *,"Interp end"
+	  End If
+	End If   !If Lagrange formula end
+    If(interpType.eq.2)Then 		!If Lagrange formula
+	  Allocate(yArray(1:3))
+	  yArrayTemp = MatrixInterpolation(inputPointsInterp,x)
+	  yArray(1) = yArrayTemp(2)
+	  yArray(2) = yArrayTemp(3)
+	  yArray(3) = yArrayTemp(4)
 	End If
+	
   End Function PointInterpolationArr
   
   
@@ -1960,7 +1967,7 @@ Contains
   End Function RandomDataPoints  
   
   
-  Function VaryPoint(x,T) RESULT (xV)  
+  Function VaryPoint(x,T,randLargeVariationIn) RESULT (xV)  
 !force declaration of all variables
 	Implicit None
 !declare variables  
@@ -1969,10 +1976,19 @@ Contains
 	Real(kind=DoubleReal) :: x,T,xV
 	Real(kind=DoubleReal) :: distX, distY, distXInterval
 	Real(kind=DoubleReal) :: sigma, mu, piNum, normalisationFactor
-	Real(kind=DoubleReal) :: randNumber, variation
+	Real(kind=DoubleReal) :: randNumber, variation, largeVariation
 	Real(kind=DoubleReal), Dimension(:,:), Allocatable :: distributionPoints
 	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
 	Logical :: addVariation
+!Optional variables
+    Integer(kind=StandardInteger), optional :: randLargeVariationIn
+    Integer(kind=StandardInteger) :: randLargeVariation
+!Set Variables	
+	If(Present(randLargeVariationIn))Then
+	  randLargeVariation = randLargeVariationIn
+	Else
+      randLargeVariation = 0	
+	End If
 !Make distribution set
     distributionDataPoints = 21
 	piNum = 3.1415926535898D0
@@ -1999,11 +2015,22 @@ Contains
     Call RANDOM_NUMBER(randNumber)
 	yArray = PointInterpolationArr(distributionPoints,randNumber,5)
 	variation = yArray(1)
+	largeVariation = 1.0D0
+!Occasionally add/subtract a large variation
+    If(randLargeVariation.gt.0)Then
+	  Call RANDOM_NUMBER(randNumber)
+	  yArray = PointInterpolationArr(distributionPoints,randNumber,5)
+	  largeVariation = yArray(1)
+	  Call RANDOM_NUMBER(randNumber)
+	  If((1.0D0*randNumber).ge.0.95D0)Then
+	    largeVariation = (2.0D0*largeVariation)/T
+	  End If
+	End If	
 !New point
     If(addVariation.eqv..true.)Then
-      xV = x*(1+variation*T)
+      xV = x*(1+variation*T*largeVariation)
     Else
-	  xV = x*(1-variation*T)
+	  xV = x*(1-variation*T*largeVariation)
 	End If  
   End Function VaryPoint  
   
@@ -2030,12 +2057,12 @@ Contains
 	  If(point.eq.0)Then
 	    y = inputArray(i,2)
 	    outputArray(i,1) = inputArray(i,1)
-	    outputArray(i,2) = VaryPoint(y,T)
+	    outputArray(i,2) = VaryPoint(y,T,1)
 	  Else
 	    If(i.eq.point)Then
 		  y = inputArray(i,2)
 	      outputArray(i,1) = inputArray(i,1)
-	      outputArray(i,2) = VaryPoint(y,T)
+	      outputArray(i,2) = VaryPoint(y,T,1)
 		Else
 	      outputArray(i,1) = inputArray(i,1)
 	      outputArray(i,2) = inputArray(i,2)

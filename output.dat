@@ -4,14 +4,14 @@
              Ben Palmer               
 ======================================
  
-Date: 22:33 08/04/2014
+Date: 11:55 11/04/2014
  
  
   0.1120  Reading user input file examples/inputAl.in                                         
   0.1120  Reading EAM potential from examples/besttrial.pot                                      
 Program time:     0.1280
 Element    1: AL
-      Program time:     0.1600
+      Program time:     0.1640
       Element count:                 1
       EAM Type:                      1
       Potentials count:              3
@@ -23,7 +23,7 @@ Element    1: AL
       Save coords file:           N
       Save neighbour list file:   N
       Save potential file:        Y
-      Calculation run type:              5
+      Calculation run type:              6
       Unit vector:                
         1.0000  0.0000  0.0000
         0.0000  1.0000  0.0000
@@ -32,13 +32,13 @@ Element    1: AL
              1  AL  AL       1       1       1       1    1001
              2  AL           1       0       2    1002    1001
              3  AL           1       0       3    2003    1001
-  0.3960  Reading from file examples/atomsAl.conf.temp                                  
-      Configurations read:       10
-      Atoms read:              1804
-  0.4760  Start building config neighbour lists
-      Total configurations prepared:       10
-  1.2520  Finish building config neighbour lists, total pairs:   232138
-  1.2520  Order EAM Potentials
+  0.4360  Reading from file examples/atomsAl.conf.temp                                  
+      Configurations read:       12
+      Atoms read:              2316
+  0.5280  Start building config neighbour lists
+      Total configurations prepared:       12
+  1.3920  Finish building config neighbour lists, total pairs:   267678
+  1.3920  Order EAM Potentials
        1    1001
     1002    1001
     2003    1001
@@ -55,87 +55,992 @@ Element    1: AL
       Configuration:        8    Volume:       0.000000    Atoms:      256    NL Length:    17716       2525    2780  RF         1
       Configuration:        9    Volume:       0.000000    Atoms:      256    NL Length:    17752       2781    3036  RF         0
       Configuration:       10    Volume:       0.000000    Atoms:      256    NL Length:    17752       3037    3292  RF         1
-  1.3160  Start calculations (runProcesses)
-Calculating configuration energy   1.3160      1
- Evaluation count:    1, RSS:     0.8050383919E+03
---------------------------------------------
-Calculation count:    1
---------------------------------------------
-   1 -1667.757574 eV      500 atoms           0
-   1   -3.335515 eV per atom (no ref)
-   1  Sxx:         -Infinity Sxy:         -Infinity Sxz:         -Infinity
-   1  Syx:         -Infinity Syy:         -Infinity Syz:          Infinity
-   1  Szx:         -Infinity Szy:          Infinity Szz:         -Infinity
- 
-   2 -1619.384444 eV      500 atoms           1
-   2   -3.238769 eV per atom (   -3.256000 eV Ref)
-   2  Sxx:               NaN Sxy:               NaN Sxz:               NaN
-   2  Syx:               NaN Syy:               NaN Syz:               NaN
-   2  Szx:               NaN Szy:               NaN Szz:               NaN
-   2  Energy RSS:       0.0002969127
- 
-   3 -1623.002964 eV      500 atoms           0
-   3   -3.246006 eV per atom (   -3.344000 eV Ref)
-   3  Sxx:         -Infinity Sxy:          Infinity Sxz:          Infinity
-   3  Syx:          Infinity Syy:         -Infinity Syz:          Infinity
-   3  Szx:          Infinity Szy:          Infinity Szz:         -Infinity
-   3  Energy RSS:       0.0096028580
- 
-   4  -860.169340 eV      256 atoms           1
-   4   -3.360036 eV per atom (   -3.360009 eV Ref)
-   4  Sxx:               NaN Sxy:               NaN Sxz:               NaN
-   4  Syx:               NaN Syy:               NaN Syz:               NaN
-   4  Szx:               NaN Szy:               NaN Szz:               NaN
-   4  Energy RSS:       0.0000000008
-   4  Force RSS:      24.4809035835
- 
-   5  -819.656094 eV      256 atoms           0
-   5   -3.201782 eV per atom (   -3.358942 eV Ref)
-   5  Sxx:         -Infinity Sxy:         -Infinity Sxz:          Infinity
-   5  Syx:         -Infinity Syy:         -Infinity Syz:         -Infinity
-   5  Szx:          Infinity Szy:          Infinity Szz:         -Infinity
-   5  Energy RSS:       0.0246993208
-   5  Force RSS:     380.8289933984
- 
-   6  -795.712185 eV      256 atoms           1
-   6   -3.108251 eV per atom (   -3.164018 eV Ref)
-   6  Sxx:               NaN Sxy:               NaN Sxz:               NaN
-   6  Syx:               NaN Syy:               NaN Syz:               NaN
-   6  Szx:               NaN Szy:               NaN Szz:               NaN
-   6  Energy RSS:       0.0031099533
-   6  Force RSS:      18.3252140635
- 
-   7  -754.430972 eV      256 atoms           0
-   7   -2.946996 eV per atom (   -2.910878 eV Ref)
-   7  Sxx:         -Infinity Sxy:         -Infinity Sxz:          Infinity
-   7  Syx:          Infinity Syy:         -Infinity Syz:          Infinity
-   7  Szx:          Infinity Szy:          Infinity Szz:         -Infinity
-   7  Energy RSS:       0.0013044958
-   7  Force RSS:      97.1004605432
- 
-   8  -744.767800 eV      256 atoms           1
-   8   -2.909249 eV per atom (   -2.866678 eV Ref)
-   8  Sxx:               NaN Sxy:               NaN Sxz:               NaN
-   8  Syx:               NaN Syy:               NaN Syz:               NaN
-   8  Szx:               NaN Szy:               NaN Szz:               NaN
-   8  Energy RSS:       0.0018122682
-   8  Force RSS:      91.9236885349
- 
-   9  -746.906792 eV      256 atoms           0
-   9   -2.917605 eV per atom (   -2.879996 eV Ref)
-   9  Sxx:         -Infinity Sxy:          Infinity Sxz:          Infinity
-   9  Syx:          Infinity Syy:         -Infinity Syz:          Infinity
-   9  Szx:         -Infinity Szy:          Infinity Szz:         -Infinity
-   9  Energy RSS:       0.0014144242
-   9  Force RSS:      93.3280730051
- 
-  10  -755.145456 eV      256 atoms           1
-  10   -2.949787 eV per atom (   -2.909541 eV Ref)
-  10  Sxx:               NaN Sxy:               NaN Sxz:               NaN
-  10  Syx:               NaN Syy:               NaN Syz:               NaN
-  10  Szx:               NaN Szy:               NaN Szz:               NaN
-  10  Energy RSS:       0.0016197058
-  10  Force RSS:      94.6650647940
- 
-RSS all configurations:     0.8050383919E+03
- 
+      Configuration:       11    Volume:       0.000000    Atoms:      256    NL Length:    17746       3293    3548  RF         0
+      Configuration:       12    Volume:       0.000000    Atoms:      256    NL Length:    17794       3549    3804  RF         1
+  1.4600  Start calculations (runProcesses)
+Calculating configuration energy   1.5240      1
+ Evaluation count:    1, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy   2.5400      2
+ Evaluation count:    2, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy   3.5640      3
+ Evaluation count:    3, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy   4.5760      4
+ Evaluation count:    4, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy   5.5920      5
+ Evaluation count:    5, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy   6.6040      6
+ Evaluation count:    6, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy   7.6160      7
+ Evaluation count:    7, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy   8.6280      8
+ Evaluation count:    8, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy   9.6480      9
+ Evaluation count:    9, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  10.6600     10
+ Evaluation count:   10, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  11.6880     11
+ Evaluation count:   11, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  12.7120     12
+ Evaluation count:   12, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  13.7520     13
+ Evaluation count:   13, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  14.7840     14
+ Evaluation count:   14, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  15.8360     15
+ Evaluation count:   15, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  16.8760     16
+ Evaluation count:   16, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  17.9280     17
+ Evaluation count:   17, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  19.0000     18
+ Evaluation count:   18, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  20.0800     19
+ Evaluation count:   19, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  21.1680     20
+ Evaluation count:   20, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  22.2520     21
+ Evaluation count:   21, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  23.3360     22
+ Evaluation count:   22, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  24.4280     23
+ Evaluation count:   23, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  25.5480     24
+ Evaluation count:   24, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  26.6600     25
+ Evaluation count:   25, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  27.7960     26
+ Evaluation count:   26, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  28.9240     27
+ Evaluation count:   27, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  30.0680     28
+ Evaluation count:   28, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  31.2280     29
+ Evaluation count:   29, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  32.4000     30
+ Evaluation count:   30, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  33.5920     31
+ Evaluation count:   31, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  34.7720     32
+ Evaluation count:   32, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  35.9400     33
+ Evaluation count:   33, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  37.1200     34
+ Evaluation count:   34, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  38.3040     35
+ Evaluation count:   35, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy  39.4840     36
+ Evaluation count:   36, RSS:     0.1459718324E+04, Energy RSS:     0.1731825816E+02, Force RSS:     0.1442400065E+04
+Calculating configuration energy  40.6720     37
+ Evaluation count:   37, RSS:     0.1459721209E+04, Energy RSS:     0.1731825302E+02, Force RSS:     0.1442402956E+04
+Calculating configuration energy  41.8600     38
+ Evaluation count:   38, RSS:     0.1459722652E+04, Energy RSS:     0.1731825045E+02, Force RSS:     0.1442404402E+04
+Calculating configuration energy  43.0760     39
+ Evaluation count:   39, RSS:     0.1459724705E+04, Energy RSS:     0.1731825437E+02, Force RSS:     0.1442406451E+04
+Calculating configuration energy  44.2800     40
+ Evaluation count:   40, RSS:     0.1459714834E+04, Energy RSS:     0.1731825681E+02, Force RSS:     0.1442396578E+04
+Calculating configuration energy  45.5040     41
+ Evaluation count:   41, RSS:     0.1459709910E+04, Energy RSS:     0.1731825804E+02, Force RSS:     0.1442391652E+04
+Calculating configuration energy  46.7240     42
+ Evaluation count:   42, RSS:     0.1459719159E+04, Energy RSS:     0.1731824309E+02, Force RSS:     0.1442400916E+04
+Calculating configuration energy  47.9560     43
+ Evaluation count:   43, RSS:     0.1459720439E+04, Energy RSS:     0.1731826810E+02, Force RSS:     0.1442402171E+04
+Calculating configuration energy  49.1800     44
+ Evaluation count:   44, RSS:     0.1459721179E+04, Energy RSS:     0.1731828060E+02, Force RSS:     0.1442402899E+04
+Calculating configuration energy  50.4200     45
+ Evaluation count:   45, RSS:     0.1459687464E+04, Energy RSS:     0.1731845741E+02, Force RSS:     0.1442369006E+04
+Calculating configuration energy  51.6520     46
+ Evaluation count:   46, RSS:     0.1459752297E+04, Energy RSS:     0.1731805378E+02, Force RSS:     0.1442434243E+04
+Calculating configuration energy  52.8880     47
+ Evaluation count:   47, RSS:     0.1459785055E+04, Energy RSS:     0.1731785197E+02, Force RSS:     0.1442467203E+04
+Calculating configuration energy  54.1480     48
+ Evaluation count:   48, RSS:     0.1459818801E+04, Energy RSS:     0.1731889793E+02, Force RSS:     0.1442499903E+04
+Calculating configuration energy  55.3960     49
+ Evaluation count:   49, RSS:     0.1459621248E+04, Energy RSS:     0.1731761330E+02, Force RSS:     0.1442303634E+04
+Calculating configuration energy  56.6400     50
+ Evaluation count:   50, RSS:     0.1459523246E+04, Energy RSS:     0.1731697105E+02, Force RSS:     0.1442206275E+04
+Calculating configuration energy  57.8880     51
+ Evaluation count:   51, RSS:     0.1459555177E+04, Energy RSS:     0.1731963857E+02, Force RSS:     0.1442235538E+04
+Calculating configuration energy  59.1520     52
+ Evaluation count:   52, RSS:     0.1459886095E+04, Energy RSS:     0.1731687292E+02, Force RSS:     0.1442569223E+04
+Calculating configuration energy  60.4520     53
+ Evaluation count:   53, RSS:     0.1460054165E+04, Energy RSS:     0.1731549055E+02, Force RSS:     0.1442738674E+04
+Calculating configuration energy  61.7440     54
+ Evaluation count:   54, RSS:     0.1459609663E+04, Energy RSS:     0.1732298720E+02, Force RSS:     0.1442286676E+04
+Calculating configuration energy  63.0560     55
+ Evaluation count:   55, RSS:     0.1459833837E+04, Energy RSS:     0.1731352699E+02, Force RSS:     0.1442520310E+04
+Calculating configuration energy  64.3720     56
+ Evaluation count:   56, RSS:     0.1459951874E+04, Energy RSS:     0.1730880141E+02, Force RSS:     0.1442643073E+04
+Calculating configuration energy  65.6840     57
+ Evaluation count:   57, RSS:     0.1459774774E+04, Energy RSS:     0.1732536489E+02, Force RSS:     0.1442449409E+04
+Calculating configuration energy  66.9800     58
+ Evaluation count:   58, RSS:     0.1459672822E+04, Energy RSS:     0.1731115990E+02, Force RSS:     0.1442361662E+04
+Calculating configuration energy  68.2680     59
+ Evaluation count:   59, RSS:     0.1459633942E+04, Energy RSS:     0.1730407784E+02, Force RSS:     0.1442329864E+04
+Calculating configuration energy  69.5840     60
+ Evaluation count:   60, RSS:     0.1459732311E+04, Energy RSS:     0.1733131369E+02, Force RSS:     0.1442400997E+04
+Calculating configuration energy  70.8880     61
+ Evaluation count:   61, RSS:     0.1459719746E+04, Energy RSS:     0.1730522942E+02, Force RSS:     0.1442414517E+04
+Calculating configuration energy  72.2160     62
+ Evaluation count:   62, RSS:     0.1459732252E+04, Energy RSS:     0.1729223517E+02, Force RSS:     0.1442440017E+04
+Calculating configuration energy  73.5600     63
+ Evaluation count:   63, RSS:     0.1460513905E+04, Energy RSS:     0.1732191429E+02, Force RSS:     0.1443191991E+04
+Calculating configuration energy  74.9040     64
+ Evaluation count:   64, RSS:     0.1458947215E+04, Energy RSS:     0.1731493404E+02, Force RSS:     0.1441632281E+04
+Calculating configuration energy  76.2120     65
+ Evaluation count:   65, RSS:     0.1458196251E+04, Energy RSS:     0.1731194963E+02, Force RSS:     0.1440884301E+04
+Calculating configuration energy  77.5200     66
+ Evaluation count:   66, RSS:     0.1457030487E+04, Energy RSS:     0.1735069243E+02, Force RSS:     0.1439679794E+04
+Calculating configuration energy  78.7840     67
+ Evaluation count:   67, RSS:     0.1462444382E+04, Energy RSS:     0.1728663180E+02, Force RSS:     0.1445157750E+04
+Calculating configuration energy  80.0400     68
+ Evaluation count:   68, RSS:     0.1465204333E+04, Energy RSS:     0.1725582106E+02, Force RSS:     0.1447948512E+04
+Calculating configuration energy  81.3520     69
+ Evaluation count:   69, RSS:     0.1464717420E+04, Energy RSS:     0.1739352843E+02, Force RSS:     0.1447323891E+04
+Calculating configuration energy  82.6480     70
+ Evaluation count:   70, RSS:     0.1454757908E+04, Energy RSS:     0.1724421231E+02, Force RSS:     0.1437513696E+04
+Calculating configuration energy  83.8840     71
+ Evaluation count:   71, RSS:     0.1449831847E+04, Energy RSS:     0.1717139859E+02, Force RSS:     0.1432660448E+04
+Calculating configuration energy  85.1720     72
+ Evaluation count:   72, RSS:     0.1457132312E+04, Energy RSS:     0.1731081608E+02, Force RSS:     0.1439821496E+04
+Calculating configuration energy  86.5000     73
+ Evaluation count:   73, RSS:     0.1462336458E+04, Energy RSS:     0.1732616839E+02, Force RSS:     0.1445010290E+04
+Calculating configuration energy  87.8520     74
+ Evaluation count:   74, RSS:     0.1464982388E+04, Energy RSS:     0.1733455446E+02, Force RSS:     0.1447647834E+04
+Calculating configuration energy  89.1840     75
+ Evaluation count:   75, RSS:     0.1458617739E+04, Energy RSS:     0.1733937041E+02, Force RSS:     0.1441278369E+04
+Calculating configuration energy  90.4960     76
+ Evaluation count:   76, RSS:     0.1460841910E+04, Energy RSS:     0.1729721950E+02, Force RSS:     0.1443544691E+04
+Calculating configuration energy  91.7760     77
+ Evaluation count:   77, RSS:     0.1461984172E+04, Energy RSS:     0.1727626213E+02, Force RSS:     0.1444707910E+04
+Calculating configuration energy  93.0480     78
+ Evaluation count:   78, RSS:     0.1461063822E+04, Energy RSS:     0.1732790912E+02, Force RSS:     0.1443735913E+04
+Calculating configuration energy  94.3720     79
+ Evaluation count:   79, RSS:     0.1458389557E+04, Energy RSS:     0.1730863344E+02, Force RSS:     0.1441080924E+04
+Calculating configuration energy  95.6880     80
+ Evaluation count:   80, RSS:     0.1457073196E+04, Energy RSS:     0.1729904265E+02, Force RSS:     0.1439774153E+04
+Calculating configuration energy  97.0040     81
+ Evaluation count:   81, RSS:     0.1459448584E+04, Energy RSS:     0.1732688925E+02, Force RSS:     0.1442121695E+04
+Calculating configuration energy  98.3120     82
+ Evaluation count:   82, RSS:     0.1459999298E+04, Energy RSS:     0.1730963540E+02, Force RSS:     0.1442689663E+04
+Calculating configuration energy  99.6040     83
+ Evaluation count:   83, RSS:     0.1460287180E+04, Energy RSS:     0.1730102868E+02, Force RSS:     0.1442986151E+04
+Calculating configuration energy 100.9560     84
+ Evaluation count:   84, RSS:     0.1459204898E+04, Energy RSS:     0.1733409145E+02, Force RSS:     0.1441870807E+04
+Calculating configuration energy 102.3480     85
+ Evaluation count:   85, RSS:     0.1460242068E+04, Energy RSS:     0.1730244203E+02, Force RSS:     0.1442939626E+04
+Calculating configuration energy 103.6440     86
+ Evaluation count:   86, RSS:     0.1460771804E+04, Energy RSS:     0.1728665076E+02, Force RSS:     0.1443485153E+04
+Calculating configuration energy 104.9440     87
+ Evaluation count:   87, RSS:     0.1460748657E+04, Energy RSS:     0.1731278245E+02, Force RSS:     0.1443435874E+04
+Calculating configuration energy 106.2440     88
+ Evaluation count:   88, RSS:     0.1458698769E+04, Energy RSS:     0.1732385417E+02, Force RSS:     0.1441374915E+04
+Calculating configuration energy 107.5840     89
+ Evaluation count:   89, RSS:     0.1457685666E+04, Energy RSS:     0.1732957818E+02, Force RSS:     0.1440356088E+04
+Calculating configuration energy 108.9440     90
+ Evaluation count:   90, RSS:     0.1458818745E+04, Energy RSS:     0.1731690555E+02, Force RSS:     0.1441501839E+04
+Calculating configuration energy 110.2760     91
+ Evaluation count:   91, RSS:     0.1460629557E+04, Energy RSS:     0.1731967297E+02, Force RSS:     0.1443309884E+04
+Calculating configuration energy 111.6200     92
+ Evaluation count:   92, RSS:     0.1461548119E+04, Energy RSS:     0.1732115768E+02, Force RSS:     0.1444226961E+04
+Calculating configuration energy 112.9920     93
+ Evaluation count:   93, RSS:     0.1459857767E+04, Energy RSS:     0.1736150440E+02, Force RSS:     0.1442496262E+04
+Calculating configuration energy 114.4080     94
+ Evaluation count:   94, RSS:     0.1459592524E+04, Energy RSS:     0.1727524639E+02, Force RSS:     0.1442317278E+04
+Calculating configuration energy 115.7880     95
+ Evaluation count:   95, RSS:     0.1459476041E+04, Energy RSS:     0.1723247679E+02, Force RSS:     0.1442243564E+04
+Calculating configuration energy 117.0720     96
+ Evaluation count:   96, RSS:     0.1460321229E+04, Energy RSS:     0.1733893194E+02, Force RSS:     0.1442982297E+04
+Calculating configuration energy 118.3840     97
+ Evaluation count:   97, RSS:     0.1459132996E+04, Energy RSS:     0.1729767962E+02, Force RSS:     0.1441835317E+04
+Calculating configuration energy 119.7280     98
+ Evaluation count:   98, RSS:     0.1458560919E+04, Energy RSS:     0.1727720404E+02, Force RSS:     0.1441283715E+04
+Calculating configuration energy 121.0760     99
+ Evaluation count:   99, RSS:     0.1459754518E+04, Energy RSS:     0.1732960840E+02, Force RSS:     0.1442424910E+04
+Calculating configuration energy 122.4160    100
+ Evaluation count:  100, RSS:     0.1459701953E+04, Energy RSS:     0.1730700204E+02, Force RSS:     0.1442394951E+04
+Calculating configuration energy 123.7960    101
+ Evaluation count:  101, RSS:     0.1459701078E+04, Energy RSS:     0.1729584775E+02, Force RSS:     0.1442405230E+04
+Calculating configuration energy 125.1440    102
+ Evaluation count:  102, RSS:     0.1457703319E+04, Energy RSS:     0.1733192796E+02, Force RSS:     0.1440371391E+04
+Calculating configuration energy 126.4520    103
+ Evaluation count:  103, RSS:     0.1461763790E+04, Energy RSS:     0.1730476687E+02, Force RSS:     0.1444459023E+04
+Calculating configuration energy 127.7960    104
+ Evaluation count:  104, RSS:     0.1463835392E+04, Energy RSS:     0.1729146178E+02, Force RSS:     0.1446543930E+04
+Calculating configuration energy 129.2040    105
+ Evaluation count:  105, RSS:     0.1463275235E+04, Energy RSS:     0.1733042911E+02, Force RSS:     0.1445944806E+04
+Calculating configuration energy 130.6040    106
+ Evaluation count:  106, RSS:     0.1456222641E+04, Energy RSS:     0.1730649934E+02, Force RSS:     0.1438916142E+04
+Calculating configuration energy 132.0520    107
+ Evaluation count:  107, RSS:     0.1452783860E+04, Energy RSS:     0.1729516035E+02, Force RSS:     0.1435488700E+04
+Calculating configuration energy 133.5040    108
+ Evaluation count:  108, RSS:     0.1457663443E+04, Energy RSS:     0.1731659488E+02, Force RSS:     0.1440346848E+04
+Calculating configuration energy 134.9000    109
+ Evaluation count:  109, RSS:     0.1461821033E+04, Energy RSS:     0.1732100231E+02, Force RSS:     0.1444500031E+04
+Calculating configuration energy 136.3360    110
+ Evaluation count:  110, RSS:     0.1463967244E+04, Energy RSS:     0.1732483504E+02, Force RSS:     0.1446642409E+04
+Calculating configuration energy 137.8120    111
+ Evaluation count:  111, RSS:     0.1459275425E+04, Energy RSS:     0.1735524157E+02, Force RSS:     0.1441920184E+04
+Calculating configuration energy 139.2720    112
+ Evaluation count:  112, RSS:     0.1460215336E+04, Energy RSS:     0.1728415615E+02, Force RSS:     0.1442931180E+04
+Calculating configuration energy 140.6720    113
+ Evaluation count:  113, RSS:     0.1460762136E+04, Energy RSS:     0.1725294326E+02, Force RSS:     0.1443509193E+04
+Calculating configuration energy 142.1040    114
+ Evaluation count:  114, RSS:     0.1460338581E+04, Energy RSS:     0.1748078478E+02, Force RSS:     0.1442857797E+04
+Calculating configuration energy 143.4960    115
+ Evaluation count:  115, RSS:     0.1459174595E+04, Energy RSS:     0.1715885515E+02, Force RSS:     0.1442015739E+04
+Calculating configuration energy 144.9280    116
+ Evaluation count:  116, RSS:     0.1458703067E+04, Energy RSS:     0.1700258345E+02, Force RSS:     0.1441700483E+04
+Calculating configuration energy 146.3480    117
+ Evaluation count:  117, RSS:     0.1462629470E+04, Energy RSS:     0.1741464684E+02, Force RSS:     0.1445214823E+04
+Calculating configuration energy 147.7960    118
+ Evaluation count:  118, RSS:     0.1456868529E+04, Energy RSS:     0.1722339257E+02, Force RSS:     0.1439645137E+04
+Calculating configuration energy 149.2040    119
+ Evaluation count:  119, RSS:     0.1454075759E+04, Energy RSS:     0.1713005777E+02, Force RSS:     0.1436945701E+04
+Calculating configuration energy 150.6200    120
+ Evaluation count:  120, RSS:     0.1455527749E+04, Energy RSS:     0.1731713786E+02, Force RSS:     0.1438210611E+04
+Calculating configuration energy 152.0520    121
+ Evaluation count:  121, RSS:     0.1463973736E+04, Energy RSS:     0.1732226685E+02, Force RSS:     0.1446651470E+04
+Calculating configuration energy 153.4600    122
+ Evaluation count:  122, RSS:     0.1468289660E+04, Energy RSS:     0.1732917163E+02, Force RSS:     0.1450960488E+04
+Calculating configuration energy 154.9040    123
+ Evaluation count:  123, RSS:     0.1462341511E+04, Energy RSS:     0.1731251400E+02, Force RSS:     0.1445028997E+04
+Calculating configuration energy 156.3440    124
+ Evaluation count:  124, RSS:     0.1457141146E+04, Energy RSS:     0.1732517126E+02, Force RSS:     0.1439815975E+04
+Calculating configuration energy 157.8040    125
+ Evaluation count:  125, RSS:     0.1454605651E+04, Energy RSS:     0.1733326101E+02, Force RSS:     0.1437272390E+04
+Calculating configuration energy 159.2480    126
+ Evaluation count:  126, RSS:     0.1458645335E+04, Energy RSS:     0.1736677615E+02, Force RSS:     0.1441278559E+04
+Calculating configuration energy 160.6600    127
+ Evaluation count:  127, RSS:     0.1460825878E+04, Energy RSS:     0.1726999768E+02, Force RSS:     0.1443555881E+04
+Calculating configuration energy 162.1280    128
+ Evaluation count:  128, RSS:     0.1461963672E+04, Energy RSS:     0.1722200242E+02, Force RSS:     0.1444741670E+04
+Calculating configuration energy 163.5440    129
+ Evaluation count:  129, RSS:     0.1460297405E+04, Energy RSS:     0.1734587826E+02, Force RSS:     0.1442951527E+04
+Calculating configuration energy 164.9480    130
+ Evaluation count:  130, RSS:     0.1459172882E+04, Energy RSS:     0.1729161568E+02, Force RSS:     0.1441881267E+04
+Calculating configuration energy 166.4200    131
+ Evaluation count:  131, RSS:     0.1458656754E+04, Energy RSS:     0.1726595852E+02, Force RSS:     0.1441390795E+04
+Calculating configuration energy 167.8360    132
+ Evaluation count:  132, RSS:     0.1456193696E+04, Energy RSS:     0.1735603110E+02, Force RSS:     0.1438837665E+04
+Calculating configuration energy 169.2520    133
+ Evaluation count:  133, RSS:     0.1463401267E+04, Energy RSS:     0.1728760595E+02, Force RSS:     0.1446113661E+04
+Calculating configuration energy 170.6200    134
+ Evaluation count:  134, RSS:     0.1467238199E+04, Energy RSS:     0.1726408219E+02, Force RSS:     0.1449974117E+04
+Calculating configuration energy 172.0200    135
+ Evaluation count:  135, RSS:     0.1472482644E+04, Energy RSS:     0.1723675504E+02, Force RSS:     0.1455245889E+04
+Calculating configuration energy 173.4040    136
+ Evaluation count:  136, RSS:     0.1448289910E+04, Energy RSS:     0.1752865218E+02, Force RSS:     0.1430761258E+04
+Calculating configuration energy 174.8360    137
+ Evaluation count:  137, RSS:     0.1438193077E+04, Energy RSS:     0.1786794480E+02, Force RSS:     0.1420325132E+04
+Calculating configuration energy 176.1680    138
+ Evaluation count:  138, RSS:     0.1444132947E+04, Energy RSS:     0.1879736744E+02, Force RSS:     0.1425335579E+04
+Calculating configuration energy 177.5560    139
+ Evaluation count:  139, RSS:     0.1478844262E+04, Energy RSS:     0.1616668837E+02, Force RSS:     0.1462677573E+04
+Calculating configuration energy 178.9440    140
+ Evaluation count:  140, RSS:     0.1501506433E+04, Energy RSS:     0.1534266578E+02, Force RSS:     0.1486163767E+04
+Calculating configuration energy 180.2880    141
+ Evaluation count:  141, RSS:     0.1472517595E+04, Energy RSS:     0.1536035197E+02, Force RSS:     0.1457157243E+04
+Calculating configuration energy 181.6480    142
+ Evaluation count:  142, RSS:     0.1449941620E+04, Energy RSS:     0.1965434409E+02, Force RSS:     0.1430287276E+04
+Calculating configuration energy 183.0280    143
+ Evaluation count:  143, RSS:     0.1443183157E+04, Energy RSS:     0.2236861746E+02, Force RSS:     0.1420814540E+04
+Calculating configuration energy 184.4760    144
+ Evaluation count:  144, RSS:     0.1457752327E+04, Energy RSS:     0.1876904690E+02, Force RSS:     0.1438983280E+04
+Calculating configuration energy 185.8480    145
+ Evaluation count:  145, RSS:     0.1462183769E+04, Energy RSS:     0.1599999104E+02, Force RSS:     0.1446183778E+04
+Calculating configuration energy 187.2720    146
+ Evaluation count:  146, RSS:     0.1465144336E+04, Energy RSS:     0.1481425326E+02, Force RSS:     0.1450330082E+04
+Calculating configuration energy 188.6160    147
+ Evaluation count:  147, RSS:     0.1459721174E+04, Energy RSS:     0.1731831874E+02, Force RSS:     0.1442402855E+04
+Calculating configuration energy 189.9920    148
+ Evaluation count:  148, RSS:     0.1459718398E+04, Energy RSS:     0.1731819244E+02, Force RSS:     0.1442400206E+04
+Calculating configuration energy 191.4000    149
+ Evaluation count:  149, RSS:     0.1459717070E+04, Energy RSS:     0.1731812929E+02, Force RSS:     0.1442398941E+04
+Calculating configuration energy 192.8480    150
+ Evaluation count:  150, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 194.2880    151
+ Evaluation count:  151, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 195.7360    152
+ Evaluation count:  152, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 197.2160    153
+ Evaluation count:  153, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 198.6680    154
+ Evaluation count:  154, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 200.1520    155
+ Evaluation count:  155, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 201.5880    156
+ Evaluation count:  156, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 203.0000    157
+ Evaluation count:  157, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 204.4840    158
+ Evaluation count:  158, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 205.9160    159
+ Evaluation count:  159, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 207.4200    160
+ Evaluation count:  160, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 208.8760    161
+ Evaluation count:  161, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 210.3760    162
+ Evaluation count:  162, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 211.8560    163
+ Evaluation count:  163, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 213.3080    164
+ Evaluation count:  164, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 214.7480    165
+ Evaluation count:  165, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 216.2040    166
+ Evaluation count:  166, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 217.6360    167
+ Evaluation count:  167, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 219.1000    168
+ Evaluation count:  168, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 220.5280    169
+ Evaluation count:  169, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 221.9600    170
+ Evaluation count:  170, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 223.3920    171
+ Evaluation count:  171, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 224.8000    172
+ Evaluation count:  172, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 226.2160    173
+ Evaluation count:  173, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 227.6440    174
+ Evaluation count:  174, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 229.0760    175
+ Evaluation count:  175, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 230.5520    176
+ Evaluation count:  176, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 232.0320    177
+ Evaluation count:  177, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 233.4800    178
+ Evaluation count:  178, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 234.9040    179
+ Evaluation count:  179, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 236.3320    180
+ Evaluation count:  180, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 237.7400    181
+ Evaluation count:  181, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 239.1720    182
+ Evaluation count:  182, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 240.6160    183
+ Evaluation count:  183, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 242.0560    184
+ Evaluation count:  184, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 243.4760    185
+ Evaluation count:  185, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 244.9440    186
+ Evaluation count:  186, RSS:     0.1459718552E+04, Energy RSS:     0.1731825655E+02, Force RSS:     0.1442400295E+04
+Calculating configuration energy 246.4040    187
+ Evaluation count:  187, RSS:     0.1459720982E+04, Energy RSS:     0.1731825463E+02, Force RSS:     0.1442402728E+04
+Calculating configuration energy 247.8480    188
+ Evaluation count:  188, RSS:     0.1459722200E+04, Energy RSS:     0.1731825367E+02, Force RSS:     0.1442403946E+04
+Calculating configuration energy 249.3240    189
+ Evaluation count:  189, RSS:     0.1459729126E+04, Energy RSS:     0.1731823802E+02, Force RSS:     0.1442410888E+04
+Calculating configuration energy 250.7800    190
+ Evaluation count:  190, RSS:     0.1459710449E+04, Energy RSS:     0.1731827316E+02, Force RSS:     0.1442392176E+04
+Calculating configuration energy 252.2600    191
+ Evaluation count:  191, RSS:     0.1459701176E+04, Energy RSS:     0.1731829073E+02, Force RSS:     0.1442382885E+04
+Calculating configuration energy 253.6920    192
+ Evaluation count:  192, RSS:     0.1459679905E+04, Energy RSS:     0.1731831674E+02, Force RSS:     0.1442361588E+04
+Calculating configuration energy 255.1360    193
+ Evaluation count:  193, RSS:     0.1459759924E+04, Energy RSS:     0.1731819445E+02, Force RSS:     0.1442441730E+04
+Calculating configuration energy 256.5720    194
+ Evaluation count:  194, RSS:     0.1459800379E+04, Energy RSS:     0.1731813332E+02, Force RSS:     0.1442482246E+04
+Calculating configuration energy 257.9920    195
+ Evaluation count:  195, RSS:     0.1459784663E+04, Energy RSS:     0.1731955237E+02, Force RSS:     0.1442465111E+04
+Calculating configuration energy 259.4520    196
+ Evaluation count:  196, RSS:     0.1459658899E+04, Energy RSS:     0.1731843762E+02, Force RSS:     0.1442340462E+04
+Calculating configuration energy 260.9160    197
+ Evaluation count:  197, RSS:     0.1459598759E+04, Energy RSS:     0.1731861976E+02, Force RSS:     0.1442280139E+04
+Calculating configuration energy 262.3840    198
+ Evaluation count:  198, RSS:     0.1459682540E+04, Energy RSS:     0.1731762807E+02, Force RSS:     0.1442364912E+04
+Calculating configuration energy 263.8800    199
+ Evaluation count:  199, RSS:     0.1459761177E+04, Energy RSS:     0.1732036233E+02, Force RSS:     0.1442440814E+04
+Calculating configuration energy 265.3760    200
+ Evaluation count:  200, RSS:     0.1459800104E+04, Energy RSS:     0.1732099086E+02, Force RSS:     0.1442479114E+04
+Calculating configuration energy 266.8840    201
+ Evaluation count:  201, RSS:     0.1458908924E+04, Energy RSS:     0.1731623364E+02, Force RSS:     0.1441592690E+04
+Calculating configuration energy 268.3840    202
+ Evaluation count:  202, RSS:     0.1460294537E+04, Energy RSS:     0.1732066125E+02, Force RSS:     0.1442973876E+04
+Calculating configuration energy 269.8280    203
+ Evaluation count:  203, RSS:     0.1460277718E+04, Energy RSS:     0.1732306341E+02, Force RSS:     0.1442954654E+04
+Calculating configuration energy 271.3160    204
+ Evaluation count:  204, RSS:     0.1458399679E+04, Energy RSS:     0.1731418289E+02, Force RSS:     0.1441085496E+04
+Calculating configuration energy 272.8040    205
+ Evaluation count:  205, RSS:     0.1459450407E+04, Energy RSS:     0.1732285064E+02, Force RSS:     0.1442127557E+04
+Calculating configuration energy 274.2680    206
+ Evaluation count:  206, RSS:     0.1457749922E+04, Energy RSS:     0.1732721489E+02, Force RSS:     0.1440422707E+04
+Calculating configuration energy 275.7240    207
+ Evaluation count:  207, RSS:     0.1458591723E+04, Energy RSS:     0.1729912940E+02, Force RSS:     0.1441292594E+04
+Calculating configuration energy 277.1480    208
+ Evaluation count:  208, RSS:     0.1472360712E+04, Energy RSS:     0.1733564410E+02, Force RSS:     0.1455025067E+04
+Calculating configuration energy 278.6040    209
+ Evaluation count:  209, RSS:     0.1472611701E+04, Energy RSS:     0.1735000417E+02, Force RSS:     0.1455261697E+04
+Calculating configuration energy 280.0760    210
+ Evaluation count:  210, RSS:     0.1456840842E+04, Energy RSS:     0.1730461831E+02, Force RSS:     0.1439536224E+04
+Calculating configuration energy 281.5760    211
+ Evaluation count:  211, RSS:     0.1463169380E+04, Energy RSS:     0.1733764567E+02, Force RSS:     0.1445831735E+04
+Calculating configuration energy 282.9880    212
+ Evaluation count:  212, RSS:     0.1472839292E+04, Energy RSS:     0.1735643312E+02, Force RSS:     0.1455482859E+04
+Calculating configuration energy 284.3560    213
+ Evaluation count:  213, RSS:     0.1454534249E+04, Energy RSS:     0.1730088793E+02, Force RSS:     0.1437233361E+04
+Calculating configuration energy 285.7040    214
+ Evaluation count:  214, RSS:     0.1434023959E+04, Energy RSS:     0.1734325691E+02, Force RSS:     0.1416680702E+04
+Calculating configuration energy 287.0800    215
+ Evaluation count:  215, RSS:     0.1429905428E+04, Energy RSS:     0.1737097645E+02, Force RSS:     0.1412534451E+04
+Calculating configuration energy 288.4840    216
+ Evaluation count:  216, RSS:     0.1463515355E+04, Energy RSS:     0.1731455139E+02, Force RSS:     0.1446200804E+04
+Calculating configuration energy 289.9800    217
+ Evaluation count:  217, RSS:     0.1469611357E+04, Energy RSS:     0.1747719398E+02, Force RSS:     0.1452134163E+04
+Calculating configuration energy 291.3760    218
+ Evaluation count:  218, RSS:     0.1479303848E+04, Energy RSS:     0.1751900492E+02, Force RSS:     0.1461784844E+04
+Calculating configuration energy 292.7880    219
+ Evaluation count:  219, RSS:     0.1474017796E+04, Energy RSS:     0.1733791994E+02, Force RSS:     0.1456679876E+04
+Calculating configuration energy 294.1600    220
+ Evaluation count:  220, RSS:     0.1480887523E+04, Energy RSS:     0.1741497134E+02, Force RSS:     0.1463472552E+04
+Calculating configuration energy 295.6120    221
+ Evaluation count:  221, RSS:     0.1499487395E+04, Energy RSS:     0.1749489030E+02, Force RSS:     0.1481992505E+04
+Calculating configuration energy 297.0400    222
+ Evaluation count:  222, RSS:     0.1449554224E+04, Energy RSS:     0.1745556265E+02, Force RSS:     0.1432098662E+04
+Calculating configuration energy 298.4760    223
+ Evaluation count:  223, RSS:     0.1478458896E+04, Energy RSS:     0.1730999209E+02, Force RSS:     0.1461148903E+04
+Calculating configuration energy 299.9360    224
+ Evaluation count:  224, RSS:     0.1479638406E+04, Energy RSS:     0.1730771509E+02, Force RSS:     0.1462330691E+04
+Calculating configuration energy 301.3840    225
+ Evaluation count:  225, RSS:     0.1447187732E+04, Energy RSS:     0.1730379122E+02, Force RSS:     0.1429883941E+04
+Calculating configuration energy 302.8520    226
+ Evaluation count:  226, RSS:     0.1458073299E+04, Energy RSS:     0.1733899525E+02, Force RSS:     0.1440734304E+04
+Calculating configuration energy 304.3440    227
+ Evaluation count:  227, RSS:     0.1451208531E+04, Energy RSS:     0.1735342080E+02, Force RSS:     0.1433855110E+04
+Calculating configuration energy 305.7800    228
+ Evaluation count:  228, RSS:     0.1457799958E+04, Energy RSS:     0.1730828724E+02, Force RSS:     0.1440491671E+04
+Calculating configuration energy 307.2120    229
+ Evaluation count:  229, RSS:     0.1465156965E+04, Energy RSS:     0.1733371305E+02, Force RSS:     0.1447823252E+04
+Calculating configuration energy 308.6800    230
+ Evaluation count:  230, RSS:     0.1464733862E+04, Energy RSS:     0.1734867071E+02, Force RSS:     0.1447385191E+04
+Calculating configuration energy 310.1680    231
+ Evaluation count:  231, RSS:     0.1460820173E+04, Energy RSS:     0.1730990932E+02, Force RSS:     0.1443510263E+04
+Calculating configuration energy 311.7080    232
+ Evaluation count:  232, RSS:     0.1457560285E+04, Energy RSS:     0.1733153060E+02, Force RSS:     0.1440228754E+04
+Calculating configuration energy 313.1240    233
+ Evaluation count:  233, RSS:     0.1462254449E+04, Energy RSS:     0.1734414199E+02, Force RSS:     0.1444910307E+04
+Calculating configuration energy 314.5720    234
+ Evaluation count:  234, RSS:     0.1458149871E+04, Energy RSS:     0.1731593600E+02, Force RSS:     0.1440833935E+04
+Calculating configuration energy 315.9720    235
+ Evaluation count:  235, RSS:     0.1459892695E+04, Energy RSS:     0.1732464760E+02, Force RSS:     0.1442568047E+04
+Calculating configuration energy 317.3760    236
+ Evaluation count:  236, RSS:     0.1450154379E+04, Energy RSS:     0.1732792512E+02, Force RSS:     0.1432826454E+04
+Calculating configuration energy 318.8120    237
+ Evaluation count:  237, RSS:     0.1449526530E+04, Energy RSS:     0.1731107158E+02, Force RSS:     0.1432215458E+04
+Calculating configuration energy 320.2200    238
+ Evaluation count:  238, RSS:     0.1463193473E+04, Energy RSS:     0.1733582571E+02, Force RSS:     0.1445857648E+04
+Calculating configuration energy 321.6400    239
+ Evaluation count:  239, RSS:     0.1460496599E+04, Energy RSS:     0.1735369739E+02, Force RSS:     0.1443142902E+04
+Calculating configuration energy 323.0200    240
+ Evaluation count:  240, RSS:     0.1452401424E+04, Energy RSS:     0.1744386214E+02, Force RSS:     0.1434957562E+04
+Calculating configuration energy 324.4640    241
+ Evaluation count:  241, RSS:     0.1459172891E+04, Energy RSS:     0.1733157196E+02, Force RSS:     0.1441841319E+04
+Calculating configuration energy 325.8000    242
+ Evaluation count:  242, RSS:     0.1478983678E+04, Energy RSS:     0.1734240597E+02, Force RSS:     0.1461641272E+04
+Calculating configuration energy 327.1840    243
+ Evaluation count:  243, RSS:     0.1473827874E+04, Energy RSS:     0.1732529549E+02, Force RSS:     0.1456502578E+04
+Calculating configuration energy 328.5760    244
+ Evaluation count:  244, RSS:     0.1457425536E+04, Energy RSS:     0.1743133996E+02, Force RSS:     0.1439994196E+04
+Calculating configuration energy 329.9680    245
+ Evaluation count:  245, RSS:     0.1469320330E+04, Energy RSS:     0.1744197597E+02, Force RSS:     0.1451878354E+04
+Calculating configuration energy 331.3600    246
+ Evaluation count:  246, RSS:     0.1476812369E+04, Energy RSS:     0.1730535108E+02, Force RSS:     0.1459507018E+04
+Calculating configuration energy 333.0640    247
+ Evaluation count:  247, RSS:     0.1466336075E+04, Energy RSS:     0.1746192441E+02, Force RSS:     0.1448874150E+04
+Calculating configuration energy 334.5280    248
+ Evaluation count:  248, RSS:     0.1468011056E+04, Energy RSS:     0.1747398271E+02, Force RSS:     0.1450537073E+04
+Calculating configuration energy 336.0280    249
+ Evaluation count:  249, RSS:     0.1462732000E+04, Energy RSS:     0.1732810578E+02, Force RSS:     0.1445403894E+04
+Calculating configuration energy 337.5280    250
+ Evaluation count:  250, RSS:     0.1458513863E+04, Energy RSS:     0.1731282453E+02, Force RSS:     0.1441201038E+04
+Calculating configuration energy 338.9920    251
+ Evaluation count:  251, RSS:     0.1458579675E+04, Energy RSS:     0.1743367875E+02, Force RSS:     0.1441145997E+04
+Calculating configuration energy 340.4400    252
+ Evaluation count:  252, RSS:     0.1456017330E+04, Energy RSS:     0.1731017942E+02, Force RSS:     0.1438707151E+04
+Calculating configuration energy 341.9120    253
+ Evaluation count:  253, RSS:     0.1472442070E+04, Energy RSS:     0.1732857454E+02, Force RSS:     0.1455113496E+04
+Calculating configuration energy 343.3840    254
+ Evaluation count:  254, RSS:     0.1478478752E+04, Energy RSS:     0.1733537464E+02, Force RSS:     0.1461143378E+04
+Calculating configuration energy 344.8440    255
+ Evaluation count:  255, RSS:     0.1450298752E+04, Energy RSS:     0.1726122879E+02, Force RSS:     0.1433037523E+04
+Calculating configuration energy 346.3320    256
+ Evaluation count:  256, RSS:     0.1468049885E+04, Energy RSS:     0.1737816224E+02, Force RSS:     0.1450671723E+04
+Calculating configuration energy 347.8360    257
+ Evaluation count:  257, RSS:     0.1442748233E+04, Energy RSS:     0.1742781062E+02, Force RSS:     0.1425320422E+04
+Calculating configuration energy 349.3280    258
+ Evaluation count:  258, RSS:     0.1439907154E+04, Energy RSS:     0.1724892993E+02, Force RSS:     0.1422658225E+04
+Calculating configuration energy 350.7800    259
+ Evaluation count:  259, RSS:     0.1442164978E+04, Energy RSS:     0.1753882526E+02, Force RSS:     0.1424626153E+04
+Calculating configuration energy 352.2600    260
+ Evaluation count:  260, RSS:     0.1447083482E+04, Energy RSS:     0.1758996051E+02, Force RSS:     0.1429493522E+04
+Calculating configuration energy 353.6840    261
+ Evaluation count:  261, RSS:     0.1449958703E+04, Energy RSS:     0.1745521023E+02, Force RSS:     0.1432503492E+04
+Calculating configuration energy 355.1600    262
+ Evaluation count:  262, RSS:     0.1491502499E+04, Energy RSS:     0.1738965957E+02, Force RSS:     0.1474112840E+04
+Calculating configuration energy 356.6320    263
+ Evaluation count:  263, RSS:     0.1481151371E+04, Energy RSS:     0.1745435557E+02, Force RSS:     0.1463697015E+04
+Calculating configuration energy 358.0200    264
+ Evaluation count:  264, RSS:     0.1466196990E+04, Energy RSS:     0.1726431277E+02, Force RSS:     0.1448932677E+04
+Calculating configuration energy 359.4560    265
+ Evaluation count:  265, RSS:     0.1488418372E+04, Energy RSS:     0.1753443171E+02, Force RSS:     0.1470883940E+04
+Calculating configuration energy 360.8960    266
+ Evaluation count:  266, RSS:     0.1479214162E+04, Energy RSS:     0.1741676808E+02, Force RSS:     0.1461797394E+04
+Calculating configuration energy 362.3680    267
+ Evaluation count:  267, RSS:     0.1476053630E+04, Energy RSS:     0.1722202750E+02, Force RSS:     0.1458831603E+04
+Calculating configuration energy 363.7960    268
+ Evaluation count:  268, RSS:     0.1483436852E+04, Energy RSS:     0.1755497029E+02, Force RSS:     0.1465881882E+04
+Calculating configuration energy 365.2240    269
+ Evaluation count:  269, RSS:     0.1494722428E+04, Energy RSS:     0.1761025973E+02, Force RSS:     0.1477112168E+04
+Calculating configuration energy 366.6560    270
+ Evaluation count:  270, RSS:     0.1452356665E+04, Energy RSS:     0.1740164065E+02, Force RSS:     0.1434955025E+04
+Calculating configuration energy 368.1240    271
+ Evaluation count:  271, RSS:     0.1466995588E+04, Energy RSS:     0.1726494985E+02, Force RSS:     0.1449730638E+04
+Calculating configuration energy 369.5600    272
+ Evaluation count:  272, RSS:     0.1475571059E+04, Energy RSS:     0.1721442570E+02, Force RSS:     0.1458356634E+04
+Calculating configuration energy 371.0320    273
+ Evaluation count:  273, RSS:     0.1446800897E+04, Energy RSS:     0.1729657135E+02, Force RSS:     0.1429504325E+04
+Calculating configuration energy 372.4600    274
+ Evaluation count:  274, RSS:     0.1445496322E+04, Energy RSS:     0.1734602797E+02, Force RSS:     0.1428150294E+04
+Calculating configuration energy 373.9560    275
+ Evaluation count:  275, RSS:     0.1450247227E+04, Energy RSS:     0.1732788715E+02, Force RSS:     0.1432919340E+04
+Calculating configuration energy 375.4360    276
+ Evaluation count:  276, RSS:     0.1455614122E+04, Energy RSS:     0.1727747601E+02, Force RSS:     0.1438336646E+04
+Calculating configuration energy 376.8880    277
+ Evaluation count:  277, RSS:     0.1458884780E+04, Energy RSS:     0.1736137889E+02, Force RSS:     0.1441523401E+04
+Calculating configuration energy 378.3600    278
+ Evaluation count:  278, RSS:     0.1463127758E+04, Energy RSS:     0.1739828898E+02, Force RSS:     0.1445729469E+04
+Calculating configuration energy 379.8640    279
+ Evaluation count:  279, RSS:     0.1439966280E+04, Energy RSS:     0.1745838701E+02, Force RSS:     0.1422507893E+04
+Calculating configuration energy 381.3240    280
+ Evaluation count:  280, RSS:     0.1482448162E+04, Energy RSS:     0.1735036011E+02, Force RSS:     0.1465097802E+04
+Calculating configuration energy 382.7680    281
+ Evaluation count:  281, RSS:     0.1491014410E+04, Energy RSS:     0.1738069986E+02, Force RSS:     0.1473633710E+04
+Calculating configuration energy 384.2120    282
+ Evaluation count:  282, RSS:     0.1521294549E+04, Energy RSS:     0.1748076128E+02, Force RSS:     0.1503813788E+04
+Calculating configuration energy 385.6640    283
+ Evaluation count:  283, RSS:     0.1445494955E+04, Energy RSS:     0.1740753386E+02, Force RSS:     0.1428087421E+04
+Calculating configuration energy 387.1280    284
+ Evaluation count:  284, RSS:     0.1443529750E+04, Energy RSS:     0.1752465821E+02, Force RSS:     0.1426005092E+04
+Calculating configuration energy 388.6080    285
+ Evaluation count:  285, RSS:     0.1446340941E+04, Energy RSS:     0.1752799386E+02, Force RSS:     0.1428812947E+04
+Calculating configuration energy 390.0920    286
+ Evaluation count:  286, RSS:     0.1512324975E+04, Energy RSS:     0.1801041369E+02, Force RSS:     0.1494314561E+04
+Calculating configuration energy 391.5240    287
+ Evaluation count:  287, RSS:     0.1687828323E+04, Energy RSS:     0.1900322821E+02, Force RSS:     0.1668825095E+04
+Calculating configuration energy 393.0240    288
+ Evaluation count:  288, RSS:     0.1507247924E+04, Energy RSS:     0.1786191638E+02, Force RSS:     0.1489386008E+04
+Calculating configuration energy 394.4800    289
+ Evaluation count:  289, RSS:     0.1465760201E+04, Energy RSS:     0.1752325315E+02, Force RSS:     0.1448236948E+04
+Calculating configuration energy 395.9960    290
+ Evaluation count:  290, RSS:     0.1538854437E+04, Energy RSS:     0.1748861669E+02, Force RSS:     0.1521365821E+04
+Calculating configuration energy 397.4880    291
+ Evaluation count:  291, RSS:     0.1516950675E+04, Energy RSS:     0.1728220248E+02, Force RSS:     0.1499668472E+04
+Calculating configuration energy 398.9480    292
+ Evaluation count:  292, RSS:     0.1431694552E+04, Energy RSS:     0.1680793432E+02, Force RSS:     0.1414886617E+04
+Calculating configuration energy 400.3760    293
+ Evaluation count:  293, RSS:     0.1419536112E+04, Energy RSS:     0.1518500788E+02, Force RSS:     0.1404351105E+04
+Calculating configuration energy 401.8120    294
+ Evaluation count:  294, RSS:     0.1460348300E+04, Energy RSS:     0.1721869822E+02, Force RSS:     0.1443129601E+04
+Calculating configuration energy 403.2440    295
+ Evaluation count:  295, RSS:     0.1505108555E+04, Energy RSS:     0.1751960423E+02, Force RSS:     0.1487588951E+04
+Calculating configuration energy 404.6760    296
+ Evaluation count:  296, RSS:     0.1629112835E+04, Energy RSS:     0.1730350265E+02, Force RSS:     0.1611809333E+04
+Calculating configuration energy 406.1560    297
+ Evaluation count:  297, RSS:     0.1459720851E+04, Energy RSS:     0.1731820876E+02, Force RSS:     0.1442402642E+04
+Calculating configuration energy 407.5840    298
+ Evaluation count:  298, RSS:     0.1459718726E+04, Energy RSS:     0.1731830242E+02, Force RSS:     0.1442400423E+04
+Calculating configuration energy 408.9960    299
+ Evaluation count:  299, RSS:     0.1459717730E+04, Energy RSS:     0.1731834925E+02, Force RSS:     0.1442399380E+04
+Calculating configuration energy 410.3800    300
+ Evaluation count:  300, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 411.7320    301
+ Evaluation count:  301, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 413.1720    302
+ Evaluation count:  302, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 414.6120    303
+ Evaluation count:  303, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 416.1080    304
+ Evaluation count:  304, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 417.5880    305
+ Evaluation count:  305, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 419.0000    306
+ Evaluation count:  306, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 420.4200    307
+ Evaluation count:  307, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 421.8560    308
+ Evaluation count:  308, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 423.2680    309
+ Evaluation count:  309, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 424.6720    310
+ Evaluation count:  310, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 426.1120    311
+ Evaluation count:  311, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 427.5480    312
+ Evaluation count:  312, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 428.9280    313
+ Evaluation count:  313, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 430.3080    314
+ Evaluation count:  314, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 431.7200    315
+ Evaluation count:  315, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 433.1800    316
+ Evaluation count:  316, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 434.5880    317
+ Evaluation count:  317, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 435.9760    318
+ Evaluation count:  318, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 437.3560    319
+ Evaluation count:  319, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 438.8080    320
+ Evaluation count:  320, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 440.2720    321
+ Evaluation count:  321, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 441.7080    322
+ Evaluation count:  322, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 443.1800    323
+ Evaluation count:  323, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 444.6400    324
+ Evaluation count:  324, RSS:     0.1459719791E+04, Energy RSS:     0.1731825626E+02, Force RSS:     0.1442401535E+04
+Calculating configuration energy 446.1200    325
+ Evaluation count:  325, RSS:     0.1459719741E+04, Energy RSS:     0.1731825492E+02, Force RSS:     0.1442401486E+04
+Calculating configuration energy 447.6000    326
+ Evaluation count:  326, RSS:     0.1459719717E+04, Energy RSS:     0.1731825425E+02, Force RSS:     0.1442401462E+04
+Calculating configuration energy 449.0200    327
+ Evaluation count:  327, RSS:     0.1459715985E+04, Energy RSS:     0.1731824892E+02, Force RSS:     0.1442397736E+04
+Calculating configuration energy 450.4560    328
+ Evaluation count:  328, RSS:     0.1459723549E+04, Energy RSS:     0.1731826226E+02, Force RSS:     0.1442405287E+04
+Calculating configuration energy 451.8920    329
+ Evaluation count:  329, RSS:     0.1459727334E+04, Energy RSS:     0.1731826893E+02, Force RSS:     0.1442409066E+04
+Calculating configuration energy 453.3400    330
+ Evaluation count:  330, RSS:     0.1459737650E+04, Energy RSS:     0.1731828078E+02, Force RSS:     0.1442419369E+04
+Calculating configuration energy 454.7640    331
+ Evaluation count:  331, RSS:     0.1459701903E+04, Energy RSS:     0.1731823040E+02, Force RSS:     0.1442383673E+04
+Calculating configuration energy 456.2120    332
+ Evaluation count:  332, RSS:     0.1459684062E+04, Energy RSS:     0.1731820522E+02, Force RSS:     0.1442365856E+04
+Calculating configuration energy 457.6760    333
+ Evaluation count:  333, RSS:     0.1459671399E+04, Energy RSS:     0.1731825187E+02, Force RSS:     0.1442353147E+04
+Calculating configuration energy 459.1360    334
+ Evaluation count:  334, RSS:     0.1459768246E+04, Energy RSS:     0.1731825931E+02, Force RSS:     0.1442449986E+04
+Calculating configuration energy 460.5960    335
+ Evaluation count:  335, RSS:     0.1459816838E+04, Energy RSS:     0.1731826303E+02, Force RSS:     0.1442498575E+04
+Calculating configuration energy 462.0280    336
+ Evaluation count:  336, RSS:     0.1459757266E+04, Energy RSS:     0.1731600526E+02, Force RSS:     0.1442441261E+04
+Calculating configuration energy 463.4600    337
+ Evaluation count:  337, RSS:     0.1459682728E+04, Energy RSS:     0.1732051013E+02, Force RSS:     0.1442362218E+04
+Calculating configuration energy 464.9560    338
+ Evaluation count:  338, RSS:     0.1459646151E+04, Energy RSS:     0.1732276888E+02, Force RSS:     0.1442323383E+04
+Calculating configuration energy 466.3800    339
+ Evaluation count:  339, RSS:     0.1459694984E+04, Energy RSS:     0.1731483221E+02, Force RSS:     0.1442380152E+04
+Calculating configuration energy 467.8600    340
+ Evaluation count:  340, RSS:     0.1459746568E+04, Energy RSS:     0.1732169126E+02, Force RSS:     0.1442424877E+04
+Calculating configuration energy 469.3560    341
+ Evaluation count:  341, RSS:     0.1459775391E+04, Energy RSS:     0.1732513921E+02, Force RSS:     0.1442450252E+04
+Calculating configuration energy 470.8160    342
+ Evaluation count:  342, RSS:     0.1459746047E+04, Energy RSS:     0.1732051692E+02, Force RSS:     0.1442425530E+04
+Calculating configuration energy 472.3000    343
+ Evaluation count:  343, RSS:     0.1459697712E+04, Energy RSS:     0.1731599651E+02, Force RSS:     0.1442381716E+04
+Calculating configuration energy 473.7960    344
+ Evaluation count:  344, RSS:     0.1459679885E+04, Energy RSS:     0.1731373968E+02, Force RSS:     0.1442366146E+04
+Calculating configuration energy 475.2400    345
+ Evaluation count:  345, RSS:     0.1460105685E+04, Energy RSS:     0.1732362917E+02, Force RSS:     0.1442782056E+04
+Calculating configuration energy 476.6920    346
+ Evaluation count:  346, RSS:     0.1459342627E+04, Energy RSS:     0.1731288601E+02, Force RSS:     0.1442029741E+04
+Calculating configuration energy 478.1440    347
+ Evaluation count:  347, RSS:     0.1458974268E+04, Energy RSS:     0.1730752045E+02, Force RSS:     0.1441666748E+04
+Calculating configuration energy 479.5600    348
+ Evaluation count:  348, RSS:     0.1459130806E+04, Energy RSS:     0.1733330889E+02, Force RSS:     0.1441797497E+04
+Calculating configuration energy 481.0440    349
+ Evaluation count:  349, RSS:     0.1460322564E+04, Energy RSS:     0.1730322137E+02, Force RSS:     0.1443019343E+04
+Calculating configuration energy 482.5320    350
+ Evaluation count:  350, RSS:     0.1460939199E+04, Energy RSS:     0.1728820622E+02, Force RSS:     0.1443650993E+04
+Calculating configuration energy 483.9640    351
+ Evaluation count:  351, RSS:     0.1461486518E+04, Energy RSS:     0.1732842922E+02, Force RSS:     0.1444158089E+04
+Calculating configuration energy 485.4560    352
+ Evaluation count:  352, RSS:     0.1457969389E+04, Energy RSS:     0.1730809766E+02, Force RSS:     0.1440661292E+04
+Calculating configuration energy 486.9480    353
+ Evaluation count:  353, RSS:     0.1456235388E+04, Energy RSS:     0.1729795544E+02, Force RSS:     0.1438937433E+04
+Calculating configuration energy 488.4000    354
+ Evaluation count:  354, RSS:     0.1457790534E+04, Energy RSS:     0.1732529008E+02, Force RSS:     0.1440465244E+04
+Calculating configuration energy 489.8440    355
+ Evaluation count:  355, RSS:     0.1461664867E+04, Energy RSS:     0.1731123161E+02, Force RSS:     0.1444353635E+04
+Calculating configuration energy 491.3000    356
+ Evaluation count:  356, RSS:     0.1463625836E+04, Energy RSS:     0.1730421813E+02, Force RSS:     0.1446321618E+04
+Calculating configuration energy 492.7480    357
+ Evaluation count:  357, RSS:     0.1459854406E+04, Energy RSS:     0.1731633888E+02, Force RSS:     0.1442538067E+04
+Calculating configuration energy 494.2000    358
+ Evaluation count:  358, RSS:     0.1459593071E+04, Energy RSS:     0.1732017353E+02, Force RSS:     0.1442272897E+04
+Calculating configuration energy 495.6640    359
+ Evaluation count:  359, RSS:     0.1459474320E+04, Energy RSS:     0.1732209270E+02, Force RSS:     0.1442152227E+04
+Calculating configuration energy 497.1000    360
+ Evaluation count:  360, RSS:     0.1460184891E+04, Energy RSS:     0.1731575163E+02, Force RSS:     0.1442869139E+04
+Calculating configuration energy 498.5120    361
+ Evaluation count:  361, RSS:     0.1459257673E+04, Energy RSS:     0.1732078128E+02, Force RSS:     0.1441936892E+04
+Calculating configuration energy 499.9360    362
+ Evaluation count:  362, RSS:     0.1458798611E+04, Energy RSS:     0.1732332871E+02, Force RSS:     0.1441475282E+04
+Calculating configuration energy 501.3960    363
+ Evaluation count:  363, RSS:     0.1459590701E+04, Energy RSS:     0.1731734135E+02, Force RSS:     0.1442273360E+04
+Calculating configuration energy 502.8480    364
+ Evaluation count:  364, RSS:     0.1459849895E+04, Energy RSS:     0.1731917049E+02, Force RSS:     0.1442530724E+04
+Calculating configuration energy 504.3120    365
+ Evaluation count:  365, RSS:     0.1459981086E+04, Energy RSS:     0.1732008605E+02, Force RSS:     0.1442661000E+04
+Calculating configuration energy 505.7400    366
+ Evaluation count:  366, RSS:     0.1459643790E+04, Energy RSS:     0.1731805047E+02, Force RSS:     0.1442325739E+04
+Calculating configuration energy 507.1480    367
+ Evaluation count:  367, RSS:     0.1459796449E+04, Energy RSS:     0.1731846072E+02, Force RSS:     0.1442477989E+04
+Calculating configuration energy 508.5720    368
+ Evaluation count:  368, RSS:     0.1459873840E+04, Energy RSS:     0.1731866587E+02, Force RSS:     0.1442555174E+04
+Calculating configuration energy 510.0120    369
+ Evaluation count:  369, RSS:     0.1459761848E+04, Energy RSS:     0.1731834427E+02, Force RSS:     0.1442443504E+04
+Calculating configuration energy 511.4600    370
+ Evaluation count:  370, RSS:     0.1459677812E+04, Energy RSS:     0.1731816692E+02, Force RSS:     0.1442359645E+04
+Calculating configuration energy 512.9120    371
+ Evaluation count:  371, RSS:     0.1459635986E+04, Energy RSS:     0.1731807824E+02, Force RSS:     0.1442317908E+04
+Calculating configuration energy 514.3800    372
+ Evaluation count:  372, RSS:     0.1459709736E+04, Energy RSS:     0.1731823515E+02, Force RSS:     0.1442391501E+04
+Calculating configuration energy 515.8400    373
+ Evaluation count:  373, RSS:     0.1459729802E+04, Energy RSS:     0.1731827603E+02, Force RSS:     0.1442411526E+04
+Calculating configuration energy 517.2880    374
+ Evaluation count:  374, RSS:     0.1459739844E+04, Energy RSS:     0.1731829646E+02, Force RSS:     0.1442421547E+04
+Calculating configuration energy 518.7400    375
+ Evaluation count:  375, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 520.2040    376
+ Evaluation count:  376, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 521.6960    377
+ Evaluation count:  377, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 523.1800    378
+ Evaluation count:  378, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 524.6320    379
+ Evaluation count:  379, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 526.1120    380
+ Evaluation count:  380, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 527.6080    381
+ Evaluation count:  381, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 529.0640    382
+ Evaluation count:  382, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 530.5640    383
+ Evaluation count:  383, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 532.0360    384
+ Evaluation count:  384, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 533.4880    385
+ Evaluation count:  385, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 534.9040    386
+ Evaluation count:  386, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 536.3560    387
+ Evaluation count:  387, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 537.7840    388
+ Evaluation count:  388, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 539.1640    389
+ Evaluation count:  389, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 540.5880    390
+ Evaluation count:  390, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 541.9880    391
+ Evaluation count:  391, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 543.3880    392
+ Evaluation count:  392, RSS:     0.1459719766E+04, Energy RSS:     0.1731825559E+02, Force RSS:     0.1442401511E+04
+Calculating configuration energy 544.7880    393
+ Evaluation count:  393, RSS:     0.1112034686E+04, Energy RSS:     0.6370662058E+01, Force RSS:     0.1105664024E+04
+Calculating configuration energy 546.1760    394
+ Evaluation count:  394, RSS:     0.1112034686E+04, Energy RSS:     0.6370662058E+01, Force RSS:     0.1105664024E+04
+Calculating configuration energy 547.6520    395
+ Evaluation count:  395, RSS:     0.1112352534E+04, Energy RSS:     0.6370417125E+01, Force RSS:     0.1105982117E+04
+Calculating configuration energy 549.1880    396
+ Evaluation count:  396, RSS:     0.2365855127E+04, Energy RSS:     0.6417356623E+01, Force RSS:     0.2359437770E+04
+Calculating configuration energy 551.4400    397
+ Evaluation count:  397, RSS:     0.1112036022E+04, Energy RSS:     0.6370661201E+01, Force RSS:     0.1105665360E+04
+Calculating configuration energy 553.6920    398
+ Evaluation count:  398, RSS:     0.1111992932E+04, Energy RSS:     0.6370706732E+01, Force RSS:     0.1105622225E+04
+Calculating configuration energy 556.2480    399
+ Evaluation count:  399, RSS:     0.1111997320E+04, Energy RSS:     0.6370727709E+01, Force RSS:     0.1105626592E+04
+Calculating configuration energy 557.8720    400
+ Evaluation count:  400, RSS:     0.1114193927E+04, Energy RSS:     0.6366762877E+01, Force RSS:     0.1107827164E+04
+Calculating configuration energy 559.4040    401
+ Evaluation count:  401, RSS:     0.1113553246E+04, Energy RSS:     0.6348283795E+01, Force RSS:     0.1107204962E+04
+Calculating configuration energy 560.8320    402
+ Evaluation count:  402, RSS:     0.1111991061E+04, Energy RSS:     0.6370723816E+01, Force RSS:     0.1105620337E+04
+Calculating configuration energy 562.7640    403
+ Evaluation count:  403, RSS:     0.1111995743E+04, Energy RSS:     0.6370634410E+01, Force RSS:     0.1105625108E+04
+Calculating configuration energy 564.2160    404
+ Evaluation count:  404, RSS:     0.1112000543E+04, Energy RSS:     0.6370046838E+01, Force RSS:     0.1105630497E+04
+Calculating configuration energy 565.8240    405
+ Evaluation count:  405, RSS:     0.1112163842E+04, Energy RSS:     0.6491522033E+01, Force RSS:     0.1105672320E+04
+Calculating configuration energy 567.9760    406
+ Evaluation count:  406, RSS:     0.1111852699E+04, Energy RSS:     0.6374521839E+01, Force RSS:     0.1105478177E+04
+Calculating configuration energy 570.9480    407
+ Evaluation count:  407, RSS:     0.1110487911E+04, Energy RSS:     0.6376016437E+01, Force RSS:     0.1104111895E+04
+Calculating configuration energy 574.1440    408
+ Evaluation count:  408, RSS:     0.1110561783E+04, Energy RSS:     0.6373511827E+01, Force RSS:     0.1104188271E+04
+Calculating configuration energy 576.5200    409
+ Evaluation count:  409, RSS:     0.1110822194E+04, Energy RSS:     0.6370684714E+01, Force RSS:     0.1104451509E+04
+Calculating configuration energy 578.3280    410
+ Evaluation count:  410, RSS:     0.1110483507E+04, Energy RSS:     0.6375841209E+01, Force RSS:     0.1104107666E+04
+Calculating configuration energy 580.2520    411
+ Evaluation count:  411, RSS:     0.1109129853E+04, Energy RSS:     0.6392400056E+01, Force RSS:     0.1102737453E+04
+Calculating configuration energy 582.2280    412
+ Evaluation count:  412, RSS:     0.1109520526E+04, Energy RSS:     0.6392166781E+01, Force RSS:     0.1103128359E+04
+Calculating configuration energy 583.7120    413
+ Evaluation count:  413, RSS:     0.1109239377E+04, Energy RSS:     0.6393077756E+01, Force RSS:     0.1102846299E+04
+Calculating configuration energy 585.1440    414
+ Evaluation count:  414, RSS:     0.1109126961E+04, Energy RSS:     0.6392881592E+01, Force RSS:     0.1102734080E+04
+Calculating configuration energy 587.1040    415
+ Evaluation count:  415, RSS:     0.1109141966E+04, Energy RSS:     0.6392366198E+01, Force RSS:     0.1102749600E+04
+Calculating configuration energy 588.5320    416
+ Evaluation count:  416, RSS:     0.1109128051E+04, Energy RSS:     0.6392908819E+01, Force RSS:     0.1102735142E+04
+Calculating configuration energy 589.9600    417
+ Evaluation count:  417, RSS:     0.1109126222E+04, Energy RSS:     0.6392893570E+01, Force RSS:     0.1102733329E+04
+Calculating configuration energy 591.9240    418
+ Evaluation count:  418, RSS:     0.1109126303E+04, Energy RSS:     0.6392893980E+01, Force RSS:     0.1102733409E+04
+Calculating configuration energy 593.3760    419
+ Evaluation count:  419, RSS:     0.1109123254E+04, Energy RSS:     0.6392796951E+01, Force RSS:     0.1102730457E+04
+Calculating configuration energy 595.2680    420
+ Evaluation count:  420, RSS:     0.1109123269E+04, Energy RSS:     0.6392799022E+01, Force RSS:     0.1102730470E+04
+Calculating configuration energy 596.6840    421
+ Evaluation count:  421, RSS:     0.1109134336E+04, Energy RSS:     0.6392222547E+01, Force RSS:     0.1102742113E+04
+Calculating configuration energy 598.0800    422
+ Evaluation count:  422, RSS:     0.1109121966E+04, Energy RSS:     0.6392524513E+01, Force RSS:     0.1102729442E+04
+Calculating configuration energy 600.0640    423
+ Evaluation count:  423, RSS:     0.1109084892E+04, Energy RSS:     0.6391888821E+01, Force RSS:     0.1102693003E+04
+Calculating configuration energy 602.0720    424
+ Evaluation count:  424, RSS:     0.1109085189E+04, Energy RSS:     0.6391871571E+01, Force RSS:     0.1102693318E+04
+Calculating configuration energy 603.5080    425
+ Evaluation count:  425, RSS:     0.1109084760E+04, Energy RSS:     0.6391914602E+01, Force RSS:     0.1102692845E+04
+Calculating configuration energy 605.3960    426
+ Evaluation count:  426, RSS:     0.1109080866E+04, Energy RSS:     0.6392036884E+01, Force RSS:     0.1102688829E+04
+Calculating configuration energy 607.2800    427
+ Evaluation count:  427, RSS:     0.1108796837E+04, Energy RSS:     0.6399755071E+01, Force RSS:     0.1102397082E+04
+Calculating configuration energy 609.1880    428
+ Evaluation count:  428, RSS:     0.1106027003E+04, Energy RSS:     0.6516373923E+01, Force RSS:     0.1099510629E+04
+Calculating configuration energy 611.0840    429
+ Evaluation count:  429, RSS:     0.1106240757E+04, Energy RSS:     0.6507976011E+01, Force RSS:     0.1099732781E+04
+Calculating configuration energy 612.5920    430
+ Evaluation count:  430, RSS:     0.1106027343E+04, Energy RSS:     0.6516366313E+01, Force RSS:     0.1099510977E+04
+Calculating configuration energy 614.0600    431
+ Evaluation count:  431, RSS:     0.1106027015E+04, Energy RSS:     0.6516374196E+01, Force RSS:     0.1099510641E+04
+Calculating configuration energy 615.5160    432
+ Evaluation count:  432, RSS:     0.1106027003E+04, Energy RSS:     0.6516373923E+01, Force RSS:     0.1099510629E+04
+Calculating configuration energy 617.0000    433
+ Evaluation count:  433, RSS:     0.1106027003E+04, Energy RSS:     0.6516373923E+01, Force RSS:     0.1099510629E+04
+Calculating configuration energy 618.3960    434
+ Evaluation count:  434, RSS:     0.1106027003E+04, Energy RSS:     0.6516373923E+01, Force RSS:     0.1099510629E+04
+Calculating configuration energy 619.8000    435
+ Evaluation count:  435, RSS:     0.1106025833E+04, Energy RSS:     0.6516373994E+01, Force RSS:     0.1099509459E+04
+Calculating configuration energy 621.7000    436
+ Evaluation count:  436, RSS:     0.1106043169E+04, Energy RSS:     0.6516402818E+01, Force RSS:     0.1099526766E+04
+Calculating configuration energy 623.0920    437
+ Evaluation count:  437, RSS:     0.1106023208E+04, Energy RSS:     0.6516378234E+01, Force RSS:     0.1099506829E+04
+Calculating configuration energy 625.0200    438
+ Evaluation count:  438, RSS:     0.1106023296E+04, Energy RSS:     0.6516378127E+01, Force RSS:     0.1099506918E+04
+Calculating configuration energy 626.4040    439
+ Evaluation count:  439, RSS:     0.1106022941E+04, Energy RSS:     0.6516377519E+01, Force RSS:     0.1099506563E+04
+Calculating configuration energy 628.2400    440
+ Evaluation count:  440, RSS:     0.1106038205E+04, Energy RSS:     0.6516490626E+01, Force RSS:     0.1099521714E+04
+Calculating configuration energy 629.6520    441
+ Evaluation count:  441, RSS:     0.1106236451E+04, Energy RSS:     0.6516055115E+01, Force RSS:     0.1099720396E+04
+Calculating configuration energy 631.1320    442
+ Evaluation count:  442, RSS:     0.1106057005E+04, Energy RSS:     0.6516664709E+01, Force RSS:     0.1099540341E+04
+Calculating configuration energy 632.6160    443
+ Evaluation count:  443, RSS:     0.1104889724E+04, Energy RSS:     0.6503036600E+01, Force RSS:     0.1098386688E+04
+Calculating configuration energy 634.6240    444
+ Evaluation count:  444, RSS:     0.1104888371E+04, Energy RSS:     0.6502962480E+01, Force RSS:     0.1098385409E+04
+Calculating configuration energy 636.5400    445
+ Evaluation count:  445, RSS:     0.1106166652E+04, Energy RSS:     0.6583268600E+01, Force RSS:     0.1099583384E+04
+Calculating configuration energy 637.9080    446
+ Evaluation count:  446, RSS:     0.1105240521E+04, Energy RSS:     0.6507642266E+01, Force RSS:     0.1098732879E+04
+Calculating configuration energy 639.3000    447
+ Evaluation count:  447, RSS:     0.1110399879E+04, Energy RSS:     0.6899431646E+01, Force RSS:     0.1103500448E+04
+Calculating configuration energy 640.6800    448
+ Evaluation count:  448, RSS:     0.1103822742E+04, Energy RSS:     0.6501343425E+01, Force RSS:     0.1097321399E+04
+Calculating configuration energy 642.5600    449
+ Evaluation count:  449, RSS:     0.1102920833E+04, Energy RSS:     0.6497389301E+01, Force RSS:     0.1096423444E+04
+Calculating configuration energy 644.4720    450
+ Evaluation count:  450, RSS:     0.1102885214E+04, Energy RSS:     0.6497865416E+01, Force RSS:     0.1096387348E+04
+Calculating configuration energy 646.3560    451
+ Evaluation count:  451, RSS:     0.1102885790E+04, Energy RSS:     0.6497862014E+01, Force RSS:     0.1096387928E+04
+Calculating configuration energy 647.7560    452
+ Evaluation count:  452, RSS:     0.1102885662E+04, Energy RSS:     0.6497872323E+01, Force RSS:     0.1096387789E+04
+Calculating configuration energy 649.1640    453
+ Evaluation count:  453, RSS:     0.1102880042E+04, Energy RSS:     0.6497981567E+01, Force RSS:     0.1096382060E+04
+Calculating configuration energy 651.1080    454
+ Evaluation count:  454, RSS:     0.1102877401E+04, Energy RSS:     0.6498099190E+01, Force RSS:     0.1096379302E+04
+Calculating configuration energy 653.0680    455
+ Evaluation count:  455, RSS:     0.1102764666E+04, Energy RSS:     0.6494132235E+01, Force RSS:     0.1096270533E+04
+Calculating configuration energy 654.9560    456
+ Evaluation count:  456, RSS:     0.1102994504E+04, Energy RSS:     0.6493724758E+01, Force RSS:     0.1096500779E+04
+Calculating configuration energy 656.3200    457
+ Evaluation count:  457, RSS:     0.1165181524E+04, Energy RSS:     0.5605571900E+01, Force RSS:     0.1159575952E+04
+Calculating configuration energy 657.6920    458
+ Evaluation count:  458, RSS:     0.1102764712E+04, Energy RSS:     0.6494130256E+01, Force RSS:     0.1096270581E+04
+Calculating configuration energy 659.0880    459
+ Evaluation count:  459, RSS:     0.1102764256E+04, Energy RSS:     0.6494124427E+01, Force RSS:     0.1096270131E+04
+Calculating configuration energy 660.9320    460
+ Evaluation count:  460, RSS:     0.1102765242E+04, Energy RSS:     0.6494162026E+01, Force RSS:     0.1096271079E+04
+Calculating configuration energy 662.4120    461
+ Evaluation count:  461, RSS:     0.1102291367E+04, Energy RSS:     0.6479255161E+01, Force RSS:     0.1095812112E+04
+Calculating configuration energy 664.3720    462
+ Evaluation count:  462, RSS:     0.1103973380E+04, Energy RSS:     0.6497888416E+01, Force RSS:     0.1097475492E+04
+Calculating configuration energy 665.8400    463
+ Evaluation count:  463, RSS:     0.1102292215E+04, Energy RSS:     0.6479315370E+01, Force RSS:     0.1095812900E+04
+Calculating configuration energy 667.3120    464
+ Evaluation count:  464, RSS:     0.1102747790E+04, Energy RSS:     0.6469764636E+01, Force RSS:     0.1096278026E+04
+Calculating configuration energy 668.7040    465
+ Evaluation count:  465, RSS:     0.1102294785E+04, Energy RSS:     0.6479207272E+01, Force RSS:     0.1095815578E+04
+Calculating configuration energy 670.1200    466
+ Evaluation count:  466, RSS:     0.1102274444E+04, Energy RSS:     0.6479187665E+01, Force RSS:     0.1095795256E+04
+Calculating configuration energy 672.0160    467
+ Evaluation count:  467, RSS:     0.1102274390E+04, Energy RSS:     0.6479187356E+01, Force RSS:     0.1095795203E+04
+Calculating configuration energy 673.9480    468
+ Evaluation count:  468, RSS:     0.1102266826E+04, Energy RSS:     0.6478731806E+01, Force RSS:     0.1095788094E+04
+Calculating configuration energy 675.8120    469
+ Evaluation count:  469, RSS:     0.1105761266E+04, Energy RSS:     0.6509664267E+01, Force RSS:     0.1099251601E+04
+Calculating configuration energy 677.2600    470
+ Evaluation count:  470, RSS:     0.1102823982E+04, Energy RSS:     0.6479254166E+01, Force RSS:     0.1096344728E+04
+Calculating configuration energy 678.7520    471
+ Evaluation count:  471, RSS:     0.1102763311E+04, Energy RSS:     0.6480056903E+01, Force RSS:     0.1096283254E+04
+Calculating configuration energy 680.2200    472
+ Evaluation count:  472, RSS:     0.1102266826E+04, Energy RSS:     0.6478731806E+01, Force RSS:     0.1095788094E+04
+Calculating configuration energy 681.6880    473
+ Evaluation count:  473, RSS:     0.1102266826E+04, Energy RSS:     0.6478731806E+01, Force RSS:     0.1095788094E+04
+Calculating configuration energy 683.1360    474
+ Evaluation count:  474, RSS:     0.1102266826E+04, Energy RSS:     0.6478731806E+01, Force RSS:     0.1095788094E+04
+Calculating configuration energy 684.6280    475
+ Evaluation count:  475, RSS:     0.1102266826E+04, Energy RSS:     0.6478731802E+01, Force RSS:     0.1095788094E+04
+Calculating configuration energy 686.0800    476
+ Evaluation count:  476, RSS:     0.1102266832E+04, Energy RSS:     0.6478731847E+01, Force RSS:     0.1095788100E+04
+Calculating configuration energy 687.5720    477
+ Evaluation count:  477, RSS:     0.1102267135E+04, Energy RSS:     0.6478595969E+01, Force RSS:     0.1095788539E+04
+Calculating configuration energy 689.0480    478
+ Evaluation count:  478, RSS:     0.1102271059E+04, Energy RSS:     0.6477917416E+01, Force RSS:     0.1095793141E+04
+Calculating configuration energy 690.4880    479
+ Evaluation count:  479, RSS:     0.1102266839E+04, Energy RSS:     0.6478736403E+01, Force RSS:     0.1095788103E+04
+Calculating configuration energy 691.9560    480
+ Evaluation count:  480, RSS:     0.1102267089E+04, Energy RSS:     0.6478734234E+01, Force RSS:     0.1095788355E+04
+Calculating configuration energy 693.3720    481
+ Evaluation count:  481, RSS:     0.1102260392E+04, Energy RSS:     0.6478666012E+01, Force RSS:     0.1095781726E+04
+Calculating configuration energy 695.3120    482
+ Evaluation count:  482, RSS:     0.1102258023E+04, Energy RSS:     0.6478606144E+01, Force RSS:     0.1095779417E+04
+Calculating configuration energy 697.3000    483
+ Evaluation count:  483, RSS:     0.1102278080E+04, Energy RSS:     0.6478294840E+01, Force RSS:     0.1095799785E+04
+Calculating configuration energy 698.8120    484
+ Evaluation count:  484, RSS:     0.1102145242E+04, Energy RSS:     0.6478541923E+01, Force RSS:     0.1095666700E+04
+Calculating configuration energy 700.7920    485
+ Evaluation count:  485, RSS:     0.1102143993E+04, Energy RSS:     0.6478535572E+01, Force RSS:     0.1095665458E+04
+Calculating configuration energy 702.7720    486
+ Evaluation count:  486, RSS:     0.1102147356E+04, Energy RSS:     0.6478511077E+01, Force RSS:     0.1095668845E+04
+Calculating configuration energy 704.2640    487
+ Evaluation count:  487, RSS:     0.1102143931E+04, Energy RSS:     0.6478553266E+01, Force RSS:     0.1095665378E+04
+Calculating configuration energy 706.2640    488
+ Evaluation count:  488, RSS:     0.1102147371E+04, Energy RSS:     0.6478527653E+01, Force RSS:     0.1095668844E+04
+Calculating configuration energy 707.7960    489
+ Evaluation count:  489, RSS:     0.1102131503E+04, Energy RSS:     0.6478532162E+01, Force RSS:     0.1095652971E+04
+Calculating configuration energy 709.8320    490
+ Evaluation count:  490, RSS:     0.1102131503E+04, Energy RSS:     0.6478532162E+01, Force RSS:     0.1095652971E+04
+Calculating configuration energy 711.3560    491
+ Evaluation count:  491, RSS:     0.1102131503E+04, Energy RSS:     0.6478532162E+01, Force RSS:     0.1095652971E+04
+Calculating configuration energy 712.8280    492
+ Evaluation count:  492, RSS:     0.1102131503E+04, Energy RSS:     0.6478532162E+01, Force RSS:     0.1095652971E+04
+Calculating configuration energy 714.3040    493
+ Evaluation count:  493, RSS:     0.1102131503E+04, Energy RSS:     0.6478532162E+01, Force RSS:     0.1095652971E+04

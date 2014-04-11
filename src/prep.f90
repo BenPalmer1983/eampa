@@ -59,6 +59,9 @@ Module prep
   
 !RSS configuration array    
   Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configurationRSS
+    
+!RSS configuration opt weights    
+  Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configurationOptWeights
   
 !Cutoff
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRadiusCutoff  
@@ -83,6 +86,8 @@ Module prep
   
 !Misc data variables
   Real(kind=DoubleReal) :: trialResidualSquareSum  
+  Real(kind=DoubleReal) :: rssEnergyDifference, rssForceDifference
+  Real(kind=DoubleReal) :: rssStressDifference, rssBPDifference
   
   
 !MPI key for bringing forces back together  
@@ -127,11 +132,14 @@ Module prep
   Public :: eamKeyOpt, eamDataOpt
   Public :: eamDataSet
   Public :: trialResidualSquareSum
+  Public :: rssEnergyDifference, rssForceDifference
+  Public :: rssStressDifference, rssBPDifference
   Public :: globalCounter, globalTimer
   Public :: configurationUnitVector
   Public :: configurationRadiusCutoff
   Public :: configurationRSS
   Public :: eamFunctionWobbliness
+  Public :: configurationOptWeights
   
 !Subroutines  
   Public :: applyUnitVector
@@ -228,7 +236,7 @@ contains
 	Allocate(configLatticeParameters(1:configCount,1:3))
 	Allocate(configurationRadiusCutoff(1:configCount))
 	Allocate(configurationRSS(1:configCount,1:10))
-	
+	Allocate(configurationOptWeights(1:configCount,1:4))
 	
 ! ConfigAtomsMap(i,1)		Start atom
 ! ConfigAtomsMap(i,2)		End atom
@@ -312,6 +320,13 @@ contains
 	  configLatticeParameters(i,3) = configHeaderR(i,1) * configHeaderI(i,12)	
 !Potential radius cutoff
       configurationRadiusCutoff(i) = configHeaderR(i,2)	  
+!Configuration rates	  
+      configurationOptWeights(i,1) = 1.0D0*configHeaderR(i,16)   !Configuration Energy Weight
+      configurationOptWeights(i,2) = 1.0D0*configHeaderR(i,17)   !Configuration Force Weight
+      configurationOptWeights(i,3) = 1.0D0*configHeaderR(i,18)   !Configuration Stress Weight  
+      configurationOptWeights(i,4) = 1.0D0*configHeaderR(i,19)   !Configuration Bulk Properties Weight
+!	  
+!End loop through configurations
 	End Do	
 !If forces are to be calculated
 	If(calcForcesOnOff.eq.1)Then	  
@@ -1320,7 +1335,8 @@ contains
 	  Do i=1,numberOfPoints
 	    x = eamData(potStart,1)+&
 		    1.0D0*(i-1)*((eamData(potEnd,1)-eamData(potStart,1))/(numberOfPoints-1))
-		yArray = PointInterpolationArr(eamData,x,5,potStart,potLength,"N")
+		!yArray = PointInterpolationArr(eamData,x,5,potStart,potLength,"N")
+		yArray = PointInterpolationArr(eamData,x,5,potStart,potLength)
 		y = yArray(1)
 		dy = yArray(2)
 !store data
@@ -1502,7 +1518,8 @@ contains
 	      x = eamDataReduced(potStart,1)+&
 		    1.0D0*(i-1)*((eamDataReduced(potEnd,1)-&
 			eamDataReduced(potStart,1))/(numberOfPoints-1))
-		  yArray = PointInterpolationArr(eamDataReduced,x,5,potStart,potLength,"N")
+		  !yArray = PointInterpolationArr(eamDataReduced,x,5,potStart,potLength,"N")
+		  yArray = PointInterpolationArr(eamDataReduced,x,5,potStart,potLength)
 		  y = yArray(1)
 		  dy = yArray(2)
 !store data
@@ -1754,7 +1771,8 @@ contains
 	        x = eamDataArray(potStart,1)+&
 		    1.0D0*(i-1)*((eamDataArray(potEnd,1)-&
 			eamDataArray(potStart,1))/(numberOfPoints-1))
-		    yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
+		    !yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
+		    yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength)
 		    y = yArray(1)
 		    dy = yArray(2)
 !write to file
@@ -1799,7 +1817,8 @@ contains
 	    x = eamDataArray(potStart,1)+&
 		    1.0D0*(i-1)*((eamDataArray(potEnd,1)-&
 			eamDataArray(potStart,1))/(numberOfPoints-1))
-		yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
+		!yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
+		yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength)
 		y = yArray(1)
 		dy = yArray(2)
 		wobbliness(potKey) = 1.0D0*wobbliness(potKey)+abs(1.0D0*dy)
@@ -1865,11 +1884,13 @@ contains
 	  Do i=1,numberOfPoints
 	    k = k + 1
 	    x = eamDataArray(potStart,1)+1.0D0*(i-1)*h
-		yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
+		!yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
+		yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength)
 		y = yArray(1)
 		dy = yArray(2)
 		xA = x+0.2D0*h
-		yArray = PointInterpolationArr(eamDataArray,xA,5,potStart,potLength,"N")
+		!yArray = PointInterpolationArr(eamDataArray,xA,5,potStart,potLength,"N")
+		yArray = PointInterpolationArr(eamDataArray,xA,5,potStart,potLength)
 		yA = yArray(1)
 		dyA = yArray(2)
 		ddy = (yA-y)/(0.2D0*h)
@@ -1951,7 +1972,8 @@ contains
 	  curveLength(potKey) = 0.0D0
 	  Do i=2,numberOfPoints
 	    x = eamDataArray(potStart,1)+1.0D0*(i-1)*h
-		yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
+		!yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
+		yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength)
 		y = yArray(1)
 		curveLength(potKey)=curveLength(potKey)+((xLast-x)**2+(yLast-y)**2)**0.5
 		xLast = x

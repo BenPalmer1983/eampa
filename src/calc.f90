@@ -442,11 +442,13 @@ Subroutine calcBulkModulii()
       If(configAtomsMap(i,5).gt.0)Then
 	    tempRSS = 1.0D0*(configurationEnergy(i)/configAtoms(i)-&
 	    configurationRefEnergy(i))**2
+		tempRSS = 1.0D0*configurationOptWeights(i,1)*eamEnergyOptWeight*tempRSS	!Apply global and config weighting
 	    energyDifference = energyDifference + tempRSS
 		configurationRSS(i,1) = configurationRSS(i,1) + tempRSS
 	  End If	
 	End Do  
-	trialResidualSquareSum = energyDifference*100.0D0
+	trialResidualSquareSum = energyDifference
+	rssEnergyDifference = energyDifference
 !-------------------------------------
 !Force Difference
 !-------------------------------------
@@ -460,7 +462,8 @@ Subroutine calcBulkModulii()
 		If(configAtomsMap(configCounter,4).gt.0)Then  
 		  tempRSS = 1.0D0*(configurationForceX(i)-configurationRefForceX(i))**2+&
 			   1.0D0*(configurationForceY(i)-configurationRefForceY(i))**2+&
-			      1.0D0*(configurationForceZ(i)-configurationRefForceZ(i))**2
+			      1.0D0*(configurationForceZ(i)-configurationRefForceZ(i))**2				  
+		  tempRSS = 1.0D0*configurationOptWeights(configCounter,2)*eamForceOptWeight*tempRSS	!Apply global and config weighting
           forceDifference=forceDifference+tempRSS
 		  configForceDifference = configForceDifference + tempRSS
 		End If		  
@@ -473,7 +476,13 @@ Subroutine calcBulkModulii()
 		End If 		  
 	  End Do
 	  trialResidualSquareSum = trialResidualSquareSum + forceDifference
+	  rssForceDifference = forceDifference
     End If
+!-------------------------------------
+!Stress Difference
+!-------------------------------------
+
+
 !-------------------------------------
 !Bulk Modulus Difference
 !-------------------------------------
@@ -660,8 +669,11 @@ Subroutine calcBulkModulii()
 	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
 	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	 
 !Write to file	  
-	  write(999,"(A19,I4,A7,E20.10)") "Evaluation count: ",&
-	  globalCounter(1),", RSS: ",trialResidualSquareSum
+	  write(999,"(A19,I4,A7,E20.10,A14,E20.10,A13,E20.10)") "Evaluation count: ",&
+	  globalCounter(1),", RSS: ",trialResidualSquareSum,&
+	  ", Energy RSS: ",rssEnergyDifference,&
+	  ", Force RSS: ",rssForceDifference
+	  
 !Close output file
       close(999)
 	End If  

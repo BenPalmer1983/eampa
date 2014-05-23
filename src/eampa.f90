@@ -8,14 +8,16 @@ Program eampa
   Use kinds				!data kinds
   Use constants			!physical constants module
   Use units				!unit conversion and normalisation 
-  Use strings		        !string functions
+  Use strings		    !string functions
   Use maths				!maths functions
-  Use initialise			! initialise program
+  Use initialise		! initialise program
   Use input				! input
   Use prep     			! prep module
   Use calc			    ! calc
+  Use prepeam			! calc
   Use run			    ! calc
-  Use output			    ! output
+  Use pwbatch			! calc
+  Use output			! output
   
 !Include MPI header
   Include 'mpif.h'
@@ -30,13 +32,27 @@ Program eampa
   Call runInitialise()
 
 !read input files, potential and configurations
-  Call runInput()
+  Call runInput()  
 
 !prepare data, make neighbour list
-  Call runPrep()
+  If(optionRunPrep.eq.1)Then
+    Call runPrep()
+  End If
+
+!prepare eam potential
+  If(optionRunPrepEAM.eq.1)Then 
+    Call runPrepeam()
+  End If
 
 !start calculations
-  Call runProcesses()
+  If(optionRunProcesses.eq.1)Then
+    Call runProcesses()
+  End If
+  
+ !Run pwscf batch file
+  If(optionRunPWBatch.eq.1)Then
+    Call runPWBatch()
+  End If
   
 !Finalise MPI
   Call MPI_Finalize(error)

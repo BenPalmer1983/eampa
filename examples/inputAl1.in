@@ -1,5 +1,5 @@
 #potential
-"optimised.pot"
+"optimum.pot"
 #configurations
 "examples/atomsAl.conf"
 #datadir
@@ -27,6 +27,8 @@ THREEPOINT
 #calcforces
 yes
 #calcstress
+yes
+#calcAllBM
 yes
 #dftin-rc
 6.5

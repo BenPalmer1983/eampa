@@ -1,5 +1,7 @@
+#print
+yes
 #potential
-"examples/temp.pot"
+"examples/sheng_al_eam.pot"
 #configurations
 "examples/atomsAl.conf"
 #datadir
@@ -11,7 +13,7 @@ no
 #savepot
 yes
 #runtype
-opt
+eval
 #weighting energy stress forces
 1000 20 1
 #unitvector
@@ -28,6 +30,10 @@ THREEPOINT
 yes
 #calcstress
 yes
+#calcAllBM
+No
+#calcAllEC
+No
 #dftin-rc
 6.5
 #dftin-replacesym

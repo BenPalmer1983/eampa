@@ -12,14 +12,14 @@ Module input
 !force declaration of all variables
   Implicit None
 !Include MPI header
-  Include 'mpif.h'  
-  
+  Include 'mpif.h'    
 !declare global variables  
   Character(len=255)  :: inputFileName
   Character(len=255)  :: potentialFilePath
   Character(len=255)  :: potentialFilePathTemp
   Character(len=255)  :: configurationsFilePath
   Character(len=2), Dimension( : ), Allocatable :: elements
+  Integer(kind=StandardInteger), Dimension( : ), Allocatable :: elementsCharge
   Integer(kind=StandardInteger) :: elementCount
   Integer(kind=StandardInteger) :: eamType
   Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKey
@@ -37,80 +37,109 @@ Module input
   Character(len=1) :: saveFileCoords
   Character(len=1) :: saveFileNeighbourList
   Character(len=1) :: saveFilePot
+  Character(len=255) :: eamPreparedFile
+  Character(len=255) :: pwbOptConfFile
   Integer(kind=StandardInteger) :: potType
   Integer(kind=StandardInteger) :: calcRunType
+  Integer(kind=StandardInteger) :: optionReadConf, optionReadEAM
+  Integer(kind=StandardInteger) :: optionRunProcesses, optionRunPrep
+  Integer(kind=StandardInteger) :: optionRunPrepEAM, optionRunPWBatch  
   Integer(kind=StandardInteger) :: configCount
   Integer(kind=StandardInteger) :: eamInterpType
   Integer(kind=StandardInteger) :: calcForcesOnOff
   Integer(kind=StandardInteger) :: calcStressOnOff
+  Integer(kind=StandardInteger) :: calcBMCalcOnOff  !0 only with bm supplied, 1 on for all configurations
+  Integer(kind=StandardInteger) :: calcECCalcOnOff	!0 only with ec supplied, 1 on for all configurations
+  Integer(kind=StandardInteger) :: calcEVCalcOnOff  !0 only with eq vol supplied, 1 on for all configurations
   Real(kind=SingleReal) :: dftInRadiusCutoff
   Character(len=3), Dimension( : , : ), Allocatable :: dftInReplaceSym
   Real(kind=SingleReal) :: dftInOptEnergy
   Real(kind=SingleReal) :: dftInCohEnergy
   Character(len=255), Dimension( : ), Allocatable :: pwscfFilesList
   Integer(kind=StandardInteger) :: saCycles, saTStart, saTEnd, saTIncs
+  Real(kind=DoubleReal) :: saTemp, saSpreadFactor
 !Isotope/Element Arrays
   Character(len=2), Dimension( : ), Allocatable :: isotopesChar
   Integer, Dimension( : , : ), Allocatable :: isotopesInt
   Real, Dimension( : , : ), Allocatable :: isotopesReal
   Character(len=2), Dimension( : ), Allocatable :: elementSymbol
+  Integer(kind=StandardInteger), Dimension( : ), Allocatable :: elementAtomicMass
 !Optimisation eam reduced points size
   Integer(kind=StandardInteger) :: eamReducedPointsV, eamReducedPointsP, eamReducedPointsF
   Integer(kind=StandardInteger) :: eamTrialPointsV, eamTrialPointsP, eamTrialPointsF
 !OPtimization weights
   Integer(kind=StandardInteger) :: eamEnergyOptWeight, eamStressOptWeight, eamForceOptWeight
+  Real(kind=DoubleReal) :: eamZBLPairLower, eamZBLPairUpper, eamZBLDensZero, eamZBLDensCutoff
+  Real(kind=DoubleReal) :: eamZBLEmbeZero, eamZBLEmbeCutoff
+!output
+  Integer(kind=StandardInteger) :: printToTerminal
 
   
 !Privacy of functions/subroutines/variables
   Private
-  Public :: runInput				    !Subroutine  
-  Public :: inputFileName			    !Variable
-  Public :: potentialFilePath			!Variable
-  Public :: potentialFilePathTemp	    !Variable
-  Public :: configurationsFilePath		!Variable
-  Public :: elements             		!Variable
-  Public :: unitVector, globalUnitVector           		!Variable
-  Public :: configHeaderI          		!Variable
-  Public :: configHeaderR             	!Variable
-  Public :: configCoordsI          		!Variable
-  Public :: configCoordsR             	!Variable
-  Public :: configForcesR             	!Variable
-  Public :: headerWidth             	!Variable
-  Public :: numberPotentials           	!Variable
-  Public :: eamType           	        !Variable
+!Variables - all run types       
+  Public :: calcRunType 
+  Public :: optionReadConf, optionReadEAM, optionRunProcesses 
+  Public :: optionRunPrep, optionRunPrepEAM, optionRunPWBatch
+  Public :: inputFileName
+!Variables - Run calculation + Pot Prep
+  Public :: potentialFilePath, potentialFilePathTemp
+  Public :: elements 
+  Public :: elementsCharge
+  Public :: eamZBLPairLower, eamZBLPairUpper, eamZBLDensZero, eamZBLDensCutoff,&
+            eamZBLEmbeZero, eamZBLEmbeCutoff
+!Variables - Run calculation only
+  Public :: configurationsFilePath	             	
+  Public :: unitVector, globalUnitVector   
+  Public :: configHeaderI, configHeaderR    
+  Public :: configCoordsI, configCoordsR, configForcesR  
+  
+!prep eam potential only
+  Public :: eamPreparedFile
+       	
+!pwscf batch only		
+  Public :: pwbOptConfFile
+		
+!Misc		
+  Public :: headerWidth             
+  Public :: numberPotentials        
+  Public :: eamType           	     
   Public :: potType
-  Public :: pairCount           	    !Variable
-  Public :: densCount           	    !Variable
-  Public :: dendCount           	    !Variable
-  Public :: embeCount           	    !Variable
-  Public :: embdCount           	    !Variable
-  Public :: elementCount           	    !Variable
-  Public :: eamKey               	    !Variable
-  Public :: eamData               	    !Variable
-  Public :: saveFileCoords              !Variable
-  Public :: saveFileNeighbourList       !Variable
-  Public :: saveFilePot                 !Variable
-  Public :: configCount                 !Variable
-  Public :: calcRunType                 !Variable
-  Public :: eamInterpType               !Variable
-  Public :: calcForcesOnOff             !Variable
+  Public :: pairCount           	  
+  Public :: densCount           	  
+  Public :: dendCount           	   
+  Public :: embeCount           	   
+  Public :: embdCount           	  
+  Public :: elementCount           	  
+  Public :: eamKey               	   
+  Public :: eamData               	   
+  Public :: saveFileCoords              
+  Public :: saveFileNeighbourList      
+  Public :: saveFilePot        
+  Public :: configCount     
+  Public :: eamInterpType           
+  Public :: calcForcesOnOff      
   Public :: calcStressOnOff
-  Public :: dftInRadiusCutoff           !Variable
-  Public :: dftInReplaceSym             !Variable
+  Public :: calcBMCalcOnOff, calcECCalcOnOff, calcEVCalcOnOff
+  Public :: dftInRadiusCutoff   
+  Public :: dftInReplaceSym         
   Public :: dftInOptEnergy
   Public :: dftInCohEnergy
   Public :: elementSymbol
-  Public :: isotopesChar			!Variable
-  Public :: isotopesInt  			!Variable
-  Public :: isotopesReal			!Variable
+  Public :: isotopesChar		
+  Public :: isotopesInt  		
+  Public :: isotopesReal		
   Public :: eamReducedPointsV, eamReducedPointsP, eamReducedPointsF !Variable
   Public :: eamTrialPointsV, eamTrialPointsP, eamTrialPointsF
   Public :: eamEnergyOptWeight, eamStressOptWeight, eamForceOptWeight
-  !User input variables
+!User input variables
   Public :: saCycles, saTStart, saTEnd, saTIncs
+  Public :: saTemp, saSpreadFactor
   Public :: readEamPot
   Public :: reReadEamPot
-  
+  Public :: printToTerminal
+!Subroutines
+  Public :: runInput	
   
   
 
@@ -125,44 +154,43 @@ contains
 
 !Run all the input subroutines
 
-  Subroutine runInput()
-	
+  Subroutine runInput()	
 	!Internal subroutine variables
 	Integer(kind=StandardInteger) :: i, j, k
-	Call readUserInput()
-	Call readIsotopeData()
-	Call readInputFile()
-	Call readEamPotPrep()
-	Call synchMpiProcesses()
-	Call readEamPot()
-	If(mpiProcessID.eq.0)Then
-	  Call copyConfigFile()
+	Call readUserInput()             !Read input from command line i.e. input file name/location
+	Call readIsotopeData()           !Read in isotope data from data/isotopes.dat
+	Call readInputFile()		     !Read input file
+	If(optionReadEAM.eq.1)Then
+	  Call readEamPotPrep()            !Do for all run options
 	End If  
 	Call synchMpiProcesses()
-	If(mpiProcessID.eq.0)Then
-	  Call readDFTFiles()
-	End If
-	Call synchMpiProcesses()
-	Call readConfiguration()
-		
-
-  End Subroutine runInput
-  
-  
+	If(optionReadEAM.eq.1)Then
+	  Call readEamPot()
+	End If  
+	If(optionReadConf.eq.1)Then
+	  If(mpiProcessID.eq.0)Then
+	    Call copyConfigFile()
+	  End If  
+	  Call synchMpiProcesses()
+	  If(mpiProcessID.eq.0)Then
+	    Call readDFTFiles()
+	  End If
+	  Call synchMpiProcesses()
+	  Call readConfiguration()
+	End If	
+  End Subroutine runInput  
+!================================================================================================================================================  
+!================================================================================================================================================
 !read in user input data, input from the command line
   Subroutine readUserInput()
   !force declaration of all variables
-	Implicit None
-  
+	Implicit None  
 !Read in command line arguments
     call get_command_argument(1,inputFileName)
-	
-  
   End Subroutine readUserInput
-  
-  
-!Read in any data files (isotope data etc)
-  
+!================================================================================================================================================  
+!================================================================================================================================================
+!Read in any data files (isotope data etc)  
 !read in isotope data  
   Subroutine readIsotopeData()
 !force declaration of all variables
@@ -284,25 +312,23 @@ contains
 	CLOSE(1) !close file	
 !make element array
     Allocate(elementSymbol(0:maxZ))	
+	!Allocate(elementAtomicMass(0:maxZ))
 !store Z and element symbol
     elementSymbol(0) = "NN" !Neutron
-    do i=1,size(isotopesInt,1)
+    Do i=1,size(isotopesInt,1)
 	  elementSymbol(isotopesInt(i,1)) = isotopesChar(i)
-	enddo
+	  !elementAtomicMass
+	End Do
 !close output file
     close(999) 
   End Subroutine readIsotopeData  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+!================================================================================================================================================  
+!================================================================================================================================================
+!---------------------------------------------------------------------------------------------------
+!
+!    Input File
+!
+!---------------------------------------------------------------------------------------------------    
 !read in input file
   Subroutine readInputFile()      
 !force declaration of all variables
@@ -312,12 +338,11 @@ contains
 	Integer(kind=StandardInteger) :: ios, i, j, k, elementCounter, headerRow
 	Integer(kind=StandardInteger) :: replaceSymCount
 	Character(len=3) :: bufferShortA, bufferShortB
-	Character(len=32) :: buffera, bufferb, bufferc, bufferd
+	Character(len=32) :: buffera, bufferb, bufferc, bufferd, buffere, bufferf
 	Character(len=255) :: bufferLongA
 	Character(len=255), Dimension(1:1000)  :: pwscfFiles
 	Integer(kind=StandardInteger) :: bufferIA, pwscfFileCount
-	Real(kind=DoubleReal) :: bufferDA
-	
+	Real(kind=DoubleReal) :: bufferDA	
 !open output file	
 	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
 	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
@@ -325,13 +350,23 @@ contains
     If(mpiProcessID.eq.0)Then
 	  write(999,"(F8.4,A2,A24,A60)") ProgramTime(),"  ",&
 	  "Reading user input file ",inputFileName
-	End If
-	
+	End If	
 !Allocate arrays	
 	Allocate(unitVector(1:3,1:3))
-	Allocate(dftInReplaceSym(1:20,1:2))
-	
+	Allocate(dftInReplaceSym(1:20,1:2))	
+!----------------------------------------------------------	
 !Start set defaults, overridden by user input
+!----------------------------------------------------------	
+! Print out to terminal
+    printToTerminal = 0	
+!Force ZBL Core Settings	
+	eamZBLPairLower = -2.1D20
+	eamZBLPairUpper = -2.1D20
+	eamZBLDensZero = -2.1D20
+	eamZBLDensCutoff = -2.1D20
+	eamZBLEmbeZero = -2.1D20
+	eamZBLEmbeCutoff = -2.1D20
+!Default unit vectors
 	unitVector(1,1) = 1			!x1
 	unitVector(2,1) = 0			!x2
 	unitVector(3,1) = 0			!x3
@@ -341,10 +376,21 @@ contains
 	unitVector(1,3) = 0			!z1
 	unitVector(2,3) = 0			!z2
 	unitVector(3,3) = 1			!z3
+!Run type and run type options
+	calcRunType = 1
+	optionReadConf = 1
+	optionReadEAM = 1
+	optionRunProcesses = 1
+	optionRunPrep = 1
+	optionRunPrepEAM = 1
+	optionRunPWBatch = 1
+!Potential type
 	potType = 1
 	eamInterpType = 1
-	calcRunType = 1
 	calcForcesOnOff = 1
+	calcBMCalcOnOff = 0
+	calcECCalcOnOff = 0
+	calcEVCalcOnOff = 0
 	dftInRadiusCutoff = 6.5
 	Do i=1,size(dftInReplaceSym,1)
 	  Do j=1,size(dftInReplaceSym,2)
@@ -367,6 +413,7 @@ contains
 	Do i=1,1000
 	  pwscfFiles(i) = "__empty__"
 	End Do
+	eamPreparedFile = "prepared_eam.pot"
 !End set defaults
 	
 !open & read in file	
@@ -379,6 +426,129 @@ contains
 	  if (ios /= 0) then
 	    EXIT 
 	  end if
+!-----------------------------
+! Print to terminal
+!-----------------------------
+	  If(buffera(1:6).eq."#print")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera
+		If(StrToUpper(buffera(1:1)).eq."Y")Then
+		  printToTerminal = 1
+	    End If
+		If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
+		  print *,ProgramTime(),"Reading user input file"
+		End If
+	  End If
+!-----------------------------
+! Run type
+!-----------------------------	  
+	  If(buffera(1:8).eq."#runtype")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera
+		buffera = StrToUpper(buffera)
+		If(buffera(1:4).eq."ENER")then		!ENERGY
+		  calcRunType = 1
+!Set module/subroutine options
+		  optionReadConf = 1
+		  optionReadEAM = 1
+		  optionRunPrep = 1
+		  optionRunProcesses = 1
+		  optionRunPrepEAM = 0
+		  optionRunPWBatch = 0
+	    End If
+		if(buffera(1:4).eq."BMOD")then		!BULKMODULUS
+		  calcRunType = 3
+		  calcBMCalcOnOff = 1
+!Set module/subroutine options
+		  optionReadConf = 1
+		  optionReadEAM = 1
+		  optionRunPrep = 1
+		  optionRunProcesses = 1
+		  optionRunPrepEAM = 0
+		  optionRunPWBatch = 0
+	    End If
+		if(buffera(1:4).eq."ECON")then		!ELASTICCONSTANTS
+		  calcRunType = 4
+		  calcBMCalcOnOff = 1
+!Set module/subroutine options
+		  optionReadConf = 1
+		  optionReadEAM = 1
+		  optionRunPrep = 1
+		  optionRunProcesses = 1
+		  optionRunPrepEAM = 0
+		  optionRunPWBatch = 0
+	    End If
+		if(buffera(1:4).eq."EVAL")then		!EVALUATE
+		  calcRunType = 5
+!Set module/subroutine options
+		  optionReadConf = 1
+		  optionReadEAM = 1
+		  optionRunPrep = 1
+		  optionRunProcesses = 1
+		  optionRunPrepEAM = 0
+		  optionRunPWBatch = 0
+	    End If
+		if(buffera(1:4).eq."OPTI")then		!OPTIMISE
+		  calcRunType = 6
+!Set module/subroutine options
+		  optionReadConf = 1
+		  optionReadEAM = 1
+		  optionRunPrep = 1
+		  optionRunProcesses = 1
+		  optionRunPrepEAM = 0
+		  optionRunPWBatch = 0
+	    End If
+!Potential only, no calculations
+		if(buffera(1:4).eq."PRP1")then		!PREP EAM File - read in, and output a formatted eam file
+		  calcRunType = 15
+!Set module/subroutine options
+		  optionReadConf = 0
+		  optionReadEAM = 1
+		  optionRunPrep = 0
+		  optionRunProcesses = 0
+		  optionRunPrepEAM = 1
+		  optionRunPWBatch = 0
+	    End If
+		if(buffera(1:4).eq."PRP2")then		!PREP EAM File - read in, and output a formatted eam file
+		  calcRunType = 16
+!Set module/subroutine options
+		  optionReadConf = 0
+		  optionReadEAM = 1
+		  optionRunPrep = 0
+		  optionRunProcesses = 0
+		  optionRunPrepEAM = 1
+		  optionRunPWBatch = 0
+	    End If
+		if(buffera(1:4).eq."PRP3")then		!PREP EAM File - read in, and output a formatted eam file
+		  calcRunType = 17
+!Set module/subroutine options
+		  optionReadConf = 0
+		  optionReadEAM = 1
+		  optionRunPrep = 0
+		  optionRunProcesses = 0
+		  optionRunPrepEAM = 1
+		  optionRunPWBatch = 0
+	    End If
+		If(buffera(1:4).eq."PWB1")then		!PWscf Batch Files 1 - input files
+		  calcRunType = 31
+!Set module/subroutine options
+		  optionReadConf = 0
+		  optionReadEAM = 0
+		  optionRunPrep = 0
+		  optionRunProcesses = 0
+		  optionRunPrepEAM = 0
+		  optionRunPWBatch = 1
+		End If
+		if(buffera(1:4).eq."TEST")then		!Test
+		  calcRunType = 99
+	    End If		
+	    If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
+		  print *,ProgramTime(),"Run type ",calcRunType," ",buffera(1:4)
+		End If
+	  End If	  
+!-----------------------------
+! Potential details
+!-----------------------------	  
 	  if(buffera(1:10).eq."#potential")then
 !read next line
 	    Read(1,*,IOSTAT=ios) potentialFilePath
@@ -391,9 +561,21 @@ contains
 		End If
 		If(StrToUpper(bufferb(1:6)).eq."LAMMPS")Then
 		  potType = 2
-		End If
-		
+		End If		
 	  endif
+	  If(buffera(1:10).eq."#zblcore")then
+!read next line
+        Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd, buffere, bufferf
+		Read(buffera,*) eamZBLPairLower
+		Read(bufferb,*) eamZBLPairUpper
+		Read(bufferc,*) eamZBLDensZero
+		Read(bufferd,*) eamZBLDensCutoff
+		Read(buffere,*) eamZBLEmbeZero
+		Read(bufferf,*) eamZBLEmbeCutoff
+	  End If	  
+	  
+	  
+	  
 	  if(buffera(1:15).eq."#configurations")then
 !read next line
 	    Read(1,*,IOSTAT=ios) configurationsFilePath
@@ -414,39 +596,7 @@ contains
 		saveFilePot = StrToUpper(buffera(1:1))
 	  endif
 	  
-!Run types
-	  if(buffera(1:8).eq."#runtype")then
-!read next line
-	    Read(1,*,IOSTAT=ios) buffera
-		buffera = StrToUpper(buffera)
-		if(buffera(1:3).eq."ENE")then		!ENERGY
-		  calcRunType = 1
-		endif
-		if(buffera(1:6).eq."FOR")then		!FORCES
-		  calcRunType = 2
-		endif
-		if(buffera(1:3).eq."BUL")then		!BULKMODULUS
-		  calcRunType = 3
-		endif
-		if(buffera(1:3).eq."ELA")then		!ELASTICCONSTANTS
-		  calcRunType = 4
-		endif
-		if(buffera(1:3).eq."EVA")then		!EVALUATE
-		  calcRunType = 5
-		endif
-		if(buffera(1:3).eq."OPT")then		!OPTIMISE
-		  calcRunType = 6
-		endif
-		if(buffera(1:3).eq."ETR")then		!EVALUATE TRIAL
-		  calcRunType = 7
-		endif
-		if(buffera(1:3).eq."ESP")then		!EVALUATE SPLINE
-		  calcRunType = 8
-		endif
-		if(buffera(1:3).eq."TES".or.buffera(1:3).eq."TST")then		!Test
-		  calcRunType = 99
-		endif
-	  endif
+
 	  
 !Unit vector components
 	  if(buffera(1:11).eq."#unitvector")then
@@ -523,6 +673,15 @@ contains
 		Read(bufferc,*) saTEnd
 		Read(bufferd,*) saTIncs		
       End If
+	  
+!#saCycles	  simulated annealing cycles	  
+	  If(buffera(1:7).eq."#saTemp")Then
+	  	!read next line
+	    Read(1,*,IOSTAT=ios) buffera, bufferb
+		Read(buffera,*) saTemp
+		Read(bufferb,*) saSpreadFactor
+      End If	  
+	  
 
 		
 !Calc Forces
@@ -549,7 +708,45 @@ contains
 		End If
 	  End If 
 	  
+!Calc All BM
+	  If(buffera(1:10).eq."#calcAllBM")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera
+		buffera = StrToUpper(buffera)	  
+		If(buffera(1:1).eq."Y".or.buffera(1:1).eq."1")Then
+	      calcBMCalcOnOff = 1
+		Else
+		  calcBMCalcOnOff = 0
+		End If
+	  End If 
 	  
+!Calc All EC
+	  If(buffera(1:10).eq."#calcAllEC")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera
+		buffera = StrToUpper(buffera)	  
+		If(buffera(1:1).eq."Y".or.buffera(1:1).eq."1")Then
+	      calcECCalcOnOff = 1
+		Else
+		  calcECCalcOnOff = 0
+		End If
+	  End If 	
+
+	  
+!Calc All Equilibrium Volumes
+	  If(buffera(1:10).eq."#calcAllEV")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera
+		buffera = StrToUpper(buffera)	  
+		If(buffera(1:1).eq."Y".or.buffera(1:1).eq."1")Then
+	      calcEVCalcOnOff = 1
+		Else
+		  calcEVCalcOnOff = 0
+		End If
+	  End If 	  
+	  
+	  
+	  	  
 !Dft Input Settings
 	  If(buffera(1:9).eq."#dftin-rc")then
 	    Read(1,*,IOSTAT=ios) buffera
@@ -591,7 +788,22 @@ contains
 		Do j=1,pwscfFileCount
 		  pwscfFilesList(j) = pwscfFiles(j)
 		End Do
-	  End If	
+	  End If	  
+!-----------------------------
+! EAM Prep Only Inputs
+!-----------------------------	  
+	  If(buffera(1:12).eq."#eamPrepFile")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		eamPreparedFile = trim(buffera)
+	  End If
+	  If(buffera(1:11).eq."#pwbOptConf")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		pwbOptConfFile = trim(buffera)
+	  End If	  
+	  
+	  
     End Do
 !Fill in any other variables	
 	globalUnitVector = unitVector
@@ -600,12 +812,13 @@ contains
 !close output file
     close(999)	   
   End Subroutine readInputFile
-  
-  
-  
-  
-  
-  
+!================================================================================================================================================  
+!================================================================================================================================================
+!---------------------------------------------------------------------------------------------------
+!
+!    Reading Potential File
+!
+!---------------------------------------------------------------------------------------------------     
   Subroutine readEamPotPrep()  
 !force declaration of all variables
 	Implicit None
@@ -621,8 +834,7 @@ contains
 	Integer(kind=StandardInteger) :: nrho, nr, potentialLinesRho, potentialLinesR
 	Real(kind=DoubleReal) :: drho, dr, cutoff
 	Real(kind=DoubleReal) :: radius, rho, tempDouble
-	Character(len=2), Dimension( : ), Allocatable ::  functionElements
-	
+	Character(len=2), Dimension( : ), Allocatable ::  functionElements	
 !---------------------------------------------
 ! Set potentialFilePathTemp on all processes
 !---------------------------------------------
@@ -634,8 +846,6 @@ contains
 	  !LAMMPS type
 	  potentialFilePathTemp = trim(potentialFilePath)//".temp"
 	End If
-	
-	
 	If(mpiProcessID.eq.0)Then
 !--------------------  
 ! NORMAL
@@ -896,19 +1106,18 @@ contains
 !Update path to potential
       !potentialFilePath = potentialFilePathTemp
     End If
-	End If
-  
+	End If  
     Close(1)
 	Close(2)
-  
-  
-   
+!-----------------------------
+! Deallocate arrays
+!-----------------------------
+	If(Allocated(functionElements))Then
+	  Deallocate(functionElements)
+	End If	
   End Subroutine readEamPotPrep
-  
-  
-  
-  
-  
+!================================================================================================================================================  
+!================================================================================================================================================    
 !read eam.pot subroutine  
   Subroutine readEamPot()	
 !force declaration of all variables
@@ -951,8 +1160,7 @@ contains
 	End If
     If(Allocated(eamData))Then
 	  Deallocate(eamData)
-	End If
-	
+	End If	
 !Set EAM type
     eamType = 1		!1 = default type/standard   2 = 2BMEAM	
 !allocate elements array
@@ -1249,6 +1457,18 @@ Open(UNIT=1,FILE=potentialFilePathTemp)
 	eamKey(potKey,4) = potDataStart
 	eamKey(potKey,5) = potDataLength
 	CLOSE(1) 	
+!Fill in elementsCharge array
+    If(Allocated(elementsCharge))Then
+	  Deallocate(elementsCharge)
+	End If
+    Allocate(elementsCharge(1:size(elements)))
+    Do i=1,size(elements)
+	  Do j=0,size(elementSymbol,1)-1
+	    If(elements(i).eq.elementSymbol(j))Then
+		  elementsCharge(i) = j
+	    End If
+	  End Do
+	End Do
 !output/store potentials	
     If(mpiProcessID.eq.0)Then
       write(999,"(A6,A32)") "      ","Summary of potential functions "
@@ -1268,11 +1488,15 @@ Open(UNIT=1,FILE=potentialFilePathTemp)
 	End If
 !close output file
     close(999)	
+!-----------------------------
+! Deallocate arrays
+!-----------------------------
+	If(Allocated(elementsTemp))Then
+	  Deallocate(elementsTemp)
+	End If			
   End Subroutine readEamPot
-	
-	
-	
-	
+!================================================================================================================================================  
+!================================================================================================================================================	
 !re-read eam potential file, assume element list is the same 
   Subroutine reReadEamPot(inputEamFile)	
 !force declaration of all variables
@@ -1290,7 +1514,6 @@ Open(UNIT=1,FILE=potentialFilePathTemp)
 	Character(len=255) :: bufferLongA
 	Character(len=255) :: fileRowData
 	Character(*) :: inputEamFile
-
 !Deallocate already allocated arrays
     If(Allocated(elements))Then
 	  Deallocate(elements)
@@ -1303,9 +1526,7 @@ Open(UNIT=1,FILE=potentialFilePathTemp)
 	End If
     If(Allocated(eamData))Then
 	  Deallocate(eamData)
-	End If
-	
-	
+	End If	
 !Set EAM type
     eamType = 1		!1 = default type/standard   2 = 2BMEAM	
 !allocate elements array
@@ -1450,7 +1671,6 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	  endif
 	endif	
 !store/output potential count etc
-
 !Allocate eam keys/data
     Allocate(eamKey(1:numberPotentials,1:5))	
     Allocate(eamData(1:dataCounter,1:3))
@@ -1576,15 +1796,20 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	eamKey(potKey,4) = potDataStart
 	eamKey(potKey,5) = potDataLength
 	CLOSE(1) 	
-	
-	
+!-----------------------------
+! Deallocate arrays
+!-----------------------------
+	If(Allocated(elementsTemp))Then
+	  Deallocate(elementsTemp)
+	End If		
   End Subroutine reReadEamPot
-  
-	
-	
-  
-  
-
+!================================================================================================================================================  
+!================================================================================================================================================
+!---------------------------------------------------------------------------------------------------
+!
+!    Read Configuration File
+!
+!---------------------------------------------------------------------------------------------------  
   Subroutine copyConfigFile()
 !force declaration of all variables
 	Implicit None
@@ -1610,19 +1835,8 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 !close output file
 	close(301)		
   End Subroutine copyConfigFile
-  	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+!================================================================================================================================================  
+!================================================================================================================================================	
 !Read in configuration file
   Subroutine readDFTFiles()
 !force declaration of all variables
@@ -1631,8 +1845,6 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
 	Integer(kind=StandardInteger) :: ios, i, j, k, fileRows
 	Character(len=255) :: filePath
-	
-
 !Read PWSCF files
     If(Allocated(pwscfFilesList))Then
       If(size(pwscfFilesList,1).gt.0)Then
@@ -1646,13 +1858,8 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	  End If
 	End If		
   End Subroutine readDFTFiles
-  
-  
-  
-  
-  
-  
-  	
+!================================================================================================================================================  
+!================================================================================================================================================
 !Read in configuration file
   Subroutine readPWSCFFile(filePath)
 !force declaration of all variables
@@ -1676,15 +1883,10 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	Real(kind=SingleReal), Dimension( : , : ), Allocatable :: atomCoords
 	Real(kind=SingleReal), Dimension( : , : ), Allocatable :: atomForcess
 	Character(len=255) :: configurationsFilePathTemp
-
-  
 !set temp config file name
     configurationsFilePathTemp = trim(configurationsFilePath)//".temp"
-  
-  
 !set variables
-    readType = 0  
-  	
+    readType = 0    	
 !Check file type
   	Open(UNIT=1,FILE=filePath) 
     Do i=1,maxFileRows 
@@ -1705,13 +1907,11 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	  End If
 	End Do
 !close file	
-	CLOSE(1)  
-	
+	CLOSE(1) 	
 !Allocate arrays
     Allocate(atomType(1:numberOfAtoms))
     Allocate(atomCoords(1:numberOfAtoms,1:3))
-    Allocate(atomForcess(1:numberOfAtoms,1:3))
-	
+    Allocate(atomForcess(1:numberOfAtoms,1:3))	
 !Read in data
 	If(readType.eq.1)Then
 	  lastScf = 0
@@ -1863,8 +2063,6 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 			End Do  
 		  End Do
 		End If
-		
-		
 	  End If
 !break out if end of file
 	  If (ios /= 0) then
@@ -1873,15 +2071,11 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	End Do
 !close file	
 	CLOSE(1) 
-	
-	
 !Write to file	
     If(mpiProcessID.eq.0)Then	
 !open temp config file	
 	  open(unit=801,file=trim(configurationsFilePathTemp),&
 	  status="old",position="append",action="write")	
-	  
-	  
 !write to output file
 	  write(801,"(A4)") "#new"	
 	  write(801,"(A21,I8,A9,E20.10)") "#added config, atoms ",numberOfAtoms,&
@@ -1905,36 +2099,31 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	  write(801,"(A4)") "#end"	
 	  Close(801)
     End If
-
-		
+!-----------------------------
+! Deallocate arrays
+!-----------------------------
+	If(Allocated(atomCoords))Then
+	  Deallocate(atomCoords)
+	End If	
+	If(Allocated(atomForcess))Then
+	  Deallocate(atomForcess)
+	End If			
   End Subroutine readPWSCFFile
-  
-  
-  
-  
-  
-  
-
-  
-  
-  
-  
-	
-  
+!================================================================================================================================================  
+!================================================================================================================================================
 !Read in configuration file
-  Subroutine readConfiguration()
-	
+  Subroutine readConfiguration()	
 !force declaration of all variables
 	Implicit None
 !declare private variables
 	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
 	Integer(kind=StandardInteger) :: ios, i, j, k, fileRows
-	Integer(kind=StandardInteger) :: configurationCount, atomCount
+	Integer(kind=StandardInteger) :: configurationCount, atomCount, ecCount
 	Integer(kind=StandardInteger) :: startConfig, configLength, readForces
 	Integer(kind=StandardInteger) :: absolutePosition
 	Real(kind=DoubleReal) :: bufferDa
-	Character(len=128) :: buffera, bufferb, bufferc, bufferd
-	Character(len=128) :: buffere, bufferf, bufferg
+	Character(len=128) :: buffera, bufferb, bufferc, bufferd, buffere
+	Character(len=128) :: bufferf, bufferg, bufferh, bufferi, bufferj
 	Character(len=255) :: bufferLongA
 	Character(len=255) :: fileRowBuffer    
 	Character(len=255) :: configurationsFilePathTemp
@@ -1948,7 +2137,6 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	  write(999,"(F8.4,A2,A18,A60)") ProgramTime(),"  ",&
 	  "Reading from file ",configurationsFilePath
 	End If
-
 !Count file rows
 	fileRows = 0
   	Open(UNIT=1,FILE=configurationsFilePath) 
@@ -1963,8 +2151,7 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	  end if
 	enddo
 !close file	
-	CLOSE(1) 
-	
+	CLOSE(1) 	
 !count data amounts + get array sizes
 	configurationCount = 0
 	atomCount = 0
@@ -1991,7 +2178,7 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 !allocate arrays
     configCount = configurationCount
 	Allocate(configHeaderI(1:configurationCount,1:headerWidth))
-	Allocate(configHeaderR(1:configurationCount,1:20)) !15 used
+	Allocate(configHeaderR(1:configurationCount,1:50)) !27 used
 	Allocate(configCoordsI(1:atomCount))
 	Allocate(configCoordsR(1:atomCount,1:3))
 	Allocate(configForcesR(1:atomCount,1:4))
@@ -2021,6 +2208,16 @@ Open(UNIT=1,FILE=trim(inputEamFile))
       configHeaderR(i,17) = 1.0E0		!configuration forces weighting
       configHeaderR(i,18) = 1.0E0		!configuration stresses weighting
       configHeaderR(i,19) = 1.0E0		!configuration stresses weighting
+!Reference elastic constants
+	  configHeaderR(i,20) = -2.1E20		!No. of elastic constants
+	  configHeaderR(i,21) = -2.1E20		!C11   C11   C11
+	  configHeaderR(i,22) = -2.1E20		!C12   C12   C12
+	  configHeaderR(i,23) = -2.1E20		!C44   C13   C13
+	  configHeaderR(i,24) = -2.1E20		!      C33   C33
+	  configHeaderR(i,25) = -2.1E20		!      C55   C44
+	  configHeaderR(i,26) = -2.1E20		!            C66
+!References - Equilibrium volume	  
+	  configHeaderR(i,27) = -2.1E20
 	End Do
 !Load Data
     configurationCount = 0
@@ -2123,6 +2320,19 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 		!#SX #SY #SZ
 		!configHeaderR(configurationCount,14) = 1.0E0
 		
+
+		
+!Read equilibrium volume
+	    If(StrToUpper(buffera(1:3)).eq."#EV")Then     !equilibrium volume		
+!re-read row
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc
+		  Read(bufferb,*) configHeaderR(configurationCount,27)
+          configHeaderR(configurationCount,27) = &
+		  UnitConvert(1.0D0*configHeaderR(configurationCount,27),bufferc,"ANG3")		  
+		End If		
+		
+		
 !Read bulk modulus
 	    If(StrToUpper(buffera(1:3)).eq."#BM")Then     !bulk modulus		
 !re-read row
@@ -2132,6 +2342,82 @@ Open(UNIT=1,FILE=trim(inputEamFile))
           configHeaderR(configurationCount,15) = &
 		  UnitConvert(1.0D0*configHeaderR(configurationCount,15),bufferc,"GPA")		  
 		End If
+		
+!Read elastic constants
+	    If(StrToUpper(buffera(1:3)).eq."#EC")Then     !bulk modulus		
+		  ecCount = 3  !Default
+		  Do j=21,26
+		    configHeaderR(configurationCount,j) = -2.1D20
+		  End Do
+!re-read row
+		  Backspace(1)		
+	      Read(1,*,IOSTAT=ios) buffera, bufferb
+		  Read(bufferb,*) ecCount !count of elastic constants	
+		  configHeaderR(configurationCount,20) = 1.0D0 * ecCount
+!Cubic         C11 C12 C14
+          If(ecCount.eq.3)Then
+!re-read row
+		    Backspace(1)		
+	        Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd, buffere, bufferf		  
+		    Read(bufferc,*) configHeaderR(configurationCount,21)   !C11
+            configHeaderR(configurationCount,21) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,21),bufferf,"GPA")			  
+		    Read(bufferd,*) configHeaderR(configurationCount,22)   !C12
+            configHeaderR(configurationCount,22) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,22),bufferf,"GPA")				  
+		    Read(buffere,*) configHeaderR(configurationCount,23)   !C44
+            configHeaderR(configurationCount,23) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,23),bufferf,"GPA")		
+		  End If  
+!Hexagonal     C11 C12 C13 C33 C55
+          If(ecCount.eq.5)Then
+!re-read row
+		    Backspace(1)		
+	        Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd, buffere, &
+			bufferf, bufferg, bufferh		  
+		    Read(bufferc,*) configHeaderR(configurationCount,21)   !C11
+            configHeaderR(configurationCount,21) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,21),bufferh,"GPA")			  
+		    Read(bufferd,*) configHeaderR(configurationCount,22)   !C12
+            configHeaderR(configurationCount,22) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,22),bufferh,"GPA")				  
+		    Read(buffere,*) configHeaderR(configurationCount,23)   !C13
+            configHeaderR(configurationCount,23) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,23),bufferh,"GPA")					  
+		    Read(bufferf,*) configHeaderR(configurationCount,24)   !C33
+            configHeaderR(configurationCount,24) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,24),bufferh,"GPA")					  
+		    Read(bufferg,*) configHeaderR(configurationCount,25)   !C55
+            configHeaderR(configurationCount,25) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,25),bufferh,"GPA")	
+		  End If  
+!Tetragonal     C11 C12 C13 C33 C44 C66
+          If(ecCount.eq.6)Then
+!re-read row
+		    Backspace(1)		
+			Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd, buffere, &
+			bufferf, bufferg, bufferh, bufferi		  		  
+		    Read(bufferc,*) configHeaderR(configurationCount,21)   !C11
+            configHeaderR(configurationCount,21) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,21),bufferi,"GPA")			  
+		    Read(bufferd,*) configHeaderR(configurationCount,22)   !C12
+            configHeaderR(configurationCount,22) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,22),bufferi,"GPA")				  
+		    Read(buffere,*) configHeaderR(configurationCount,23)   !C13
+            configHeaderR(configurationCount,23) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,23),bufferi,"GPA")					  
+		    Read(bufferf,*) configHeaderR(configurationCount,24)   !C33
+            configHeaderR(configurationCount,24) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,24),bufferi,"GPA")					  
+		    Read(bufferg,*) configHeaderR(configurationCount,25)   !C44
+            configHeaderR(configurationCount,25) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,25),bufferi,"GPA")					  
+		    Read(bufferh,*) configHeaderR(configurationCount,26)   !C66
+            configHeaderR(configurationCount,26) = &
+		    UnitConvert(1.0D0*configHeaderR(configurationCount,26),bufferi,"GPA")	
+		  End If  
+		End If
+		
 		
 if(StrToUpper(buffera(1:3)).eq."#CW")then     !Configuration weighting
 !re-read row
@@ -2197,16 +2483,15 @@ if(StrToUpper(buffera(1:3)).eq."#CW")then     !Configuration weighting
 	  write(999,"(A6,A21,I8)") "      ","Atoms read:          ",atomCount
 !close output file
       close(999)	
-	End If  
-	
+	End If  	
   End Subroutine readConfiguration
-  
-	
-	
-	
-	
-	
-	
+!================================================================================================================================================  
+!================================================================================================================================================
+!---------------------------------------------------------------------------------------------------
+!
+!    Other Module Subroutines
+!
+!--------------------------------------------------------------------------------------------------- 
   Subroutine synchMpiProcesses()
 !force declaration of all variables
 	Implicit None	 
@@ -2236,13 +2521,14 @@ if(StrToUpper(buffera(1:3)).eq."#CW")then     !Configuration weighting
   
   
   
+!================================================================================================================================================  
+!================================================================================================================================================
 !------------------------------------------------------------------------!
 !                                                                        !
 ! MODULE FUNCTIONS                                                       !
 !                                                                        !
 !                                                                        !
-!------------------------------------------------------------------------!   
-  
+!------------------------------------------------------------------------!    
   Function AddUniqueElement (element) RESULT (output)
     Character(len=2) :: element
     Integer(kind=StandardInteger) :: output 
@@ -2268,7 +2554,8 @@ if(StrToUpper(buffera(1:3)).eq."#CW")then     !Configuration weighting
 	  output = k
     endif
   End function AddUniqueElement    
-  
+!================================================================================================================================================  
+!================================================================================================================================================  
   Function QueryUniqueElement (element) RESULT (output)
     Character(len=2) :: element
     Integer(kind=StandardInteger) :: output 
@@ -2292,8 +2579,8 @@ if(StrToUpper(buffera(1:3)).eq."#CW")then     !Configuration weighting
 	  output = 0
     endif
   End function QueryUniqueElement  
-  
-  
+!================================================================================================================================================  
+!================================================================================================================================================  
   Function CheckIfElement (element) RESULT (output)
     Character(len=2) :: element
 	Integer(kind=StandardInteger) :: output 

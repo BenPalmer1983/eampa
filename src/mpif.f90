@@ -14,14 +14,55 @@ Module mpif
 !variables
   Public :: mpiProcessTimeStart
 !Subroutines
+  Public :: MPI_distributeArray1D
   Public :: MPI_sendout
   Public :: MPI_sendout2D
-  Public :: MPI_timer
+  Public :: MPI_timer  
+  Public :: MPI_sendData1DDP
+  Public :: MPI_sendData2DInt
+  Public :: MPI_sendData2DDP
 !Functions
   !Public :: 
   
   
-  Contains
+  Contains  
+  
+!------------------------------------------------------------------------!
+!                                                                        !
+! MODULE SUBROUTINES                                                     !
+!                                                                        !
+!                                                                        !
+!------------------------------------------------------------------------!   
+
+
+
+  Subroutine MPI_distributeArray1D(distributedArray,processMap)
+! Takes an array, with values on different processes, combines and distributes
+!
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k,n
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: distributedArray	
+	Integer(kind=StandardInteger), Dimension( : ), Allocatable :: processMap
+!mpi variables
+    Integer(kind=StandardInteger) :: processID, processCount
+    Integer(kind=StandardInteger) :: status,error,tag,processTemp
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bufferArray		
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	!Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+    !Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
+
+
+  End Subroutine MPI_distributeArray1D
+
+
+
+
+ 
 
 !send array - just doubles at the moment
   Subroutine MPI_sendout(buffer,dataType,bufferDimensionOption)
@@ -273,6 +314,215 @@ Module mpif
 	  mpiProcessTimeStart = cpuTime
 	End If
   End Subroutine MPI_timer
+  
+  
+  
+  
+  
+!--------------------------------------------------------------------------------------------------- 
+! Distribute array subroutines
+!--------------------------------------------------------------------------------------------------- 
+ 
+!------------------------------------------------------------------------!
+! ***MPI_sendData1DInt*** 
+! Takes an array and process map, merges array values and distributes
+!------------------------------------------------------------------------!  
+  Subroutine MPI_sendData1DInt(dataArray,arraySize) 
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k
+	Integer(kind=StandardInteger) :: arraySize
+!mpi variables
+    Integer(kind=StandardInteger) :: processID,processCount
+    Integer(kind=StandardInteger) :: status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Integer(kind=StandardInteger), Dimension(1:arraySize) :: dataArray, sendArray, recvArray	
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Send array from master to workers
+!-----------------------------------------   
+    If(processID.eq.0)Then
+!SEND by master process	 
+	  sendArray = dataArray
+      Do i=1,(processCount-1)
+	    processTo = i
+        tag = 2000 + i
+		Call MPI_send(sendArray,arraySize,&
+		MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	  End Do	
+	Else
+!RECV by worker processes
+      processFrom = 0
+	  tag = 2000 + processID
+      Call MPI_recv(recvArray,arraySize,&
+	  MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+	  dataArray = recvArray
+	End If    
+  End Subroutine MPI_sendData1DInt 
+!------------------------------------------------------------------------!
+! ***MPI_sendData1DDP*** 
+! Takes an array and process map, merges array values and distributes
+!------------------------------------------------------------------------!  
+  Subroutine MPI_sendData1DDP(dataArray,arraySize) 
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k
+	Integer(kind=StandardInteger) :: arraySize
+!mpi variables
+    Integer(kind=StandardInteger) :: processID,processCount
+    Integer(kind=StandardInteger) :: status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Real(kind=DoubleReal), Dimension(1:arraySize) :: dataArray, sendArray, recvArray	
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Send array from master to workers
+!-----------------------------------------   
+    If(processID.eq.0)Then
+!SEND by master process	 
+	  sendArray = dataArray
+      Do i=1,(processCount-1)
+	    processTo = i
+        tag = 2000 + i
+		Call MPI_send(sendArray,arraySize,&
+		MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	  End Do	
+	Else
+!RECV by worker processes
+      processFrom = 0
+	  tag = 2000 + processID
+      Call MPI_recv(recvArray,arraySize,&
+	  MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+	  dataArray = recvArray
+	End If    
+  End Subroutine MPI_sendData1DDP
+!------------------------------------------------------------------------!
+! ***MPI_sendData2DInt*** 
+! Takes an array and process map, merges array values and distributes
+!------------------------------------------------------------------------!  
+  Subroutine MPI_sendData2DInt(dataArray,arraySizeH,arraySizeW) 
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k,n
+	Integer(kind=StandardInteger) :: arraySizeH,arraySizeW
+!mpi variables
+    Integer(kind=StandardInteger) :: processID,processCount
+    Integer(kind=StandardInteger) :: status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Integer(kind=StandardInteger), Dimension(1:arraySizeH,1:arraySizeW) :: dataArray
+	Integer(kind=StandardInteger), Dimension(1:arraySizeH) :: dataArrayTemp, sendArray, recvArray
+!Loop array columns
+	Do n=1,arraySizeW
+!-----------------------------------------
+! Make temp 1D array
+!-----------------------------------------	
+	  Do i=1,arraySizeH
+	    dataArrayTemp(i) = dataArray(i,n)
+	  End Do
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	  Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+      Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Send array from master to workers
+!-----------------------------------------   
+      If(processID.eq.0)Then
+!SEND by master process	 
+	    sendArray = dataArrayTemp
+        Do i=1,(processCount-1)
+	      processTo = i
+          tag = 2000 + i
+		  Call MPI_send(sendArray,arraySizeH,&
+		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	    End Do	
+	  Else
+!RECV by worker processes
+        processFrom = 0
+	    tag = 2000 + processID
+        Call MPI_recv(recvArray,arraySizeH,&
+	    MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+	    dataArrayTemp = recvArray
+	  End If    
+!-----------------------------------------
+! Merge 1D array with 2D array
+!-----------------------------------------		  
+      Do i=1,arraySizeH
+	    dataArray(i,n) = dataArrayTemp(i)
+	  End Do
+	End Do
+  End Subroutine MPI_sendData2DInt 
+!------------------------------------------------------------------------!
+! ***MPI_sendData2DDP*** 
+! Takes an array and process map, merges array values and distributes
+!------------------------------------------------------------------------!  
+  Subroutine MPI_sendData2DDP(dataArray,arraySizeH,arraySizeW) 
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k,n
+	Integer(kind=StandardInteger) :: arraySizeH,arraySizeW
+!mpi variables
+    Integer(kind=StandardInteger) :: processID,processCount
+    Integer(kind=StandardInteger) :: status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Real(kind=DoubleReal), Dimension(1:arraySizeH,1:arraySizeW) :: dataArray
+	Real(kind=DoubleReal), Dimension(1:arraySizeH) :: dataArrayTemp, sendArray, recvArray
+!Loop array columns
+	Do n=1,arraySizeW
+!-----------------------------------------
+! Make temp 1D array
+!-----------------------------------------	
+	  Do i=1,arraySizeH
+	    dataArrayTemp(i) = dataArray(i,n)
+	  End Do
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	  Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+      Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Send array from master to workers
+!-----------------------------------------   
+      If(processID.eq.0)Then
+!SEND by master process	 
+	    sendArray = dataArrayTemp
+        Do i=1,(processCount-1)
+	      processTo = i
+          tag = 2000 + i
+		  Call MPI_send(sendArray,arraySizeH,&
+		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	    End Do	
+	  Else
+!RECV by worker processes
+        processFrom = 0
+	    tag = 2000 + processID
+        Call MPI_recv(recvArray,arraySizeH,&
+	    MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+	    dataArrayTemp = recvArray
+	  End If    
+!-----------------------------------------
+! Merge 1D array with 2D array
+!-----------------------------------------		  
+      Do i=1,arraySizeH
+	    dataArray(i,n) = dataArrayTemp(i)
+	  End Do
+	End Do
+  End Subroutine MPI_sendData2DDP 
+
+  
+  
+  
   
 
 End Module mpif

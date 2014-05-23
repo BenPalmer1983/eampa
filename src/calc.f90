@@ -4,11 +4,13 @@ Module calc
   Use kinds
   Use constants
   Use mpif
+  Use general
   Use strings		!string functions
   Use maths
   Use units
   Use initialise
   Use input
+  Use output
   Use prep
 
 
@@ -27,7 +29,7 @@ Module calc
   Public :: calcEvalFull		
   Public :: calcConfigEnergies
   Public :: calcDifference
-  Public :: calcOutput
+  !Public :: calcOutput
   Public :: calcOutputForces
 !functions
   
@@ -82,16 +84,17 @@ contains
     globalCounter(2) = globalCounter(2) + 1
 !Calculate energies, forces and stresses
     Call calcConfigEnergies()
+	Call calcEquilibriumVolume()
 !Bulk modulus
     Call calcBulkModulii()
+!Bulk modulus
+    Call calcCubicElasticConstants()
 !Synch MPI processes
 	Call synchMpiProcesses()
 !Calc difference 
     Call calcDifference()
 !Save difference to file
 	Call calcOutputDifference() 
-	eamFunctionWobbliness = eamWobbliness(eamKey, eamData, 10000)
-	!wobbliness(potKey)
   End Subroutine calcEvalFull
   
   
@@ -145,6 +148,7 @@ contains
 !-----------------------------------------------------
 ! Split over MPI processes and calc energies, forces
 !-----------------------------------------------------
+    Call synchMpiProcesses() !Synchronise mpi processes at this point
 !Loop through configurations, and split over MPI processes
 	Do i=1,configCount
 	  selectProcess = mod(i-1,mpiProcessCount)
@@ -153,42 +157,11 @@ contains
 	    configurationEnergy(i) = CalcEnergy(i)
 	  End If
 	End Do
+	Call synchMpiProcesses() !Synchronise mpi processes at this point
 !-----------------------------------------------------------
 ! Collect energy results from all processes then distribute
-!-----------------------------------------------------------	
-!Collect data from processes
-    If(Allocated(bufferArray))Then
-	  Deallocate(bufferArray)
-	End If
-    Allocate(bufferArray(1:configCount))
-    If(mpiProcessID.gt.0) Then
-!send buffers from all worker processes
-      processTo = 0
-      Do i=1,(mpiProcessCount-1)
-        If(i.eq.mpiProcessID)Then
-          tag = 1000 + mpiProcessID	
-          Call MPI_send(configurationEnergy,configCount,&
-		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
-	    End If
-      End Do
-    End If
-    If(mpiProcessID.eq.0) Then
-!read buffers from worker processes
-      Do j=1,(mpiProcessCount-1)
-		processFrom = j
-        tag = 1000 + j
-        Call MPI_recv(bufferArray,configCount,&
-		MPI_double_precision,processFrom,tag,MPI_comm_world,status,error )
-        Do i=1,ceiling(configCount/(1.0D0*mpiProcessCount))
-	      k = (i-1)*mpiProcessCount+j+1
-	      If(k.le.configCount)Then
-	        configurationEnergy(k) = bufferArray(k)
-	      End If
-	    End Do  
-      End Do
-    End If
-!send array from master to worker processes
-	Call MPI_sendout(configurationEnergy,"double")
+!-----------------------------------------------------------
+	Call distributeData1DDP(configurationEnergy,size(configurationEnergy,1),21)
 !-----------------------------------------------------------
 ! Collect force results from all processes then distribute
 !-----------------------------------------------------------	
@@ -264,9 +237,9 @@ contains
       End Do
     End If	
 !send arrays from master to worker processes
-	Call MPI_sendout(configurationForceX,"double")
-	Call MPI_sendout(configurationForceY,"double")
-	Call MPI_sendout(configurationForceZ,"double")
+	Call sendData1DDP(configurationForceX,size(configurationForceX))
+	Call sendData1DDP(configurationForceY,size(configurationForceY))
+	Call sendData1DDP(configurationForceZ,size(configurationForceZ))
 !-----------------------------------------------------------
 ! Collect Stress results from all processes then distribute
 !-----------------------------------------------------------	
@@ -305,12 +278,50 @@ contains
       End Do
 	End If  
 !send array from master to worker processes
-	Call MPI_sendout(configurationStress,"double")		
+	Call sendData1DDP(configurationStress,size(configurationStress))
 !Set end time	
     endTime = ProgramTime() 	
-	!startTime
+!-----------------------------
+! Deallocate arrays
+!-----------------------------
+	If(Allocated(bufferArray))Then
+	  Deallocate(bufferArray)
+	End If
   End Subroutine calcConfigEnergies
-  
+
+
+!------------------------------------------------------------------------!
+! ***calcEquilibriumVolume*** 
+!
+!------------------------------------------------------------------------!
+
+Subroutine calcEquilibriumVolume()
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k,n	
+	Real(kind=DoubleReal) :: equilibriumVolume  
+	Real(kind=DoubleReal), Dimension(1:2) :: equArray
+	Integer(kind=StandardInteger), Dimension( : ), Allocatable :: outputArray
+!mpi variables
+    Integer(kind=StandardInteger) :: selectProcess,status,error,tag,processTemp
+	Integer(kind=StandardInteger) :: tagA,tagB
+    Integer(kind=StandardInteger) :: processTo,processFrom,bufferArraySize
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bufferArrayA, bufferArrayB
+!Loop through the configurations set in the confiAtomsMap array
+!Only calculate bulk modulus where there is a reference BM
+    Call synchMpiProcesses() !Synchronise mpi processes at this point
+    Do i=1,configCount
+      If(mpiProcessID.eq.configAtomsMap(i,24))Then
+		equArray = CalcEquilibrium(i)
+		configurationEquVolume(i) = equArray(1)
+		configurationEquLat(i) = equArray(2)
+	  End If
+    End Do
+	Call synchMpiProcesses() !Synchronise mpi processes at this point
+	Call distributeData1DDP(configurationEquVolume,size(configurationEquVolume,1),24)
+	Call distributeData1DDP(configurationEquLat,size(configurationEquLat,1),24)
+  End Subroutine calcEquilibriumVolume    
   
   
 !------------------------------------------------------------------------!
@@ -330,45 +341,54 @@ Subroutine calcBulkModulii()
 	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bufferArray	
 !Loop through the configurations set in the confiAtomsMap array
 !Only calculate bulk modulus where there is a reference BM
-    Do i=1,size(configAtomsMap,1)
+    Call synchMpiProcesses() !Synchronise mpi processes at this point
+    Do i=1,configCount
       If(mpiProcessID.eq.configAtomsMap(i,22))Then
 		configurationBM(i) = CalcBulkModulus(i)
 	  End If
     End Do
-	Allocate(bufferArray(1:configCount))
-    If(mpiProcessID.gt.0) Then
-!send buffers from all worker processes
-      Do i=1,(mpiProcessCount-1)
-        If(i.eq.mpiProcessID)Then
-          processTo = 0
-          tag = 1500 + mpiProcessID	
-		  bufferArraySize = configCount
-          Call MPI_send(configurationBM,bufferArraySize,&
-		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
-	    End If
-      End Do
-    End If
-!read buffers from worker processes
-	If(mpiProcessID.eq.0) Then
-!read buffers from worker processes
-      Do j=1,(mpiProcessCount-1)
-!receive arrays - X force component
-		processFrom = j
-        tag = 1500 + j
-		bufferArraySize = configCount
-        Call MPI_recv(bufferArray,bufferArraySize,&
-		MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
-		processFrom = j
-		Do i=1,configCount
-		  If(configAtomsMap(i,22).eq.processFrom)Then
-		    configurationBM(i) = bufferArray(i)
-		  End If
-		End Do
-      End Do
-	End If  
-!send array from master to worker processes
-	Call MPI_sendout(configurationBM,"double")		
+	Call synchMpiProcesses() !Synchronise mpi processes at this point	
+	Call distributeData1DDP(configurationBM,size(configurationBM,1),22)
   End Subroutine calcBulkModulii  
+  
+  
+  
+  
+  
+!------------------------------------------------------------------------!
+! ***calcCubicElasticConstants*** 
+!
+!------------------------------------------------------------------------!
+
+  Subroutine calcCubicElasticConstants()
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k,n	
+	Real(kind=DoubleReal), Dimension(1:3) :: cubicElasticConstants  
+!mpi variables
+    Integer(kind=StandardInteger) :: selectProcess,status,error,tag,processTemp
+    Integer(kind=StandardInteger) :: processTo,processFrom,bufferArraySize
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bufferArray	
+	!Real(kind=DoubleReal), Dimension( : ), Allocatable :: sendArray	
+	!Real(kind=DoubleReal), Dimension(1 : 12) :: sendArray
+!Loop through the configurations set in the confiAtomsMap array
+!Only calculate bulk modulus where there is a reference BM
+    Call synchMpiProcesses() !Synchronise mpi processes at this point
+    Do i=1,configCount
+      If(mpiProcessID.eq.configAtomsMap(i,23))Then
+		cubicElasticConstants = CalcCubicElasticConstant(i)
+	    Do j=1,3
+	      configurationEC(i,j) = cubicElasticConstants(j)
+	    End Do
+	  End If
+    End Do
+	Call synchMpiProcesses() !Synchronise mpi processes at this point
+!Distribute data in array, 2D array, double precision
+    Call distributeData2DDP(configurationEC,size(configurationEC,1),size(configurationEC,2),23)	
+  End Subroutine calcCubicElasticConstants  
+  
+  
   
   
   
@@ -496,22 +516,7 @@ Subroutine calcBulkModulii()
 	  End If
 	End Do
 	
-	
-	!Write forces to output file, if master process
-	!If(mpiProcessID.eq.0.and.printOut.eqv..true.)Then	
-!open forces output file	
-	  !open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
-      !write(999,"(A40,E20.10)") "      ----------------------------------"		  
-      !write(999,"(A40,E20.10)") "      Potential vs Reference Data RSS"		  
-      !write(999,"(A40,E20.10)") "      ----------------------------------"		  
-	  !write(999,"(A31,E20.10)") "      RSS              :       ",trialRSS	  
-	  !write(999,"(A31,E20.10)") "      Energy difference:       ",energyDifference	  
-	  !write(999,"(A31,E20.10)") "      Force difference:        ",forceDifference
-	  !write(999,"(A31,E20.10)") "      Bulk Modulus difference: ",bmDifference
-	  !close(999)	
-	!End If
-	
-	
+
   
   End Subroutine calcDifference
   
@@ -519,88 +524,7 @@ Subroutine calcBulkModulii()
   
 
   
-!------------------------------------------------------------------------!
-! ***calcOutput*** 
-! Calculates the energy (and forces, if required) of all the configurations
-! splitting the work over the MPI processes
-!------------------------------------------------------------------------!
-  
-  Subroutine calcOutput () 
-!Outputs configuration calculation details
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i, j, k 
-	Integer(kind=StandardInteger) :: configCounter, atomCounter  
-!Write energies to output file, if master process
-    If(mpiProcessID.eq.0)Then
-!-------------------------------------
-! Output Forces to force file
-!-------------------------------------
-!open output file	
-	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	 
-!Write to file	  
-	  write(999,"(A44,I4)") "--------------------------------------------"
-	  write(999,"(A19,I4)") "Calculation count: ",globalCounter(1)
-	  write(999,"(A44,I4)") "--------------------------------------------"
-	  Do i=1,configCount
-	    write(999,"(I4,A1,F12.6,A4,I8,A10,I8)") i," ",&
-	      (1.0*configurationEnergy(i))," eV ",&
-	    configAtoms(i)," atoms     ",configAtomsMap(i,3)
-		If(configAtomsMap(i,5).gt.0)Then
-	      write(999,"(I4,F12.6,A14,F12.6,A8)") i,&
-		  (configurationEnergy(i)/configAtoms(i))," eV per atom (",&
-		  configurationRefEnergy(i)," eV Ref)"
-		Else
-		  write(999,"(I4,F12.6,A21)") i,&
-		  (configurationEnergy(i)/configAtoms(i))," eV per atom (no ref)"
-		End If
-		If(calcStressOnOff.eq.1)Then
-		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Sxx:",configurationStress((i-1)*9+1)," Sxy:",&
-		  configurationStress((i-1)*9+2)," Sxz:",configurationStress((i-1)*9+3)
-		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Syx:",configurationStress((i-1)*9+4)," Syy:",&
-		  configurationStress((i-1)*9+5)," Syz:",configurationStress((i-1)*9+6)
-		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Szx:",configurationStress((i-1)*9+7)," Szy:",&
-		  configurationStress((i-1)*9+8)," Szz:",configurationStress((i-1)*9+9)
-		End If
-		If(configurationBM(i).gt.-2.0D20)Then
-		  If(configurationRefBM(i).gt.-2.0D20)Then
-		    write(999,"(I4,A20,F18.10,A9,F18.10)") i,&
-		    "  Bulk Modulus/GPa: ",configurationBM(i)," Ref BM: ",&
-		    configurationRefBM(i)
-		  Else
-		    write(999,"(I4,A20,F18.10,A13)") i,&
-		    "  Bulk Modulus/GPa: ",configurationBM(i)," (No Ref BM) "
-		  End If
-		End If
-		If(configurationRSS(i,1).gt.0.0D0)Then
-		  write(999,"(I4,A14,F18.10)") i,&
-		  "  Energy RSS: ",configurationRSS(i,1)
-		End If
-		If(configurationRSS(i,2).gt.0.0D0)Then
-		  write(999,"(I4,A13,F18.10)") i,&
-		  "  Force RSS: ",configurationRSS(i,2)
-		End If
-	    write(999,"(A1)") " "
-	  End Do 
-	  If(trialResidualSquareSum.gt.-2.0D20)Then
-		write(999,"(A24,E20.10)") "RSS all configurations: ",trialResidualSquareSum
-	  End If
-	  !If(eamFunctionWobbliness(1).gt.0.0D0)Then	    
-		!write(999,"(A24)") "EAM Functions Wobbliness: "
-		!Do i=1,size(eamFunctionWobbliness,1)
-		!  write(999,"(A4,I4,E20.10)") "Pot ",i,eamFunctionWobbliness(i)
-		!End Do
-	  !End If
-	  write(999,"(A1)") " "
-!Close output file
-      close(999)
-	End If  
-  End Subroutine calcOutput
+
   
   
 !------------------------------------------------------------------------!
@@ -680,17 +604,14 @@ Subroutine calcBulkModulii()
       close(999)
 	End If  
   End Subroutine calcOutputDifference
-  
-    
-   
-   
-   
+
+!================================================================================================================================================  
+!================================================================================================================================================
 !------------------------------------------------------------------------!
 ! ***calcOutputTimes*** 
 ! Calculates the energy (and forces, if required) of all the configurations
 ! splitting the work over the MPI processes
-!------------------------------------------------------------------------!
-  
+!------------------------------------------------------------------------!  
   Subroutine calcOutputTimes() 
 !Outputs configuration calculation details
 !force declaration of all variables
@@ -719,15 +640,14 @@ Subroutine calcBulkModulii()
 	End If  
   End Subroutine calcOutputTimes
   
-  
-  
+!================================================================================================================================================  
+!================================================================================================================================================
 !------------------------------------------------------------------------!
 !                                                                        !
 ! MODULE FUNCTIONS                                                       !
 !                                                                        !
 !                                                                        !
-!------------------------------------------------------------------------!   
-  
+!------------------------------------------------------------------------!     
   Function CalcEnergy (configurationID) RESULT (energy)  
 !force declaration of all variables
 	Implicit None	
@@ -888,27 +808,39 @@ Subroutine calcBulkModulii()
 	End If
   End function CalcEnergy  
 
-  
-  Function CalcBulkModulus (configurationID) RESULT (bulkModulus) 
+!================================================================================================================================================  
+!================================================================================================================================================
+  Function CalcEquilibrium (configurationID) RESULT (resultArray) 
 !force declaration of all variables
 	Implicit None
 !declare private variables
 	Integer(kind=StandardInteger) :: i, j, k, l, n, configurationID, keyIJ, forceKey  
 	Real(kind=DoubleReal) :: strainAmount, strainIncrement, configEnergyVal	
-	Real(kind=DoubleReal) :: volume, bulkModulus
+	Real(kind=DoubleReal) :: volume, equilibriumVolume, trialEquVolume, trialLat
 	Real(kind=DoubleReal), Dimension(1:2) :: secondDerivative
-	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: strainArray, volEnergy
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: strainArray, volEnergy, strainVolArray
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: volEnergyTemp
 	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bmFit	
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: coefficients
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: deriveData
+	Real(kind=DoubleReal), Dimension(1:2) :: resultArray
 !Allocate arrays
 	Allocate(StrainArray(1:3,1:3))
-	Allocate(volEnergy(1:9,1:2))
+	Allocate(volEnergy(1:7,1:2))
+	Allocate(strainVolArray(1:7,1:2))
+!-----------------------------------------------------
+! Step 1 - save starting neighbourlist
+!-----------------------------------------------------
 !Store original neighbour list
     Call storeNeighboutList()
+!-----------------------------------------------------
+! Step 2 - first set of strains
+!-----------------------------------------------------
 !set increment
 	strainIncrement = 0.01D0
 !Loop over strains
     j = 0
-	Do i=-4,4
+	Do i=-3,3
 	  j = j + 1
 	  strainAmount = 1.0D0+strainIncrement*i
 !Set up strain array
@@ -929,19 +861,363 @@ Subroutine calcBulkModulii()
       configEnergyVal = CalcEnergy(configurationID)
 	  volume = calcConfigurationVolume(configurationID,StrainArray)
 	  volEnergy(j,1) = volume
-	  volEnergy(j,2) = configEnergyVal
-	 ! bulkModulus = minimumVolume * calcPolynomial (bmFit, minimumVolume, 2)
-	 ! bulkModulus = bulkModulus * elementaryCharge * 1.0D30 * 1.0D-9
+	  volEnergy(j,2) = configEnergyVal	  
+	  strainVolArray(j,1) = volume
+	  strainVolArray(j,2) = strainAmount	  
     End Do
+!Load original neighbour list
+    Call loadNeighboutList()
+!Fit polynomial
+	coefficients = PolyFit(volEnergy,4)
+!Calculate second derivative and minimum value
+	deriveData = CalcSecondDerivativeMinimum(volEnergy, 3)
+    trialEquVolume = deriveData(2)
+	coefficients = PolyFit(strainVolArray,3)
+	trialLat = ComputePolynomial(coefficients,trialEquVolume)
+	volEnergyTemp = volEnergy
+	Deallocate(volEnergy)
+!-----------------------------------------------------
+! Step 3 - second set of strains
+!-----------------------------------------------------
+!Allocate volEnergy array
+	Allocate(volEnergy(1:14,1:2))
+!Transfer data from first strain set
+	Do i=1,7
+	  volEnergy(i,1) = volEnergyTemp(i,1)
+	  volEnergy(i,2) = volEnergyTemp(i,2)
+	End Do
+!set increment
+	strainIncrement = 0.007D0
+!Loop over strains
+    j = 7
+	Do i=-3,3
+	  j = j + 1
+	  strainAmount = trialLat+strainIncrement*i
+!Set up strain array
+      StrainArray(1,1) = strainAmount
+      StrainArray(1,2) = 0.0D0
+      StrainArray(1,3) = 0.0D0
+      StrainArray(2,1) = 0.0D0
+      StrainArray(2,2) = strainAmount
+      StrainArray(2,3) = 0.0D0
+      StrainArray(3,1) = 0.0D0
+      StrainArray(3,2) = 0.0D0
+      StrainArray(3,3) = strainAmount
+!Load original neighbour list
+      Call loadNeighboutList()
+!Multiply apply distortion to the neighbour list
+	  Call applyDistortionVector(configurationID,StrainArray)
+!Calculate energy
+      configEnergyVal = CalcEnergy(configurationID)
+	  volume = calcConfigurationVolume(configurationID,StrainArray)
+	  volEnergy(j,1) = volume
+	  volEnergy(j,2) = configEnergyVal	
+	End Do
+!Load original neighbour list
+    Call loadNeighboutList()
+!Fit polynomial
+	coefficients = PolyFit(volEnergy,4)
+!Calculate second derivative and minimum value
+	deriveData = CalcSecondDerivativeMinimum(volEnergy, 3)
+    trialEquVolume = deriveData(2)
+	coefficients = PolyFit(strainVolArray,3)
+	trialLat = ComputePolynomial(coefficients,trialEquVolume)
+	volEnergyTemp = volEnergy
+	Deallocate(volEnergy)	
+!-----------------------------------------------------
+! Step 4 - third set of strains
+!-----------------------------------------------------
+!Allocate volEnergy array
+	Allocate(volEnergy(1:21,1:2))
+!Transfer data from first strain set
+	Do i=1,14
+	  volEnergy(i,1) = volEnergyTemp(i,1)
+	  volEnergy(i,2) = volEnergyTemp(i,2)
+	End Do
+!set increment
+	strainIncrement = 0.003D0
+!Loop over strains
+    j = 14
+	Do i=-3,3
+	  j = j + 1
+	  strainAmount = trialLat+strainIncrement*i
+!Set up strain array
+      StrainArray(1,1) = strainAmount
+      StrainArray(1,2) = 0.0D0
+      StrainArray(1,3) = 0.0D0
+      StrainArray(2,1) = 0.0D0
+      StrainArray(2,2) = strainAmount
+      StrainArray(2,3) = 0.0D0
+      StrainArray(3,1) = 0.0D0
+      StrainArray(3,2) = 0.0D0
+      StrainArray(3,3) = strainAmount
+!Load original neighbour list
+      Call loadNeighboutList()
+!Multiply apply distortion to the neighbour list
+	  Call applyDistortionVector(configurationID,StrainArray)
+!Calculate energy
+      configEnergyVal = CalcEnergy(configurationID)
+	  volume = calcConfigurationVolume(configurationID,StrainArray)
+	  volEnergy(j,1) = volume
+	  volEnergy(j,2) = configEnergyVal	
+	End Do
+!Load original neighbour list
+    Call loadNeighboutList()
+!Fit polynomial
+	coefficients = PolyFit(volEnergy,4)
+!Calculate second derivative and minimum value
+	deriveData = CalcSecondDerivativeMinimum(volEnergy, 3)
+    trialEquVolume = deriveData(2)
+	coefficients = PolyFit(strainVolArray,3)
+	trialLat = ComputePolynomial(coefficients,trialEquVolume)
+!-----------------------------------------------------
+! Step 5 - store equib volume and lattice multiplier
+!-----------------------------------------------------	
+	!configurationEquVolume(configurationID) = 1.0D0 * trialEquVolume
+	!configurationEquLat(configurationID) = 1.0D0 * trialLat	
+	resultArray(1) = 1.0D0 * trialEquVolume	
+	resultArray(2) = 1.0D0 * trialLat
+  End function CalcEquilibrium    
+
+!================================================================================================================================================  
+!================================================================================================================================================
+  Function CalcBulkModulus (configurationID) RESULT (bulkModulus) 
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: i, j, k, l, n, configurationID, keyIJ, forceKey  
+	Real(kind=DoubleReal) :: strainAmount, strainIncrement, configEnergyVal	
+	Real(kind=DoubleReal) :: volume, bulkModulus, equVolume, equLat
+	Real(kind=DoubleReal), Dimension(1:2) :: equArray
+	Real(kind=DoubleReal), Dimension(1:2) :: secondDerivative
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: strainArray, volEnergy
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bmFit	
+!Allocate arrays
+	Allocate(StrainArray(1:3,1:3))
+	Allocate(volEnergy(1:9,1:2))	
+!Store original neighbour list
+    Call storeNeighboutList()
+!Check if equilibrium has been calculated	
+    If(configurationEquVolume(configurationID).lt.-2.0D20)Then
+	  equArray = CalcEquilibrium(configurationID)
+      configurationEquVolume(configurationID) = equArray(1)
+      configurationEquLat(configurationID) = equArray(2)
+	End If
+!Load equilibrium volume and lattice parameter multiplier
+	equVolume = 1.0D0 * configurationEquVolume(configurationID)
+	equLat = 1.0D0 * configurationEquLat(configurationID)	
+	If(equLat.eq.0.0D0)Then
+	  equLat = 1.0D0
+	End If
+!set strain increment
+	strainIncrement = 0.01D0
+!Loop over strains
+    j = 0
+	Do i=-4,4
+	  j = j + 1
+	  strainAmount = equLat+strainIncrement*i
+!Set up strain array
+      StrainArray(1,1) = strainAmount
+      StrainArray(1,2) = 0.0D0
+      StrainArray(1,3) = 0.0D0
+      StrainArray(2,1) = 0.0D0
+      StrainArray(2,2) = strainAmount
+      StrainArray(2,3) = 0.0D0
+      StrainArray(3,1) = 0.0D0
+      StrainArray(3,2) = 0.0D0
+      StrainArray(3,3) = strainAmount
+!Load original neighbour list
+      Call loadNeighboutList()
+!Multiply apply distortion to the neighbour list
+	  Call applyDistortionVector(configurationID,StrainArray)
+!Calculate energy
+      configEnergyVal = CalcEnergy(configurationID)
+	  volume = calcConfigurationVolume(configurationID,StrainArray)
+	  If(i.eq.0.and.equVolume.eq.0.0D0)Then
+	    equVolume = volume
+	  End If
+	  volEnergy(j,1) = volume
+	  volEnergy(j,2) = configEnergyVal
+    End Do
+!Load original neighbour list
+    Call loadNeighboutList()
+!calculate second derivative d2E/dV2	
 	secondDerivative = CalcSecondDerivativeMinimum(volEnergy)
 	bulkModulus = secondDerivative(2)*secondDerivative(1)
-	bulkModulus = bulkModulus*elementaryCharge*1.0D30*1.0D-9
-  End function CalcBulkModulus  
-  
-  
-  
-  
-  
+	bulkModulus = bulkModulus*elementaryCharge*1.0D30*1.0D-9	
+  End function CalcBulkModulus
+!================================================================================================================================================  
+!================================================================================================================================================
+  Function CalcCubicElasticConstant (configurationID) RESULT (elasticConstants) 
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: i, j, k, l, n, configurationID
+	Real(kind=DoubleReal) :: strainAmount, strainIncrement, configEnergyVal
+	Real(kind=DoubleReal) :: strainAmountA, strainAmountB, strainAmountC
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: strainArray, volEnergy, strainEnergy	
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: coefficients	
+	Real(kind=DoubleReal) :: orthorhombicStrainModulus, monoclinicStrainModulus
+	Real(kind=DoubleReal) :: tetragonalStrainModulus
+	
+	Real(kind=DoubleReal) :: volume, bulkModulus, equVolume, equLat
+	Real(kind=DoubleReal), Dimension(1:2) :: equArray
+	Real(kind=DoubleReal), Dimension(1:2) :: secondDerivative
+	Real(kind=DoubleReal), Dimension(1:3) :: elasticConstants
+!Allocate arrays
+	Allocate(StrainArray(1:3,1:3))
+	Allocate(volEnergy(1:6,1:2))	
+	Allocate(strainEnergy(1:6,1:2))		
+!Check if equilibrium has been calculated	
+    If(configurationEquVolume(configurationID).lt.-2.0D20)Then
+	  equArray = CalcEquilibrium(configurationID)
+      configurationEquVolume(configurationID) = equArray(1)
+      configurationEquLat(configurationID) = equArray(2)
+	End If	
+!Check if bulk modulus has been calculated	
+    If(configurationBM(configurationID).lt.-2.0D20)Then
+      configurationBM(configurationID) = CalcBulkModulus(configurationID)
+	End If	
+!Load equilibrium volume and lattice parameter multiplier
+	equVolume = 1.0D0 * configurationEquVolume(configurationID)
+	equLat = 1.0D0 * configurationEquLat(configurationID)	
+	If(equLat.eq.0.0D0)Then
+	  equLat = 1.0D0
+	End If
+	bulkModulus = 1.0D0 * configurationBM(configurationID)	
+!---------------------------------------------------------------------	
+!Tetragonal Strain
+!---------------------------------------------------------------------	
+!set strain increment
+	strainIncrement = 0.01D0
+!Loop over strains
+    j = 0
+	Do i=0,5
+	  j = j + 1
+	  !strainAmount = equLat+strainIncrement*i
+	  strainAmountA = equLat+strainIncrement*i
+	  strainAmountB = equLat+strainIncrement*i
+	  strainAmountC = equLat+(1+(strainIncrement*i))**(-2)-1
+!Set up strain array
+      StrainArray(1,1) = strainAmountA
+      StrainArray(1,2) = 0.0D0
+      StrainArray(1,3) = 0.0D0
+      StrainArray(2,1) = 0.0D0
+      StrainArray(2,2) = strainAmountB
+      StrainArray(2,3) = 0.0D0
+      StrainArray(3,1) = 0.0D0
+      StrainArray(3,2) = 0.0D0
+      StrainArray(3,3) = strainAmountC
+!Load original neighbour list
+      Call loadNeighboutList()
+!Multiply apply distortion to the neighbour list
+	  Call applyDistortionVector(configurationID,StrainArray)
+!Calculate energy
+      configEnergyVal = CalcEnergy(configurationID)
+	  volume = calcConfigurationVolume(configurationID,StrainArray)
+	  If(i.eq.0.and.equVolume.eq.0.0D0)Then
+	    equVolume = volume
+	  End If
+	  volEnergy(j,1) = volume
+	  volEnergy(j,2) = configEnergyVal
+	  strainEnergy(j,1) = strainAmountA
+	  strainEnergy(j,2) = configEnergyVal
+    End Do
+!Fit polynomial
+	coefficients = PolyFit(strainEnergy,2)
+	tetragonalStrainModulus = coefficients(3)/(3.0D0*equVolume)
+	tetragonalStrainModulus = tetragonalStrainModulus*elementaryCharge*1.0D30*1.0D-9	
+!---------------------------------------------------------------------	
+!Orthorhombic Strain
+!---------------------------------------------------------------------	
+!set strain increment
+	strainIncrement = 0.01D0
+!Loop over strains
+    j = 0
+	Do i=0,5
+	  j = j + 1
+	  !strainAmount = equLat+strainIncrement*i
+	  strainAmountA = equLat+strainIncrement*i
+	  strainAmountB = equLat-strainIncrement*i
+	  strainAmountC = equLat+((strainIncrement*i)**2/(1-(strainIncrement*i)**2))
+!Set up strain array
+      StrainArray(1,1) = strainAmountA
+      StrainArray(1,2) = 0.0D0
+      StrainArray(1,3) = 0.0D0
+      StrainArray(2,1) = 0.0D0
+      StrainArray(2,2) = strainAmountB
+      StrainArray(2,3) = 0.0D0
+      StrainArray(3,1) = 0.0D0
+      StrainArray(3,2) = 0.0D0
+      StrainArray(3,3) = strainAmountC
+!Load original neighbour list
+      Call loadNeighboutList()
+!Multiply apply distortion to the neighbour list
+	  Call applyDistortionVector(configurationID,StrainArray)
+!Calculate energy
+      configEnergyVal = CalcEnergy(configurationID)
+	  volume = calcConfigurationVolume(configurationID,StrainArray)
+	  If(i.eq.0.and.equVolume.eq.0.0D0)Then
+	    equVolume = volume
+	  End If
+	  volEnergy(j,1) = volume
+	  volEnergy(j,2) = configEnergyVal
+	  strainEnergy(j,1) = strainAmountA
+	  strainEnergy(j,2) = configEnergyVal
+    End Do
+!Fit polynomial
+	coefficients = PolyFit(strainEnergy,2)
+	orthorhombicStrainModulus = coefficients(3)/equVolume
+	orthorhombicStrainModulus = orthorhombicStrainModulus*elementaryCharge*1.0D30*1.0D-9
+!---------------------------------------------------------------------	
+!Monoclinic Strain
+!---------------------------------------------------------------------	
+!set strain increment
+	strainIncrement = 0.002D0
+!Loop over strains
+    j = 0
+	Do i=0,5
+	  j = j + 1
+	  strainAmountA = strainIncrement*i
+	  strainAmountB = equLat+((strainIncrement*i)**2/(1-(strainIncrement*i)**2))
+!Set up strain array
+      StrainArray(1,1) = 1.0D0
+      StrainArray(1,2) = 0.5D0*strainIncrement*i
+      StrainArray(1,3) = 0.0D0
+      StrainArray(2,1) = 0.5D0*strainIncrement*i
+      StrainArray(2,2) = 1.0D0
+      StrainArray(2,3) = 0.0D0
+      StrainArray(3,1) = 0.0D0
+      StrainArray(3,2) = 0.0D0
+      StrainArray(3,3) = 1.0D0+((strainIncrement*i)**2)/(4-(strainIncrement*i)**2)
+!Load original neighbour list
+      Call loadNeighboutList()
+!Multiply apply distortion to the neighbour list
+	  Call applyDistortionVector(configurationID,StrainArray)
+!Calculate energy
+      configEnergyVal = CalcEnergy(configurationID)
+	  volume = calcConfigurationVolume(configurationID,StrainArray)
+	  If(i.eq.0.and.equVolume.eq.0.0D0)Then
+	    equVolume = volume
+	  End If
+	  volEnergy(j,1) = volume
+	  volEnergy(j,2) = configEnergyVal
+	  strainEnergy(j,1) = strainAmountA
+	  strainEnergy(j,2) = configEnergyVal
+    End Do
+!Fit polynomial
+	coefficients = PolyFit(strainEnergy,2)
+	monoclinicStrainModulus = 2.0D0*coefficients(3)/equVolume
+	monoclinicStrainModulus = monoclinicStrainModulus*elementaryCharge*1.0D30*1.0D-9	
+!---------------------------------------------------------------------	
+!Set elastic constants
+!---------------------------------------------------------------------		
+	elasticConstants(2) = (3.0D0*bulkModulus-1.0D0*orthorhombicStrainModulus)/3.0D0	!C12
+	elasticConstants(1) = 1.0D0*orthorhombicStrainModulus+1.0D0*elasticConstants(2) !C11
+	elasticConstants(3) = 1.0D0*monoclinicStrainModulus
+  End function CalcCubicElasticConstant    
+!================================================================================================================================================  
+!================================================================================================================================================
   Function SearchPotentialPoint (atomA, atomB, potType, x, calcForce) RESULT (yArray)
 !force declaration of all variables
 	Implicit None
@@ -1065,6 +1341,222 @@ Subroutine calcBulkModulii()
 	  End If
 	End If
   End function SearchPotentialPoint    
+  
+  
+  
+
+!================================================================================================================================================  
+!================================================================================================================================================  
+! MPI Data Distribution Subroutines
+!================================================================================================================================================  
+!================================================================================================================================================  
+!------------------------------------------------------------------------!
+! ***distributeData1D*** 
+! Takes an array and process map, merges array values and distributes
+!------------------------------------------------------------------------!   
+  Subroutine distributeData1DDP(dataArray,arraySize,mapColumn) 
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k
+	Integer(kind=StandardInteger) :: arraySize
+!mpi variables
+    Integer(kind=StandardInteger) :: processID,processCount,mapColumn
+    Integer(kind=StandardInteger) :: status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Real(kind=DoubleReal), Dimension(1:arraySize) :: dataArray, sendArray, recvArray	
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Collect array from workers to master
+!-----------------------------------------    
+    If(processID.eq.0)Then
+!RECV by master process	  
+	  Do i=1,(processCount-1)
+	    processFrom = i
+		tag = 1000 + i
+        Call MPI_recv(recvArray,arraySize,&
+		MPI_double_precision,processFrom,tag,MPI_comm_world,status,error )
+!Read specific worker slots into master array
+        Do j=1,configCount
+		  If(configAtomsMap(j,mapColumn).eq.i)Then
+		    dataArray(j) = recvArray(j)
+		  End If
+		End Do
+	  End Do
+	Else
+!SEND by worker processes
+	  processTo = 0
+	  sendArray = dataArray
+      Do i=1,(processCount-1)
+        If(i.eq.processID)Then
+          tag = 1000 + i	
+          Call MPI_send(sendArray,arraySize,&
+		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	    End If
+      End Do
+	End If
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Send array from master to workers
+!-----------------------------------------   
+    If(processID.eq.0)Then
+!SEND by master process	 
+	  sendArray = dataArray
+      Do i=1,(processCount-1)
+	    processTo = i
+        tag = 2000 + i
+		Call MPI_send(sendArray,arraySize,&
+		MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	  End Do	
+	Else
+!RECV by worker processes
+      processFrom = 0
+	  tag = 2000 + processID
+      Call MPI_recv(recvArray,arraySize,&
+	  MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+	  dataArray = recvArray
+	End If    
+  End Subroutine distributeData1DDP  
+!------------------------------------------------------------------------!
+! ***distributeData1D*** 
+! Takes an array and process map, merges array values and distributes
+!------------------------------------------------------------------------!  
+  Subroutine distributeData2DDP(dataArray,arraySizeH,arraySizeW,mapColumn) 
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k,n
+	Integer(kind=StandardInteger) :: arraySizeH,arraySizeW
+!mpi variables
+    Integer(kind=StandardInteger) :: processID,processCount,mapColumn
+    Integer(kind=StandardInteger) :: status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Real(kind=DoubleReal), Dimension(1:arraySizeH,1:arraySizeW) :: dataArray
+	Real(kind=DoubleReal), Dimension(1:arraySizeH) :: dataArrayTemp, sendArray, recvArray
+!Loop array columns
+	Do n=1,arraySizeW
+!-----------------------------------------
+! Make temp 1D array
+!-----------------------------------------	
+	  Do i=1,arraySizeH
+	    dataArrayTemp(i) = dataArray(i,n)
+	  End Do
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	  Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+      Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Collect array from workers to master
+!-----------------------------------------    
+      If(processID.eq.0)Then
+!RECV by master process	  
+	    Do i=1,(processCount-1)
+	      processFrom = i
+		  tag = 1000 + i
+          Call MPI_recv(recvArray,arraySizeH,&
+		  MPI_double_precision,processFrom,tag,MPI_comm_world,status,error )
+!Read specific worker slots into master array
+          Do j=1,configCount
+		    If(configAtomsMap(j,mapColumn).eq.i)Then
+		      dataArrayTemp(j) = recvArray(j)
+		    End If
+		  End Do
+	    End Do
+	  Else
+!SEND by worker processes
+	    processTo = 0
+	    sendArray = dataArrayTemp
+        Do i=1,(processCount-1)
+          If(i.eq.processID)Then
+            tag = 1000 + i	
+            Call MPI_send(sendArray,arraySizeH,&
+		    MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	      End If
+        End Do
+	  End If
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	  Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+      Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Send array from master to workers
+!-----------------------------------------   
+      If(processID.eq.0)Then
+!SEND by master process	 
+	    sendArray = dataArrayTemp
+        Do i=1,(processCount-1)
+	      processTo = i
+          tag = 2000 + i
+		  Call MPI_send(sendArray,arraySizeH,&
+		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	    End Do	
+	  Else
+!RECV by worker processes
+        processFrom = 0
+	    tag = 2000 + processID
+        Call MPI_recv(recvArray,arraySizeH,&
+	    MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+	    dataArrayTemp = recvArray
+	  End If    
+!-----------------------------------------
+! Merge 1D array with 2D array
+!-----------------------------------------		  
+      Do i=1,arraySizeH
+	    dataArray(i,n) = dataArrayTemp(i)
+	  End Do
+	End Do
+  End Subroutine distributeData2DDP
+!------------------------------------------------------------------------!
+! ***sendData1D*** 
+! Takes an array and process map, merges array values and distributes
+!------------------------------------------------------------------------!  
+  Subroutine sendData1DDP(dataArray,arraySize) 
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k
+	Integer(kind=StandardInteger) :: arraySize
+!mpi variables
+    Integer(kind=StandardInteger) :: processID,processCount
+    Integer(kind=StandardInteger) :: status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Real(kind=DoubleReal), Dimension(1:arraySize) :: dataArray, sendArray, recvArray	
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Send array from master to workers
+!-----------------------------------------   
+    If(processID.eq.0)Then
+!SEND by master process	 
+	  sendArray = dataArray
+      Do i=1,(processCount-1)
+	    processTo = i
+        tag = 2000 + i
+		Call MPI_send(sendArray,arraySize,&
+		MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	  End Do	
+	Else
+!RECV by worker processes
+      processFrom = 0
+	  tag = 2000 + processID
+      Call MPI_recv(recvArray,arraySize,&
+	  MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+	  dataArray = recvArray
+	End If    
+  End Subroutine sendData1DDP
   
 
 End Module calc

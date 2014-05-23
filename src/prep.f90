@@ -16,16 +16,17 @@ Module prep
   Include 'mpif.h'  
 !declare global variables  
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: atomTypeKey                 !atom types by atom id
-  Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtoms					!count of total atoms for each config
+  Integer(kind=StandardInteger), Dimension(1:1024) :: configAtoms					!count of total atoms for each config
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtomsUnitCell			!
-  Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configAtomsStart	
+  Integer(kind=StandardInteger), Dimension(1:1024) :: configAtomsStart	
   Integer(kind=StandardInteger) :: configAtomsTotal											!Total atoms in all configs
   Integer(kind=StandardInteger) :: configAtomsMax											!Max atoms in 1 config
   Integer(kind=StandardInteger) :: configAtomsAdd											!Max rounded up to nearest mult of 10
-  Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: configAtomsMap			!Start-End points for atoms by config  
-  Integer(kind=StandardInteger), Dimension( : ), Allocatable :: globalCounter				!Array of global counts	
-  Real(kind=SingleReal), Dimension( : , : ), Allocatable :: configLatticeParameters
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: globalTimer
+  !Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: configAtomsMap			!Start-End points for atoms by config 
+  Integer(kind=StandardInteger), Dimension(1:1024,1:50) :: configAtomsMap			!Start-End points for atoms by config  
+  Integer(kind=StandardInteger), Dimension(1:10) :: globalCounter				!Array of global counts	
+  Real(kind=SingleReal), Dimension(1:1024,1:3) :: configLatticeParameters
+  Real(kind=DoubleReal), Dimension(1:50) :: globalTimer
   
 !Neighbour list arrays
   Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: neighbourListKey		!key for atom neighbour list
@@ -39,23 +40,30 @@ Module prep
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: neighbourListRStore
   
 !calculated values
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationVolume  
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationEnergy
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationBM
+  Real(kind=DoubleReal), Dimension(1:1024) :: configurationVolume  
+  !Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationEnergy
+  Real(kind=DoubleReal), Dimension(1:1024) :: configurationEnergy
+  Real(kind=DoubleReal), Dimension(1:1024) :: configurationBM
+  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configurationEC
+  Real(kind=DoubleReal), Dimension(1:1024) :: configurationEquVolume
+  Real(kind=DoubleReal), Dimension(1:1024) :: configurationEquLat
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationOptVolume
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationOptEnergy
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationForceX
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationForceY
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationForceZ
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationStress
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationUnitVector
+  Real(kind=DoubleReal), Dimension(1:9216) :: configurationStress
+  Real(kind=DoubleReal), Dimension(1:9216) :: configurationUnitVector
   
 !Reference energies, forces, stresses etc  
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefEnergy
+  !Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefEnergy
+  Real(kind=DoubleReal), Dimension(1:1024) :: configurationRefEnergy
+  Real(kind=DoubleReal), Dimension(1:1024) :: configurationRefBM
+  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configurationRefEC
+  Real(kind=DoubleReal), Dimension(1:1024) :: configurationRefEquVolume
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceX
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceY
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceZ
-  Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefBM
   
 !RSS configuration array    
   Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configurationRSS
@@ -108,24 +116,32 @@ Module prep
   Public :: configAtomsStart
   Public :: configAtomsMap	
   Public :: configLatticeParameters	
-  Public :: configurationVolume
-  Public :: configurationEnergy	
-  Public :: configurationBM	
   Public :: configurationOptVolume	
   Public :: configurationOptEnergy	
   Public :: configAtomsTotal
   Public :: configAtomsMax
   Public :: configAtomsAdd
+  Public :: configurationForceMPIKey
+  Public :: configurationStress
+!Configuration calculated properties 
+  Public :: configurationVolume
+  Public :: configurationEnergy	 
   Public :: configurationForceX
   Public :: configurationForceY
   Public :: configurationForceZ
-  Public :: configurationForceMPIKey
+  Public :: configurationBM	
+  Public :: configurationEC	
+  Public :: configurationEquVolume
+  Public :: configurationEquLat
+!Configuration reference properties
   Public :: configurationRefEnergy
   Public :: configurationRefForceX
   Public :: configurationRefForceY
   Public :: configurationRefForceZ
   Public :: configurationRefBM
-  Public :: configurationStress
+  Public :: configurationRefEC
+  Public :: configurationRefEquVolume
+!potential arrays
   Public :: atomTypeKey
   Public :: eamKeyReduced, eamDataReduced
   Public :: eamKeyTrial, eamDataTrial
@@ -139,8 +155,7 @@ Module prep
   Public :: configurationRadiusCutoff
   Public :: configurationRSS
   Public :: eamFunctionWobbliness
-  Public :: configurationOptWeights
-  
+  Public :: configurationOptWeights  
 !Subroutines  
   Public :: applyUnitVector
   Public :: applyUnitVectorAction
@@ -151,7 +166,9 @@ Module prep
   Public :: storeReducedToOpt
   Public :: loadOptToReduced
   Public :: storeReducedToFile
+  Public :: setPotentialDerivatives
   Public :: storeEAMToFile
+  Public :: storeEAMToFileMaster
   Public :: printEAM
   Public :: storeToReduced
   Public :: synchMpiProcesses
@@ -161,6 +178,9 @@ Module prep
   Public :: calcConfigurationVolume
   Public :: clearEAM,clearOptEAM,clearReducedEAM,clearTrialEAM
   Public :: splinePotential
+  Public :: eamForceZBLCore
+  Public :: storeReducedEAM
+  Public :: loadReducedEAM
   
 !Functions  
   Public :: eamWobbliness
@@ -188,20 +208,31 @@ contains
 	Real(kind=DoubleReal) :: prepTime, prepTimeReal
 !Start timer    
 	Call MPI_timer(prepTime,prepTimeReal,0)
+!--------------------------
+! Prep data
+!--------------------------
 !Prep data 
     Call prepDataArrays()
 	Call prepDataVariables()
+!--------------------------
+! Neighbour list
+!--------------------------
 !Make neighbour list
 	Call makeNeighbourList()
-	!Call applyUnitVector(0)
+!Calculate configuration volumes	
+	Call synchMpiProcesses()
+!--------------------------
+! Potential
+!--------------------------
+!Sort out potential
 	Call orderEamPotentials()
 	If(mpiProcessID.eq.0)Then
 	  Call storeEAM()
     End If
-	!Call makeReducedEAMSet()
-	!Call makeTrialEAMSet()
+!--------------------------
+! Synch and output
+!--------------------------
 	Call synchMpiProcesses()
-	Call prepDataStore()
 	If(mpiProcessID.eq.0)Then
 	  Call summariseConfigurations()
     End If	
@@ -209,39 +240,47 @@ contains
     Call MPI_timer(prepTime,prepTimeReal,1)
 	globalTimer(1) = prepTime
 	globalTimer(2) = prepTimeReal
-  End Subroutine runPrep
-  
+  End Subroutine runPrep  
 !------------------------------------------------------------------------!
 !                                                                        
 ! Prepare Data                                             
 !                                                                        
-!------------------------------------------------------------------------!   
-  
+!------------------------------------------------------------------------!     
   Subroutine prepDataArrays() 
 !force declaration of all variables
 	Implicit None	 
 !Internal subroutine variables
 	Integer(kind=StandardInteger) :: i, j, k
 	Integer(kind=StandardInteger) :: inputConfigAtomStart
-	Integer(kind=StandardInteger) :: energyCounter, bulkModulusCounter
+	Integer(kind=StandardInteger) :: energyCounter, bulkModulusCounter, ecCounter
+	Integer(kind=StandardInteger) :: evCounter
 !-
 !This sets up important data arrays needed here and elsewhere in the program
 !-  
 !Allocate arrays	  
-    Allocate(configurationRefEnergy(1:configCount))
-    Allocate(configurationEnergy(1:configCount))		!Store calculated configuration energies	  
-	Allocate(configAtoms(1:configCount)) 
-    Allocate(configAtomsStart(1:configCount))	  
-    Allocate(configAtomsMap(1:configCount,1:50))		!information stored about each config
-	Allocate(configurationStress(1:(9*configCount)))
-	Allocate(configurationVolume(1:configCount))
-	Allocate(configurationBM(1:configCount))
-	Allocate(configurationRefBM(1:configCount))
-	Allocate(configurationUnitVector(1:(9*configCount)))
-	Allocate(configLatticeParameters(1:configCount,1:3))
+    !Allocate(configurationRefEnergy(1:configCount))
+    !Allocate(configurationEnergy(1:configCount))		!Store calculated configuration energies	  
+	!Allocate(configAtoms(1:configCount)) 
+    !Allocate(configAtomsStart(1:configCount))	  
+    !Allocate(configAtomsMap(1:configCount,1:50))		!information stored about each config
+	!Allocate(configurationStress(1:(9*configCount)))
+	!Allocate(configurationVolume(1:configCount))
+	!Allocate(configurationBM(1:configCount))
+	!Allocate(configurationRefBM(1:configCount))
+	!Allocate(configurationUnitVector(1:(9*configCount)))
+	!Allocate(configLatticeParameters(1:configCount,1:3))
 	Allocate(configurationRadiusCutoff(1:configCount))
 	Allocate(configurationRSS(1:configCount,1:10))
 	Allocate(configurationOptWeights(1:configCount,1:4))
+	!Allocate(configurationEC(1:configCount,1:6))
+	!Allocate(configurationEquVolume(1:configCount))
+	!Allocate(configurationEquLat(1:configCount))
+	!Allocate(configurationRefEquVolume(1:configCount))
+	
+	
+	!Cubic elastic constants
+	!Allocate(configurationRefEC(1:configCount,1:6))
+	
 	
 ! ConfigAtomsMap(i,1)		Start atom
 ! ConfigAtomsMap(i,2)		End atom
@@ -257,9 +296,14 @@ contains
     configAtomsTotal = 0		!total atoms in all configs
 	configAtomsMax = 0			!max atoms in one config
 	configAtomsStart(1) = 0		!start atom number for each config
+	configurationRefEC = -2.1E20
+	configurationEnergy = 0.0D0
+	configurationRefEnergy = 0.0D0
 !counters
     energyCounter = 0
 	bulkModulusCounter = 0
+	ecCounter = 0
+	evCounter = 0
 !Loop through configurations
     Do i=1,configCount
 	  configurationVolume(i) = 0.0D0
@@ -267,7 +311,15 @@ contains
 	  configurationRefEnergy(i) = configHeaderR(i,12)
 	  configurationBM(i) = -2.1D20
 	  configurationRefBM(i) = configHeaderR(i,15)		!No reference data if less than -2.0D20
-	  !print *,i,configurationRefBM(i)
+	  Do j=1,6
+	    configurationRefEC(i,j) = configHeaderR(i,20+j)		!No reference data if less than -2.0D20
+	  End Do	
+	  configurationRefEquVolume(i) = configHeaderR(i,27)
+	  configurationEquVolume(i) = -2.1D20
+	  configurationEquLat(i) = -2.1D20
+	  Do j=1,6
+	    configurationEC(i,j) = -2.1D20 
+	  End Do
 	  configAtoms(i) = configHeaderI(i,10) * configHeaderI(i,11) *&
 	  configHeaderI(i,12) * configHeaderI(i,headerWidth)
 	  configAtomsTotal = configAtomsTotal + configAtoms(i)
@@ -311,14 +363,25 @@ contains
 !MPI details 21-30
 !Increment counters for MPI
 	  energyCounter = energyCounter + 1
-	  configAtomsMap(i,21) = mod(energyCounter-1,mpiProcessCount)		!Assigned MPI process
-	  If(configurationRefBM(i).gt.-2.0D20)Then
+	  configAtomsMap(i,21) = mod(energyCounter-1,mpiProcessCount)		     !Assigned MPI process
+	  If(configurationRefBM(i).gt.-2.0D20.or.calcBMCalcOnOff.eq.1)Then       !BM calc MPI process
 	    bulkModulusCounter = bulkModulusCounter + 1
 		configAtomsMap(i,22) = mod(bulkModulusCounter-1,mpiProcessCount)
 	  Else
 	    configAtomsMap(i,22) = -1
 	  End If
-	  
+	  If(configurationRefEC(i,1).gt.-2.0D20.or.calcECCalcOnOff.eq.1)Then       !EC calc MPI process
+	    ecCounter = ecCounter + 1
+		configAtomsMap(i,23) = mod(ecCounter-1,mpiProcessCount)
+	  Else
+	    configAtomsMap(i,23) = -1
+	  End If
+	  If(configurationRefEquVolume(i).gt.-2.0D20.or.calcEVCalcOnOff.eq.1)Then       !EV calc MPI process
+	    evCounter = evCounter + 1
+		configAtomsMap(i,24) = mod(evCounter-1,mpiProcessCount)
+	  Else
+	    configAtomsMap(i,24) = -1
+	  End If	  
 !Lattice parameters
 	  configLatticeParameters(i,1) = configHeaderR(i,1) * configHeaderI(i,10)
 	  configLatticeParameters(i,2) = configHeaderR(i,1) * configHeaderI(i,11)
@@ -330,7 +393,6 @@ contains
       configurationOptWeights(i,2) = 1.0D0*configHeaderR(i,17)   !Configuration Force Weight
       configurationOptWeights(i,3) = 1.0D0*configHeaderR(i,18)   !Configuration Stress Weight  
       configurationOptWeights(i,4) = 1.0D0*configHeaderR(i,19)   !Configuration Bulk Properties Weight
-!	  
 !End loop through configurations
 	End Do	
 !If forces are to be calculated
@@ -361,22 +423,33 @@ contains
 !Atom type key array
 	Allocate(atomTypeKey(1:configAtomsTotal))
 !Global counter - counting energy calculations, optimisation steps etc
-    Allocate(globalCounter(1:10)) 	!1 energy calc counter, 2
+!1 energy calc counter, 2
 	Do i=1,10
 	  globalCounter(i) = 0
 	End Do
-!Global timer 
-    Allocate(globalTimer(1:22)) 	
+!Global timer 	
 	!1 prep time, 2 prep time real
 	!3 energy calc time, 4 energy calc time real
 	!5 bm calc, 6 bm calc real
-	!
-    Do i=1,20
-	  globalTimer(i) = 0.0D0
-	End Do
-  
-  
-  
+	globalTimer = 0.0D0
+!-----------------------------------------------
+! open output file	
+!-----------------------------------------------  
+	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
+!write to output file
+    If(mpiProcessID.eq.0)Then
+	  write(999,"(F8.4,A2,A11)") ProgramTime(),"  ","Process Map"
+	  write(999,"(A8,A5,A7,A8,A8,A8)") "        ","Cfg  ","E_Proc ","BM_Proc ","EC_Proc ",&
+	  "EV_Proc "
+	  Do i=1,configCount
+	    write(999,"(A8,I4,A1,I4,A3,I4,A4,I4,A4,I4,A4)")&
+		"        ",i," ",configAtomsMap(i,21),"   ",&
+		configAtomsMap(i,22),"    ",configAtomsMap(i,23),"    ",configAtomsMap(i,24),"    "
+	  End Do
+	End If
+!Close file
+    close(999)  
   End Subroutine prepDataArrays
   
   
@@ -400,8 +473,7 @@ contains
   
 !-------------------------- 
 ! Make Neighbour List
-!--------------------------
-  
+!--------------------------  
   Subroutine makeNeighbourList()
 !force declaration of all variables
 	Implicit None	 
@@ -433,7 +505,7 @@ contains
 	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
 	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
 !open coords file	
-    if(saveFileCoords.eq."Y")then
+    If(saveFileCoords.eq."Y")Then
 	  outputFile = trim(currentWorkingDirectory)//"/"//"coords.dat"
 	  open(unit=10,file=trim(outputFile))	
 	endif		
@@ -442,16 +514,9 @@ contains
       write(999,"(F8.4,A2,A37)") ProgramTime(),"  ",&
 	  "Start building config neighbour lists"
 	End If
-	!configHeaderR
-	!1 LP, 2 RC
-	!configHeaderI
-	!1 X1, 2 X2, 3 X3, 4 Y1, 5 Y2, 6 Y3, 7 Z1, 8 Z2, 9 Z3, 10 CC1, 11 CC2, 12 CC3, 13 Start, 14 Length    
-	!configCoordsI
-	!configCoordsR
-	
+!configHeaderR: 1 LP, 2 RC, configHeaderI: 1 X1, 2 X2, 3 X3, 4 Y1, 5 Y2, 6 Y3, 7 Z1, 8 Z2, 9 Z3, 10 CC1, 11 CC2, 12 CC3, 13 Start, 14 Length    
 !Unit vector used to transpose coords    
     Allocate(configUnitVector(1:3,1:3))	
-
 !Allocate temp neighbour list array - assume 100 neighbours per atom
 	tempNeighbourListLength = 0
 	Do i=1,configCount
@@ -463,13 +528,11 @@ contains
 	Allocate(neighbourListITemp(1:tempNeighbourListLength,1:4))
 	Allocate(neighbourListRTemp(1:tempNeighbourListLength)) 
 	Allocate(neighbourListCoordsTemp(1:tempNeighbourListLength,1:6)) 
-	Allocate(configAtomsUnitCell(1:configCount)) 
-	
+	Allocate(configAtomsUnitCell(1:configCount)) 	
 !Allocate config reference data arrays
     Allocate(configurationRefForceX(1:configAtomsTotal))
     Allocate(configurationRefForceY(1:configAtomsTotal))
-    Allocate(configurationRefForceZ(1:configAtomsTotal))
-	
+    Allocate(configurationRefForceZ(1:configAtomsTotal))	
 !loop through configurations - estimate size of
 	configStart = 1
 	neighbourListCount = 0
@@ -499,14 +562,10 @@ contains
 	    Do k=1,3
 		  n = n+1
 	      configurationUnitVector((i-1)*9+n) = workingUnitVector(j,k)
-	      !print *,((i-1)*9+n),configurationUnitVector((i-1)*9+n)
 		End Do
 	  End Do
 	  configurationVolume(i) = calcConfigurationVolume(i)
-	  !print *,"Vol",i,configurationVolume(i) 
 !expand unit cell	    
-	  !atoms = xCopy * yCopy * zCopy * configHeaderI(i,headerWidth)
-	  !configAtoms(i) = atoms
 	  atoms = configAtoms(i)
 	  configAtomsUnitCell(i) = configHeaderI(i,headerWidth)
 !Allocate temp array
@@ -570,9 +629,6 @@ contains
 	  xlat = alat * xCopy
 	  ylat = alat * yCopy
 	  zlat = alat * zCopy
-	  !configLatticeParameters(i,1) = xlat
-	  !configLatticeParameters(i,2) = ylat
-	  !configLatticeParameters(i,3) = zlat
 !loop through atom pairs    Atom A in inner cell, Atom B in 3x3x3 supercell      
 	  configLength = 0
       do atomA=1,atoms
@@ -635,9 +691,7 @@ contains
       neighbourListKeyTemp(i,2) = configLength	  
 	  configStart = configStart + configLength
 	enddo
-!end loop through configurations
-    
-	
+!end loop through configurations   
 !Move from temp arrays - Allocate arrays
 	Allocate(neighbourListKey(1:size(configHeaderI)/headerWidth,1:2))
 	Allocate(neighbourListI(1:neighbourListCount,1:4))
@@ -673,7 +727,6 @@ contains
     Deallocate(neighbourListITemp)
     Deallocate(neighbourListRTemp)
     Deallocate(neighbourListCoordsTemp)
-
 !close coords file
     if(saveFileCoords.eq."Y")then
       close(10)	 	 
@@ -686,12 +739,10 @@ contains
 	End If
 !close output file
     close(999)	
-  End Subroutine makeNeighbourList
-  
+  End Subroutine makeNeighbourList  
 !-------------------------- 
 ! Store neighbour list for recall
 !--------------------------
-
   Subroutine storeNeighboutList()
 !force declaration of all variables
 	Implicit None		
@@ -713,8 +764,7 @@ contains
 	neighbourListIStore = neighbourListI
 	neighbourListRStore = neighbourListR
 	neighbourListCoordsStore = neighbourListCoords
-  End Subroutine storeNeighboutList
-  
+  End Subroutine storeNeighboutList  
   Subroutine loadNeighboutList()
 !force declaration of all variables
 	Implicit None		
@@ -736,12 +786,10 @@ contains
 	neighbourListI = neighbourListIStore
 	neighbourListR = neighbourListRStore
 	neighbourListCoords = neighbourListCoordsStore
-  End Subroutine loadNeighboutList
- 
+  End Subroutine loadNeighboutList 
 !------------------------------------------------------------------------!
 ! ***calcConfigurationVolume*** 
-!------------------------------------------------------------------------!
-    
+!------------------------------------------------------------------------!    
   Subroutine applyDistortionVector(configurationID,distortionUnitVector)
 !force declaration of all variables
 	Implicit None	 
@@ -789,19 +837,12 @@ contains
 	  neighbourListR(i) = rD
       neighbourListCoords(i,10) = neighbourListCoords(i,7)/neighbourListR(i)
       neighbourListCoords(i,11) = neighbourListCoords(i,8)/neighbourListR(i)
-      neighbourListCoords(i,12) = neighbourListCoords(i,9)/neighbourListR(i)	  
-	  
+      neighbourListCoords(i,12) = neighbourListCoords(i,9)/neighbourListR(i)	
     End Do
   End Subroutine applyDistortionVector
- 
- 
- 
- 
-  
 !------------------------------------------------------------------------!
 ! applyUnitVector 
 !------------------------------------------------------------------------!
-  
   Subroutine applyUnitVector(configurationID)
 !force declaration of all variables
 	Implicit None	 
@@ -818,12 +859,9 @@ contains
 	  Call applyUnitVectorAction(configurationID)
 	endif	
   End Subroutine applyUnitVector
-  
-  
 !------------------------------------------------------------------------!
 ! applyUnitVectorAction 
 !------------------------------------------------------------------------!
-      
   Subroutine applyUnitVectorAction(configurationID)
 !force declaration of all variables
 	Implicit None	 
@@ -865,18 +903,28 @@ contains
 !recalculate configuration volume
     !Call calcConfigurationVolume(configurationID)	
   End Subroutine applyUnitVectorAction
-
-	
+!------------------------------------------------------------------------!
+! ***calcConfigurationVolumes*** 
+!------------------------------------------------------------------------!
+  Subroutine calcConfigurationVolumes()
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: i
+!Calculate and store volumes 
+    Do i=1,configCount
+	  configurationVolume(i) = 1.0D0* calcConfigurationVolume(i)
+	End Do  
+  End Subroutine calcConfigurationVolumes
 !------------------------------------------------------------------------!
 ! ***calcConfigurationVolume*** 
 !------------------------------------------------------------------------!
-
   Function calcConfigurationVolume(configurationID, distortionArrayIn) result (volume)
 !force declaration of all variables
 	Implicit None	 
 !Internal subroutine variables
     Integer(kind=StandardInteger) :: configurationID
-	Integer(kind=StandardInteger) :: i, j, k
+	Integer(kind=StandardInteger) :: i, j, k, n
     Real(kind=SingleReal) :: xA, yA, zA
     Real(kind=SingleReal) :: xB, yB, zB
     Real(kind=SingleReal) :: xC, yC, zC
@@ -887,15 +935,16 @@ contains
 !Set distortion array
     Allocate(multiplierArray(1:3,1:3))
 !Set the configuration unit vector
-	multiplierArray(1,1) = configurationUnitVector((i-1)*9+1)
-	multiplierArray(1,2) = configurationUnitVector((i-1)*9+2)
-	multiplierArray(1,3) = configurationUnitVector((i-1)*9+3)
-	multiplierArray(2,1) = configurationUnitVector((i-1)*9+4)
-	multiplierArray(2,2) = configurationUnitVector((i-1)*9+5)
-	multiplierArray(2,3) = configurationUnitVector((i-1)*9+6)
-	multiplierArray(3,1) = configurationUnitVector((i-1)*9+7)
-	multiplierArray(3,2) = configurationUnitVector((i-1)*9+8)
-	multiplierArray(3,3) = configurationUnitVector((i-1)*9+9)
+    i = configurationID
+	multiplierArray(1,1) = 1.0D0*configurationUnitVector((i-1)*9+1)
+	multiplierArray(1,2) = 1.0D0*configurationUnitVector((i-1)*9+2)
+	multiplierArray(1,3) = 1.0D0*configurationUnitVector((i-1)*9+3)
+	multiplierArray(2,1) = 1.0D0*configurationUnitVector((i-1)*9+4)
+	multiplierArray(2,2) = 1.0D0*configurationUnitVector((i-1)*9+5)
+	multiplierArray(2,3) = 1.0D0*configurationUnitVector((i-1)*9+6)
+	multiplierArray(3,1) = 1.0D0*configurationUnitVector((i-1)*9+7)
+	multiplierArray(3,2) = 1.0D0*configurationUnitVector((i-1)*9+8)
+	multiplierArray(3,3) = 1.0D0*configurationUnitVector((i-1)*9+9)
     If(present(distortionArrayIn))Then
 	  distortionArray = distortionArrayIn
 	  multiplierArray = matmul(multiplierArray,distortionArray)
@@ -916,80 +965,6 @@ contains
 	crossProductK = (xA*yB-xB*yA)
 	volume = 1.0D0*zA*crossProductI+zB*crossProductJ+zC*crossProductK	
   End Function calcConfigurationVolume
-   
-  Function calcConfigurationVolumeB(configurationID, distortionArrayIn) result (volume)
-!force declaration of all variables
-	Implicit None	 
-!Internal subroutine variables
-    Integer(kind=StandardInteger) :: configurationID
-	Integer(kind=StandardInteger) :: i, j, k
-    Real(kind=SingleReal) :: xA, yA, zA
-    Real(kind=SingleReal) :: xB, yB, zB
-    Real(kind=SingleReal) :: xC, yC, zC
-	Real(kind=SingleReal) :: crossProductI,crossProductJ,crossProductK
-	Real(kind=DoubleReal) :: volume
-	Real(kind=DoubleReal), Optional, Dimension( : , : ), Allocatable :: distortionArrayIn
-	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: distortionArray, multiplierArray
-!Set distortion array
-    Allocate(multiplierArray(1:3,1:3))
-	multiplierArray(1,1) = configurationUnitVector((i-1)*9+1)
-	multiplierArray(1,2) = configurationUnitVector((i-1)*9+2)
-	multiplierArray(1,3) = configurationUnitVector((i-1)*9+3)
-	multiplierArray(2,1) = configurationUnitVector((i-1)*9+4)
-	multiplierArray(2,2) = configurationUnitVector((i-1)*9+5)
-	multiplierArray(2,3) = configurationUnitVector((i-1)*9+6)
-	multiplierArray(3,1) = configurationUnitVector((i-1)*9+7)
-	multiplierArray(3,2) = configurationUnitVector((i-1)*9+8)
-	multiplierArray(3,3) = configurationUnitVector((i-1)*9+9)
-    If(present(distortionArrayIn))Then
-	
-	Else
-	
-	End If
-!loop through configurations if 0 and calc volume for all configurations
-    If(configurationID.eq.0)Then
-	  Do i=1,configCount
-	    xA = configLatticeParameters(i,1) * configurationUnitVector((i-1)*9+1)
-        xB = configLatticeParameters(i,1) * configurationUnitVector((i-1)*9+2)
-        xC = configLatticeParameters(i,1) * configurationUnitVector((i-1)*9+3)
-        yA = configLatticeParameters(i,2) * configurationUnitVector((i-1)*9+4)
-        yB = configLatticeParameters(i,2) * configurationUnitVector((i-1)*9+5)
-        yC = configLatticeParameters(i,2) * configurationUnitVector((i-1)*9+6)
-        zA = configLatticeParameters(i,3) * configurationUnitVector((i-1)*9+7)
-        zB = configLatticeParameters(i,3) * configurationUnitVector((i-1)*9+8)
-        zC = configLatticeParameters(i,3) * configurationUnitVector((i-1)*9+9)
-	    crossProductI = (xB*yC-xC*yB)
-	    crossProductJ = (xC*yA-xA*yC)
-	    crossProductK = (xA*yB-xB*yA)
-	    volume = 1.0D0*zA*crossProductI+zB*crossProductJ+zC*crossProductK	
-        configurationVolume(i) = 1.0D0 * volume
-	  End Do
-	  volume = 0.0D0
-	Else
-	  i = configurationID
-	  xA = configLatticeParameters(i,1) * configurationUnitVector((i-1)*9+1)
-      xB = configLatticeParameters(i,1) * configurationUnitVector((i-1)*9+2)
-      xC = configLatticeParameters(i,1) * configurationUnitVector((i-1)*9+3)
-      yA = configLatticeParameters(i,2) * configurationUnitVector((i-1)*9+4)
-      yB = configLatticeParameters(i,2) * configurationUnitVector((i-1)*9+5)
-      yC = configLatticeParameters(i,2) * configurationUnitVector((i-1)*9+6)
-      zA = configLatticeParameters(i,3) * configurationUnitVector((i-1)*9+7)
-      zB = configLatticeParameters(i,3) * configurationUnitVector((i-1)*9+8)
-      zC = configLatticeParameters(i,3) * configurationUnitVector((i-1)*9+9)
-	  crossProductI = (xB*yC-xC*yB)
-	  crossProductJ = (xC*yA-xA*yC)
-	  crossProductK = (xA*yB-xB*yA)
-	  volume = 1.0D0*zA*crossProductI+zB*crossProductJ+zC*crossProductK	
-      configurationVolume(configurationID) = 1.0D0 * volume
-	End If  
-  End Function calcConfigurationVolumeB	
-  
-  !Subroutine calcUpdateConfigurationVolume()
-  
-  
-  !End Function calcUpdateConfigurationVolume	
-  
-  
   Subroutine summariseConfigurations()
 !force declaration of all variables
 	Implicit None	 
@@ -1021,15 +996,12 @@ contains
 !close the output file
       close(999) 	
 	End If
-  End Subroutine summariseConfigurations
-  
-  
-  
+  End Subroutine summariseConfigurations    
 !------------------------------------------------------------------------!
-! Potential prep subroutines
-!------------------------------------------------------------------------! 
-  
-  
+!                                                                        
+! Potential Preparation Subroutines                                              
+!                                                                        
+!------------------------------------------------------------------------!  
 !Order eam potentials
   Subroutine orderEamPotentials()  	
 !force declaration of all variables
@@ -1396,6 +1368,36 @@ contains
 	  Deallocate(eamData)
 	End If
   End Subroutine clearEAM
+  
+  
+  
+  Subroutine setPotentialDerivatives(eamKeyArray,eamDataArray)  	
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: ios, i, j, k, potKey
+	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints
+	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
+	Real(kind=DoubleReal) :: x, y, dy
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Character(len=5)  :: eamTypeText
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArray 
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArray
+!Loop through potential functions
+	Do potKey=1,size(eamKeyArray,1)
+!make reduces set of data points
+	  potStart = eamKeyArray(potKey,4)
+      potLength = eamKeyArray(potKey,5)
+	  potEnd = potStart + potLength - 1
+!loop over data points
+	  Do i=potStart,potEnd
+	    x = eamDataArray(i,1)
+		yArray = PointInterpolationArr(eamDataArray,x,4,potStart,potLength) 
+		eamDataArray(i,3) = yArray(2)		  
+	  End Do	
+    End Do  
+  End Subroutine setPotentialDerivatives
+  
 
   Subroutine storeReducedToFile()  	
 !force declaration of all variables
@@ -1460,12 +1462,12 @@ contains
 	End If
   End Subroutine storeReducedToFile  
   
-  Subroutine storeEAMToFile(eamKeyArray, eamDataArray, fileName, numberOfPointsIn)  	
+  Subroutine storeEAMToFile(eamKeyArray, eamDataArray, fileName, numberOfPointsIn, processIn)  	
 !force declaration of all variables
 	Implicit None
 !declare private variables
 	Integer(kind=StandardInteger) :: ios, i, j, k, potKey
-	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints
+	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints, processFlag
 	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
 	Real(kind=DoubleReal) :: x, y, dy
 	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
@@ -1475,11 +1477,17 @@ contains
 	Character(*) :: fileName
 !optional variables	
 	Integer(kind=StandardInteger), optional :: numberOfPointsIn
+	Integer(kind=StandardInteger), optional :: processIn
 	  If(Present(numberOfPointsIn))Then
 	    numberOfPoints = numberOfPointsIn
 	  Else
         numberOfPoints = 0	  
 	  End If
+	  If(Present(processIn))Then
+	    processFlag = processIn
+	  Else
+	    processFlag = -1
+	  End If	
 !Store reduced potential to file
 	If(mpiProcessID.eq.0)Then
 	  outputFile = trim(currentWorkingDirectory)//"/"//trim(fileName)
@@ -1582,8 +1590,130 @@ contains
 	  close(24)
 	End If
 !Wait for all processes to catch up	 
-	Call synchMpiProcesses()
+    If(processFlag.lt.0)Then
+	  Call synchMpiProcesses()
+	End If  
   End Subroutine storeEAMToFile  
+  Subroutine storeEAMToFileMaster(eamKeyArray, eamDataArray, fileName, numberOfPointsIn)  	
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: ios, i, j, k, potKey
+	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints, processFlag
+	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
+	Real(kind=DoubleReal) :: x, y, dy
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Character(len=5)  :: eamTypeText
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArray 
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArray
+	Character(*) :: fileName
+!optional variables	
+	Integer(kind=StandardInteger), optional :: numberOfPointsIn
+	  If(Present(numberOfPointsIn))Then
+	    numberOfPoints = numberOfPointsIn
+	  Else
+        numberOfPoints = 0	  
+	  End If
+!Open output file	  
+	  outputFile = trim(currentWorkingDirectory)//"/"//trim(fileName)
+	  open(unit=24,file=trim(outputFile))
+	  If(numberOfPoints.lt.10)Then
+	    Do potKey=1,size(eamKeyArray,1)
+!Get number of points to reduce to
+	      If(eamKeyArray(potKey,3).eq.1)Then     !Pair
+	        write(24,"(A5,A2,A1,A2,A1)") "PAIR ",elements(eamKeyArray(potKey,1))," ",&
+		    elements(eamKeyArray(potKey,2))," "
+		  Else  
+		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.1)Then
+		      eamTypeText = "DENS "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.2)Then
+		      eamTypeText = "SDEN "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.1)Then
+		      eamTypeText = "EMBE "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.2)Then
+		      eamTypeText = "SEMB "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.4)Then
+		      eamTypeText = "DDEN "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.5)Then
+		      eamTypeText = "DEMB "
+		    End If
+		    write(24,"(A5,A2)") eamTypeText,elements(eamKeyArray(potKey,1))
+	      End If	
+!pot positions
+	      potStart = eamKeyArray(potKey,4)
+          potLength = eamKeyArray(potKey,5)
+	      potEnd = potStart + potLength - 1
+!loop over data points
+          k = 0
+	      Do i=potStart,potEnd
+		    k = k + 1
+	        x = eamDataArray(i,1)
+		    y = eamDataArray(i,2)
+		    dy = eamDataArray(i,3)
+!write to file
+            write(24,"(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") x,"  ",&
+		    y,"  ",dy,"    ",potKey,k,i
+	      End Do	
+        End Do
+	  ElseIf(numberOfPoints.ge.10)Then
+!Interpolate between points
+!Loop through potential functions
+        dataPointCounter = 1
+	    Do potKey=1,size(eamKeyArray,1)
+!make expanded set of data points
+	      If(eamKeyArray(potKey,3).eq.1)Then     !Pair
+	        write(24,"(A5,A2,A1,A2,A1)") "PAIR ",elements(eamKeyArray(potKey,1))," ",&
+		    elements(eamKeyArray(potKey,2))," "
+		  Else  
+		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.1)Then
+		      eamTypeText = "DENS "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.2)Then
+		      eamTypeText = "SDEN "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.1)Then
+		      eamTypeText = "EMBE "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.2)Then
+		      eamTypeText = "SEMB "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.4)Then
+		      eamTypeText = "DDEN "
+		    End If
+		    If(eamKeyArray(potKey,3).eq.5)Then
+		      eamTypeText = "DEMB "
+		    End If
+		    write(24,"(A5,A2)") eamTypeText,elements(eamKeyArray(potKey,1))
+	      End If	
+	      potStart = eamKeyArray(potKey,4)
+          potLength = eamKeyArray(potKey,5)
+	      potEnd = potStart + potLength - 1
+!loop through reduced data points
+!Interpolate 4th order polynomial (5 data points)
+	      Do i=1,numberOfPoints
+	        x = eamDataArray(potStart,1)+&
+		    1.0D0*(i-1)*((eamDataArray(potEnd,1)-&
+			eamDataArray(potStart,1))/(numberOfPoints-1))
+		    !yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
+		    yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength)
+		    y = yArray(1)
+		    dy = yArray(2)
+!write to file
+            write(24,"(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") x,"  ",&
+		    y,"  ",dy,"    ",potKey,i,dataPointCounter	
+!increment counter
+		    dataPointCounter = dataPointCounter + 1		
+	      End Do	
+        End Do
+	  End If
+!Close file
+	  close(24) 
+  End Subroutine storeEAMToFileMaster  
   
   Subroutine printEAM(eamKeyArray, eamDataArray)
 	Implicit None
@@ -1815,14 +1945,236 @@ contains
     End Do	
   End Subroutine splinePotential
   
+
   
-  Subroutine prepDataStore()
+  Subroutine eamForceZBLCore(eamKeyArray, eamDataArray)  	
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: ios, i, j, k, potKey, potType
+	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints, processFlag
+	Integer(kind=StandardInteger) :: potStart, potLength, potEnd
+	Integer(kind=StandardInteger) :: atomA, atomB
+	Integer(kind=StandardInteger) :: zA, zB
+	Real(kind=DoubleReal) :: x,y,dy
+	Real(kind=DoubleReal) :: xLower, xUpper
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArray 
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArray
+	Real(kind=DoubleReal), Dimension(1:3) :: yArray, yArrayA, yArrayB
+	Real(kind=DoubleReal), Dimension(1:8) :: splinePoints
+	Real(kind=DoubleReal), Dimension(0:5) :: pairSplineCoefficients, densitySplineCoefficients
+	Real(kind=DoubleReal), Dimension(0:5) :: embeddingSplineCoefficients
+	Do potKey=1,size(eamKeyArray,1)
+	  potStart = eamKeyArray(potKey,4)
+      potLength = eamKeyArray(potKey,5)
+	  potEnd = potStart + potLength - 1
+	  !pot type
+	  potType = eamKeyArray(potKey,3) !1 PAIR, 2 DENS/SDEN, 3 EMBE/SEMB, 4 DDEN, 5 DEMB
+!atom details
+	  atomA = eamKeyArray(potKey,1)
+	  atomB = eamKeyArray(potKey,2)
+	  zA = elementsCharge(atomA)
+	  zB = elementsCharge(atomB)
+!pot start and end
+	  xLower = eamDataArray(potStart,1)
+	  xUpper = eamDataArray(potEnd,1)
+!----------------------------------------------------
+!Pair Potential Spline start-end
+!----------------------------------------------------
+	  If(potType.eq.1.and.&
+	  eamZBLPairLower.gt.-2.0D20.and.&
+	  eamZBLPairUpper.gt.-2.0D20.and.&
+	  eamZBLPairUpper.gt.eamZBLPairLower)Then
+!Start point
+        yArrayA = ZblFull(eamZBLPairLower,zA,zB)
+!End point  
+        yArrayB = PointInterpolationArr(eamDataArray,eamZBLPairUpper,5,potStart,potLength,2)
+!Spline coefficients
+        splinePoints(1) = 1.0D0*eamZBLPairLower 
+        splinePoints(2) = 1.0D0*yArrayA(1) 
+        splinePoints(3) = 1.0D0*yArrayA(2) 
+        splinePoints(4) = 1.0D0*yArrayA(3)
+        splinePoints(5) = 1.0D0*eamZBLPairUpper 
+        splinePoints(6) = 1.0D0*yArrayB(1) 
+        splinePoints(7) = 1.0D0*yArrayB(2) 
+        splinePoints(8) = 1.0D0*yArrayB(3)  
+!splinePoints
+		pairSplineCoefficients = SplineAB(splinePoints) 
+!loop over data points
+	    Do i=potStart,potEnd
+	      x = eamDataArray(i,1)
+          If(x.le.eamZBLPairLower.and.potType.eq.1)Then
+		    eamDataArray(i,2) = Zbl(x,zA,zB)
+		  End If
+          If(x.gt.eamZBLPairLower.and.x.lt.eamZBLPairUpper.and.potType.eq.1)Then
+		    eamDataArray(i,2) = &
+			computePolynomialA(pairSplineCoefficients,size(pairSplineCoefficients),x)
+		  End If	
+	    End Do	  
+	  End If
+!----------------------------------------------------
+!Density Spline start-end
+!----------------------------------------------------
+	  If(potType.eq.2)Then
+!End point  
+        yArrayB = PointInterpolationArr(eamDataArray,eamZBLDensCutoff,5,potStart,potLength,2)
+!Spline coefficients
+        splinePoints(1) = 0.0D0
+        splinePoints(2) = 1.0D0*eamZBLDensZero
+        splinePoints(3) = 0.0D0 
+        splinePoints(4) = 0.0D0
+        splinePoints(5) = 1.0D0*eamZBLDensCutoff 
+        splinePoints(6) = 1.0D0*yArrayB(1) 
+        splinePoints(7) = 1.0D0*yArrayB(2) 
+        splinePoints(8) = 1.0D0*yArrayB(3)  		  
+!splinePoints
+		densitySplineCoefficients = SplineAB(splinePoints) 
+!loop over data points
+	    Do i=potStart,potEnd
+	      x = eamDataArray(i,1)
+          If(x.lt.eamZBLDensCutoff.and.(potType.eq.2.or.potType.eq.4))Then
+		    eamDataArray(i,2) = &
+			computePolynomialA(densitySplineCoefficients,size(densitySplineCoefficients),x)
+		  End If
+	    End Do	  
+      End If
+!----------------------------------------------------
+!Embedding Spline start-end
+!----------------------------------------------------
+	  If(potType.eq.3)Then
+!End point  
+        yArrayB = PointInterpolationArr(eamDataArray,eamZBLEmbeCutoff,5,potStart,potLength,2)
+!Spline coefficients
+        splinePoints(1) = 0.0D0
+        splinePoints(2) = 1.0D0*eamZBLEmbeZero
+        splinePoints(3) = 0.0D0 
+        splinePoints(4) = 0.0D0
+        splinePoints(5) = 1.0D0*eamZBLEmbeCutoff 
+        splinePoints(6) = 1.0D0*yArrayB(1) 
+        splinePoints(7) = 1.0D0*yArrayB(2) 
+        splinePoints(8) = 1.0D0*yArrayB(3)  		  
+!splinePoints
+		embeddingSplineCoefficients = SplineAB(splinePoints) 
+		Do i=potStart,potEnd
+	      x = eamDataArray(i,1)
+          If(x.lt.eamZBLEmbeCutoff.and.(potType.eq.3.or.potType.eq.5))Then
+		    eamDataArray(i,2) = &
+			computePolynomialA(embeddingSplineCoefficients,size(embeddingSplineCoefficients),x)
+		  End If
+	    End Do
+      End If   
+	End Do
+  End Subroutine eamForceZBLCore  
+  
+  
+  Subroutine storeReducedEAM(eamKeyArrayR,eamDataArrayR,fileName,headerIn)
 !force declaration of all variables
 	Implicit None	 
 !Internal subroutine variables
-    Integer(kind=StandardInteger) :: i, totalAtoms   
-  End Subroutine prepDataStore 
+    Integer(kind=StandardInteger) :: i
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArrayR 
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArrayR
+	Character(*) :: fileName
+    Integer(kind=StandardInteger) :: send,receive,tag 
+    Integer(kind=StandardInteger) :: processID,processCount,error,status 
+!optional
+    Character(64), optional :: headerIn
+!call mpi subroutines
+    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!Save to file   
+    If(processID.eq.0)Then
+	  outputFile = trim(currentWorkingDirectory)//"/"//trim(fileName)
+	  open(unit=32,file=trim(outputFile))
+!Write header
+      If(Present(headerIn))Then
+	    write(32,"(A64)") headerIn
+	  End If
+!Write key
+      write(32,"(A9)") "<EAM Key>"
+	  Do i=1,size(eamKeyArrayR,1)
+	    write(32,"(I8,A2,I8,A2,I8,A2,I8,A2,I8)")&
+		eamKeyArrayR(i,1),"  ",eamKeyArrayR(i,2),"  ",eamKeyArrayR(i,3),&
+		"  ",eamKeyArrayR(i,4),"  ",eamKeyArrayR(i,5)
+      End Do
+      write(32,"(A10)") "</EAM Key>"
+	  write(32,"(A10)") "<EAM Data>"
+	  Do i=1,size(eamDataArrayR,1)
+	    write(32,"(E24.16E3,A2,E24.16E3)") eamDataArrayR(i,1),"  ",eamDataArrayR(i,2)
+	  End Do	
+	  write(32,"(A11)") "</EAM Data>"
+	  close(32)
+	End If
+!Synch Processes
+	Call synchMpiProcesses()
+  End Subroutine storeReducedEAM
    
+  
+  Subroutine loadReducedEAM(eamKeyArrayR,eamDataArrayR,fileName)
+!force declaration of all variables
+	Implicit None	 
+!Internal subroutine variables
+	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
+    Integer(kind=StandardInteger) :: ios, i, j
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArrayR 
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArrayR
+	Character(*) :: fileName
+	Character(len=255) :: fileRow
+    Integer(kind=StandardInteger) :: send,receive,tag 
+    Integer(kind=StandardInteger) :: processID,processCount,error,status 
+!call mpi subroutines
+    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
+!Read in file
+	Open(unit=34,file=trim(trim(currentWorkingDirectory)//"/"//trim(fileName)))
+    Do i=1,maxFileRows 
+!Read in line
+	  Read(34,"(A255)",IOSTAT=ios) fileRow
+!break out if end of file
+	  If (ios /= 0) Then
+	    EXIT 
+	  End If 
+!Read Key
+      If(fileRow(1:9).eq."<EAM Key>")Then
+	    Do j=1,maxFileRows
+	      Read(34,"(A255)",IOSTAT=ios) fileRow
+		  If(fileRow(1:2).eq."</".or.j.gt.size(eamKeyArrayR,1))Then
+		    EXIT
+		  End If
+!read row
+          print *,trim(fileRow)
+          Read(fileRow,*) eamKeyArrayR(j,1), eamKeyArrayR(j,2),&
+		  eamKeyArrayR(j,3),eamKeyArrayR(j,4),eamKeyArrayR(j,5)
+        End Do		
+	  End If
+!Read Data
+      If(fileRow(1:10).eq."<EAM Data>")Then
+	    Do j=1,maxFileRows
+	      Read(34,"(A255)",IOSTAT=ios) fileRow
+		  If(fileRow(1:2).eq."</".or.j.gt.size(eamDataArrayR,1))Then
+		    EXIT
+		  End If
+!read row
+          Read(fileRow,*) eamDataArrayR(j,1), eamDataArrayR(j,2)
+	      eamDataArrayR(j,1) = 1.0D0 * eamDataArrayR(j,1)
+	      eamDataArrayR(j,2) = 1.0D0 * eamDataArrayR(j,2)
+        End Do		
+	  End If
+	  
+    End Do
+	CLOSE(34) !close file
+!Synch Processes
+	Call synchMpiProcesses()
+  End Subroutine loadReducedEAM
+  
+  
+  !Public :: storeReducedEAM
+  !Public :: loadReducedEAM
+  
+  
+  
+  
+!Misc Functions/Subroutines
   
   Subroutine synchMpiProcesses()
 !force declaration of all variables
@@ -2424,7 +2776,6 @@ contains
 	    numberOfPoints = eamReducedPointsF
 	  End If
 !make reduces set of data points
-      !eamKeyReduced, eamDataReduced
 	  potStart = eamKeyTrial(potKey,4)
       potLength = eamKeyTrial(potKey,5)
 	  potEnd = potStart + potLength - 1
@@ -2438,7 +2789,6 @@ contains
 	  Do i=1,numberOfPoints
 	    x = eamDataTrial(potStart,1)+&
 		    1.0D0*(i-1)*((eamDataTrial(potEnd,1)-eamDataTrial(potStart,1))/(numberOfPoints-1))
-		!yArray = PointInterpolationArr(eamDataTrial,x,5,potStart,potLength,"N")
 		yArray = PointInterpolationArr(eamDataTrial,x,5,potStart,potLength)
 		y = yArray(1)
 		dy = yArray(2)

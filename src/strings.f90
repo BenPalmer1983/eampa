@@ -100,9 +100,8 @@ Contains
   
   Function TrimSpaces (input) RESULT (output)
     CHARACTER(*), INTENT(IN) :: input
-	CHARACTER(LEN(input)) :: output
+	CHARACTER(LEN(trim(adjustl(input)))) :: output
     output = trim(adjustl(input))
-  
   End Function TrimSpaces   
   
   

@@ -24,6 +24,8 @@ Module maths
 ! Polynomial Related Functions
   Public :: SolvePolynomial  
   Public :: CalcPolynomial  
+  Public :: ComputePolynomial
+  Public :: ComputePolynomialA
 ! Interpolation and Regression Functions 
   Public :: PolyFit  
   Public :: PolynomialInterpolation  
@@ -36,9 +38,13 @@ Module maths
   Public :: CalcSecondDerivativeMinimum
 ! Spline Functions   
   Public :: Spline
+  Public :: SplineAB
   Public :: MatrixInterpolation
 ! Matrix Functions  
   Public :: InvertSquareMatrix
+! Vector Functions
+  Public :: CrossProduct  
+  Public :: DotProduct  
 ! Random Number Related Functions  
   Public :: SetRandomSeedArray !Subroutine
   Public :: VaryPoint
@@ -49,7 +55,10 @@ Module maths
 ! Decay Equations    
   Public :: CalcIsotopeAmount  
 ! Rounding functions
-  Public :: Ceil     
+  Public :: Ceil    
+! Physics type functions
+  Public :: Zbl
+  Public :: ZblFull
 ! Useful Miscellaneous Functions
 ! Misc Subroutines  
 
@@ -109,6 +118,12 @@ Contains
 ! 
 ! Decay Equations  
 ! - Decay Functions
+!
+! Rounding functions
+! - Ceil 
+!
+! Physics type functions
+! - Zbl
 ! 
 ! Useful Miscellaneous Functions
 ! - change ArraySize1D
@@ -256,10 +271,6 @@ Contains
 !returns y
   End Function CalcPolynomial
   
-  
-  
-  
-  
   Function PolynomialCoefficientDerivative (coefficientsIn) RESULT (coefficientsOut)
 !Take array of polynomial coefficients and return derivative polynomial coefficients
 !force declaration of all variables
@@ -284,11 +295,40 @@ Contains
   End Function PolynomialCoefficientDerivative
   
   
+  Function ComputePolynomial(polyCoefficients, x) RESULT (y)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Integer(kind=StandardInteger) :: i
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: polyCoefficients
+    Real(kind=DoubleReal) :: x, y
+!compute y
+    y = 0.0D0
+    Do i=1,size(polyCoefficients)
+	  y = y + 1.0D0 * polyCoefficients(i) * x**(i-1)
+	End Do
+  End Function ComputePolynomial
+    
+  
+  Function ComputePolynomialA(polyCoefficients, polyCount, x) RESULT (y)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Integer(kind=StandardInteger) :: i,polyCount
+	Real(kind=DoubleReal), Dimension(1:polyCount) :: polyCoefficients
+    Real(kind=DoubleReal) :: x, y
+!compute y
+    y = 0.0D0
+    Do i=1,size(polyCoefficients)
+	  y = y + 1.0D0 * polyCoefficients(i) * x**(i-1)
+	End Do
+  End Function ComputePolynomialA
+  
 !------------------------------------------------------------------------!
 ! Interpolation and Regression Functions  
 !------------------------------------------------------------------------! 
   
-  Function PolyFit(inputPoints, order) RESULT (coefficients) 
+  Function PolyFit(inputPoints,order) RESULT (coefficients) 
 !force declaration of all variables
 	Implicit None
 !declare variables
@@ -546,13 +586,11 @@ Contains
     Integer(kind=StandardInteger) :: i
     Real(kind=DoubleReal), Dimension( : ), Allocatable :: coefficients
 	Real(kind=DoubleReal) :: xA,yA,xB,yB,xC,yC,xD,yD,x,y
-	Real(kind=DoubleReal) :: aA,aB,aC,aD
-	
+	Real(kind=DoubleReal) :: aA,aB,aC,aD	
 	aA = 1.0D0*yA*(((x-xB)*(x-xC)*(x-xD))/((xA-xB)*(xA-xC)*(xA-xD)))
 	aB = 1.0D0*yB*(((x-xA)*(x-xC)*(x-xD))/((xB-xA)*(xB-xC)*(xB-xD)))
 	aC = 1.0D0*yC*(((x-xA)*(x-xB)*(x-xD))/((xC-xA)*(xC-xB)*(xC-xD)))
-	aD = 1.0D0*yD*(((x-xA)*(x-xB)*(x-xC))/((xD-xA)*(xD-xB)*(xD-xC)))
-		
+	aD = 1.0D0*yD*(((x-xA)*(x-xB)*(x-xC))/((xD-xA)*(xD-xB)*(xD-xC)))		
 	y = 1.0D0*(aA+aB+aC+aD)
   End Function CubicInterpolationCalc
   
@@ -767,8 +805,7 @@ Contains
     dy = 0.0D0
   	Do n=0,order
 	  dy=dy+inputPointsInterp(n+1,2)*coefficients(n)
-	End Do
-	
+	End Do	
   End Function PointInterpolation  
   
   
@@ -777,7 +814,7 @@ Contains
   
   
   Function PointInterpolationArr(inputPoints,x,subsetSizeIn,inputSetStartIn,&
-    inputSetLengthIn,interpTypeIn) RESULT (yArray) 
+    inputSetLengthIn,interpTypeIn,verboseIn) RESULT (yArray) 
 !Lagrange Formula Point Interpolation, returns y
 !force declaration of all variables
 	Implicit None
@@ -797,6 +834,7 @@ Contains
 	Integer(kind=StandardInteger), optional :: inputSetStartIn
 	Integer(kind=StandardInteger), optional :: inputSetLengthIn
 	Integer(kind=StandardInteger), optional :: interpTypeIn
+	Integer(kind=StandardInteger), optional :: verboseIn
 !Sort vars
 	Integer(kind=StandardInteger) :: orderData
 	Real(kind=DoubleReal) :: sortXA, sortXB, sortYA, sortYB
@@ -822,6 +860,9 @@ Contains
 	  inputSetEnd = dataSize
 	End If	
 	verbose = 0
+	If(Present(verboseIn))Then
+	  verbose = verboseIn
+	End If
 !Order data - don't do by default as it takes time
     If(verbose.eq.1)Then
       print *,"Interp start"
@@ -1135,10 +1176,6 @@ Contains
     coefficients = PolyFit(inputPoints,order)
 !Get derivative
     coefficientsDerivative = PolynomialCoefficientDerivative(coefficients)
-	!print *,coefficients(0),coefficients(1),&
-	!coefficients(2),coefficients(3),coefficients(4),coefficients(5)
-	!print *,coefficientsDerivative(0),coefficientsDerivative(1),&
-	!coefficientsDerivative(2),coefficientsDerivative(3),coefficientsDerivative(4)
 !Solve for f'(x) = 0
     Do i=1,size(inputPoints,1)
 	  If(i.eq.1)Then
@@ -1155,8 +1192,6 @@ Contains
     End Do
 	boundDifference = 1.0D0*upperBound - 1.0D0*lowerBound
 	boundMean = 0.5D0 * boundDifference + 1.0D0*lowerBound
-	!lowerBound = 1.0D0*boundMean - 2.0D0*boundDifference
-	!upperBound = 1.0D0*boundMean + 2.0D0*boundDifference
 	minimumValue=SolvePolynomial(coefficientsDerivative,lowerBound,upperBound)
 	coefficients2ndDerivative = PolynomialCoefficientDerivative(coefficientsDerivative)
 	secondDerivative = 0.0D0
@@ -1315,8 +1350,7 @@ Contains
 !sorting
     Integer(kind=StandardInteger) :: sortingExpon
     Real(kind=DoubleReal), Dimension( : ), Allocatable :: sortingValues	
-	Logical :: sorting
-	
+	Logical :: sorting	
 !Allocate arrays
     Allocate(coefficients(0:5))
     Allocate(multCoefficients(1:2,1:6))
@@ -1407,6 +1441,101 @@ Contains
   End Function SplineTwoPoints
 
 
+  
+  Function SplineAB(points) RESULT (coefficients) 
+! *5th order only*
+! Spline between two points with 5th order polynomial
+! points 1-8 xa, ya, dya, ddya, xb, yb, dyb, ddyb
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Integer(kind=StandardInteger) :: i,j,k
+	Integer(kind=StandardInteger) :: expon, row, column
+	Integer(kind=StandardInteger) :: point, pointA, pointB
+	Real(kind=DoubleReal) :: x
+	Real(kind=DoubleReal), Dimension(1:8) :: points
+	Real(kind=DoubleReal), Dimension(0:5) :: coefficients
+	Real(kind=DoubleReal), Dimension(1:6,1:6) :: xMatrix, xMatrixInverse
+	Real(kind=DoubleReal), Dimension(1:6) :: yMatrix, cMatrix
+!sorting
+    Integer(kind=StandardInteger) :: sortingExpon
+    Real(kind=DoubleReal), Dimension(1:6) :: sortingValues	
+	Logical :: sorting	
+!Make xMatrix
+!Row 1
+	x = points(1)
+	Do i=1,6
+	  xMatrix(1,i) = 1.0D0*x**(i-1)
+	End Do
+!Row 2
+	x = points(5)
+	Do i=1,6
+	  xMatrix(2,i) = 1.0D0*x**(i-1)
+	End Do
+!Row 3
+	x = points(1)
+	xMatrix(3,1) = 0.0D0
+	Do i=2,6
+	  xMatrix(3,i) = 1.0D0*(i-1)*x**(i-2)
+	End Do
+!Row 4
+	x = points(5)
+	xMatrix(4,1) = 0.0D0
+	Do i=2,6
+	  xMatrix(4,i) = 1.0D0*(i-1)*x**(i-2)
+	End Do
+!Row 5
+	x = points(1)
+	xMatrix(5,1) = 0.0D0
+	xMatrix(5,2) = 0.0D0
+	Do i=3,6
+	  xMatrix(5,i) = 1.0D0*(i-2)*(i-1)*x**(i-3)
+	End Do
+!Row 6
+	x = points(5)
+	xMatrix(6,1) = 0.0D0
+	xMatrix(6,2) = 0.0D0
+	Do i=3,6
+	  xMatrix(6,i) = 1.0D0*(i-2)*(i-1)*x**(i-3)
+	End Do
+!Make yMatrix
+    yMatrix(1) = points(2)
+    yMatrix(2) = points(6)
+    yMatrix(3) = points(3)
+    yMatrix(4) = points(7)
+    yMatrix(5) = points(4)
+    yMatrix(6) = points(8)
+!order the rows	
+	Do i=1,6
+	  sortingValues(i) = 0
+	  Do j=1,6
+	    sortingExpon= 7-j
+		If(xMatrix(i,j).ne.0)Then
+	      sortingValues(i) = sortingValues(i) + 2**sortingExpon
+		End If
+	  End Do 
+	End Do  
+	sorting = .true.
+	Do While(sorting.eqv..true.)
+	  sorting = .false.
+	  Do i=1,5
+	    If(sortingValues(i).lt.sortingValues(i+1))Then
+	      sorting = .true.
+		  Call swapMatrixRows1DA(sortingValues,i,i+1,size(sortingValues,1))
+		  Call swapMatrixRows2DA(xMatrix,i,i+1,size(xMatrix,1),size(xMatrix,2))
+		  Call swapMatrixRows1DA(yMatrix,i,i+1,size(yMatrix,1))
+	    End If
+	  End Do	
+	End Do
+!Solve equation XC=Y
+    xMatrixInverse = InvertSquareMatrixA(xMatrix,6)
+	cMatrix = matmul(xMatrixInverse,yMatrix)
+!Copy to coefficients matrix
+    Do i=0,5	
+	  coefficients(i) = cMatrix(i+1)
+	End Do
+  End Function SplineAB
+  
   
    
   Function MatrixInterpolation(inputPoints,x) RESULT (yArray)  
@@ -1578,7 +1707,94 @@ Contains
 	endif
   End Function InvertSquareMatrix  
   
-    
+    Function InvertSquareMatrixA(xMatrix,matrixSize) RESULT (xMatrixInverse) 
+!Invert square matrix, non allocated arrays	
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Integer(kind=StandardInteger) :: i,j,k,row,col,rowb
+	Integer(kind=StandardInteger) :: matrixSize
+	Real(kind=DoubleReal) :: xA, xB
+	Real(kind=DoubleReal), Dimension(1:matrixSize,1:matrixSize) :: xMatrix
+	Real(kind=DoubleReal), Dimension(1:matrixSize,1:2*matrixSize) :: xMatrixWorking
+	Real(kind=DoubleReal), Dimension(1:matrixSize,1:matrixSize) :: xMatrixInverse
+	Real(kind=DoubleReal), Dimension(1:2*matrixSize) :: xMatrixRow
+!if a square matrix
+	if(size(xMatrix,1).eq.size(xMatrix,2))then
+!Initialise arrays	
+      xMatrixWorking = 0.0D0
+      xMatrixInverse = 0.0D0  
+      xMatrixRow = 0.0D0  
+!Fill working array
+	  do row=1,matrixSize
+	    do col=1,matrixSize
+	      xMatrixWorking(row,col) = 1.0D0*xMatrix(row,col)
+	    enddo
+	  enddo
+      do row=1,matrixSize
+	    do col=1,matrixSize
+		  if(row.eq.col)then
+	        xMatrixWorking(row,col+matrixSize) = 1.0D0
+		  endif
+	    enddo
+	  enddo	
+!make lower triangle of zeros	  
+	  Do row=1,matrixSize-1
+	    Do rowb=row+1,matrixSize	 
+		  If(xMatrixWorking(rowb,row).ne.0.0D0)Then !Only do if necessary
+		    Do col=1,(2*matrixSize) !loop over all columns
+		      xMatrixRow(col) = 1.0D0*&
+		      ((1.0D0*xMatrixWorking(row,row))/(1.0D0*xMatrixWorking(rowb,row)))*&
+			  xMatrixWorking(rowb,col)-1.0D0*xMatrixWorking(row,col)
+		    End Do
+!replace row values
+		    do col=1,(2*matrixSize) !loop over all columns
+		      xMatrixWorking(rowb,col) = 1.0D0 * xMatrixRow(col)
+		    End Do
+	      End If
+		End Do
+!force zeros in the lower triangle
+        Do rowb=row+1,matrixSize
+	      xMatrixWorking(rowb,row) = 0.0D0
+	    End Do
+	  End Do
+!re-force zeros in the lower triangle
+      Do row=1,matrixSize
+	    Do col=1,matrixSize
+		  if(row.gt.col)then
+		    xMatrixWorking(row,col) = 0.0D0
+		  endif
+		End Do
+	  End Do	
+!make upper triangle of zeros	
+	  do row=matrixSize,2,-1
+	    do rowb=row-1,1,-1	  
+		  If(xMatrixWorking(rowb,row).ne.0.0D0)Then !Only do if necessary
+		    Do col=1,(2*matrixSize) !loop over all columns
+		      xMatrixRow(col) = 1.0D0*&
+		      ((1.0D0*xMatrixWorking(row,row))/(1.0D0*xMatrixWorking(rowb,row)))*&
+			  xMatrixWorking(rowb,col)-1.0D0*xMatrixWorking(row,col)
+		    End Do
+!replace row values
+		    Do col=1,(2*matrixSize) !loop over all columns
+		      xMatrixWorking(rowb,col) = 1.0D0 * xMatrixRow(col)
+		    End Do
+		  End If	
+	    End Do
+!force zeros in the upper triangle
+        do rowb=row-1,1,-1
+	      xMatrixWorking(rowb,row) = 0.0D0
+	    enddo
+	  enddo
+!Divide rhs by diagonal on lhs and store in inverse
+	  do row=1,matrixSize
+	    do col=1,matrixSize
+		  xMatrixInverse(row,col) = 1.0D0*&
+		  xMatrixWorking(row,col+matrixSize)/xMatrixWorking(row,row)
+		enddo
+	  enddo
+	endif
+  End Function InvertSquareMatrixA  
     
   Function InvertSquareMatrixOld(xMatrixInput) RESULT (xMatrixInverse)  
 !force declaration of all variables
@@ -1859,6 +2075,41 @@ Contains
   
   End Function Jacobian
   
+  
+!------------------------------------------------------------------------!
+! Vector Functions
+!------------------------------------------------------------------------!   
+
+  Function CrossProduct(VectorA, VectorB) RESULT (VectorC)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Real(kind=DoubleReal), Dimension(1:3) :: VectorA, VectorB, VectorC
+!Calculate cross product
+    VectorC(1) = VectorA(2)*VectorB(3)-VectorA(3)*VectorB(2)
+    VectorC(2) = VectorA(3)*VectorB(1)-VectorA(1)*VectorB(3)
+    VectorC(3) = VectorA(1)*VectorB(2)-VectorA(2)*VectorB(1)
+  End Function CrossProduct  
+  
+  Function DotProduct(VectorA, VectorB) RESULT (DotProductResult)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Real(kind=DoubleReal), Dimension(1:3) :: VectorA, VectorB
+	Real(kind=DoubleReal) :: DotProductResult
+!Calculate cross product
+    DotProductResult = VectorA(1)*VectorB(1)+VectorA(2)*VectorB(2)+VectorA(3)*VectorB(3)
+  End Function DotProduct  
+    
+  Function TripleProduct(VectorA, VectorB, VectorC) RESULT (TripleProductResult)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Real(kind=DoubleReal), Dimension(1:3) :: VectorA, VectorB, VectorC
+	Real(kind=DoubleReal) :: TripleProductResult
+!Calculate cross product
+    TripleProductResult = DotProduct(VectorA,CrossProduct(VectorB,VectorC))
+  End Function TripleProduct  
   
   
 !------------------------------------------------------------------------!
@@ -2715,6 +2966,88 @@ Contains
   End Function Ceil 
   
   
+    
+  
+!------------------------------------------------------------------------!
+! Physics type functions
+!------------------------------------------------------------------------! 
+  
+  
+  Function Zbl (x, qA, qB) RESULT (y)
+!force declaration of all variables
+	Implicit None
+!declare variables
+    Integer(kind=StandardInteger) :: qA, qB
+	Real(kind=DoubleReal) :: xVal, x, y, xa, xs, exa
+!Force none infinite result for 0
+    If(x.eq.0.0D0)Then
+	  xVal = 0.001D0
+	Else 
+	  xVal = x
+	End If
+!Calculate y
+	xs = 0.4683766 * (qA**(2.0D0/3.0D0)+qB**(2.0D0/3.0D0))**0.5
+	xa = 1.0D0*xVal/xs
+	exa = 0.1818D0*exp(-3.2D0*xa)+0.5099D0*exp(-0.9423D0*xa)+&
+	      0.2802D0*exp(-0.4029*xa)+0.02817*exp(-0.2016D0*xa)
+	y = ((1.0D0*qA*qB)/xVal)*exa	
+  End Function Zbl 
+  
+  Function ZblFull (x, qA, qB) RESULT (yArray)
+!force declaration of all variables
+	Implicit None
+!declare variables
+    Integer(kind=StandardInteger) :: qA, qB
+	Real(kind=DoubleReal) :: xVal, x, y, dy, ddy, xa, xs, exa
+	Real(kind=DoubleReal) :: termFa, termFb, termFc, termGa, termGb, termGc
+	Real(kind=DoubleReal), Dimension(1:3) :: yArray
+!Force none infinite result for 0
+    If(x.eq.0.0D0)Then
+	  xVal = 0.001D0
+	Else 
+	  xVal = x
+	End If
+	xs = 0.4683766 * (qA**(2.0D0/3.0D0)+qB**(2.0D0/3.0D0))**0.5
+!Calculate y
+	termFa = (1.0D0*qA*qB)*(xVal)**(-1.0D0)					                !f(x)
+	termGa =   0.1818D0*exp((-3.2D0/xs)*xVal)+&			                    !g(x)
+	           0.5099D0*exp((-0.9423D0/xs)*xVal)+&
+	           0.2802D0*exp((-0.4029D0/xs)*xVal)+&
+			   0.02817*exp((-0.2016D0/xs)*xVal)
+	y = termFa * termGa
+	yArray(1) = y
+!Calculate dy
+	termFa = (1.0D0*qA*qB)*(xVal)**(-1.0D0)					                !f(x)					
+	termFb = (1.0D0*qA*qB)*(xVal)**(-2.0D0)*(-1.0D0)                        !f'(x)
+	termGa =   0.1818D0*exp((-3.2D0/xs)*xVal)+&                             !g(x)
+	           0.5099D0*exp((-0.9423D0/xs)*xVal)+&
+	           0.2802D0*exp((-0.4029D0/xs)*xVal)+&
+			   0.02817*exp((-0.2016D0/xs)*xVal)
+	termGb =   (-3.2D0/xs)*0.1818D0*exp((-3.2D0/xs)*xVal)+&                 !g'(x)
+	           (-0.9423D0/xs)*0.5099D0*exp((-0.9423D0/xs)*xVal)+&
+	           (-0.4029D0/xs)*0.2802D0*exp((-0.4029D0/xs)*xVal)+&
+			   (-0.2016D0/xs)*0.02817*exp((-0.2016D0/xs)*xVal)
+    dy = termFa*termGb+termFb*termGa
+	yArray(2) = dy
+!Calculate ddy
+    termFa = (1.0D0*qA*qB)*(xVal)**(-1.0D0)					                !f(x)					
+	termFb = (1.0D0*qA*qB)*(xVal)**(-2.0D0)*(-1.0D0)                        !f'(x)			
+	termFc = (1.0D0*qA*qB)*(xVal)**(-3.0D0)*(-1.0D0)*(-2.0D0)               !f''(x)
+	termGa =   0.1818D0*exp((-3.2D0/xs)*xVal)+&                             !g(x)
+	           0.5099D0*exp((-0.9423D0/xs)*xVal)+&
+	           0.2802D0*exp((-0.4029D0/xs)*xVal)+&
+			   0.02817*exp((-0.2016D0/xs)*xVal)
+	termGb =   (-3.2D0/xs)*0.1818D0*exp((-3.2D0/xs)*xVal)+&                 !g'(x)
+	           (-0.9423D0/xs)*0.5099D0*exp((-0.9423D0/xs)*xVal)+&
+	           (-0.4029D0/xs)*0.2802D0*exp((-0.4029D0/xs)*xVal)+&
+			   (-0.2016D0/xs)*0.02817*exp((-0.2016D0/xs)*xVal)
+	termGc =   (-3.2D0/xs)**2*0.1818D0*exp((-3.2D0/xs)*xVal)+&                 !g''(x)
+	           (-0.9423D0/xs)**2*0.5099D0*exp((-0.9423D0/xs)*xVal)+&
+	           (-0.4029D0/xs)**2*0.2802D0*exp((-0.4029D0/xs)*xVal)+&
+			   (-0.2016D0/xs)**2*0.02817*exp((-0.2016D0/xs)*xVal)
+    ddy = termFa*termGc+2*termFb*termGb+termFc*termGa
+	yArray(3) = ddy			   
+  End Function ZblFull 
   
   
 !------------------------------------------------------------------------!
@@ -2777,6 +3110,18 @@ Contains
   
   
   
+  Function IntegerArray (totalIntegers) &
+    RESULT (outputArray)
+!force declaration of all variables
+	Implicit None
+!declare variables
+    Integer(kind=StandardInteger) :: i, totalIntegers
+	Integer(kind=StandardInteger), Dimension(1:totalIntegers) :: outputArray
+!Store numbers
+    Do i=1,totalIntegers
+      outputArray(i) = i
+    End Do
+  End Function IntegerArray 
   
   
   
@@ -2897,6 +3242,58 @@ Contains
 	  End Do
     End If
   End Subroutine swapMatrixRows2D
+  
+  
+  
+!Non allocatable arrays
+  Subroutine swapMatrixRows1DA(matrix,rowA,rowB,arraySizeH) 
+!Swap rows of square dp matrix
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i, rowA, rowB, matH, matW, arraySizeH
+	Real(kind=DoubleReal), Dimension(1:arraySizeH) :: matrix
+    Real(kind=DoubleReal), Dimension(1:1) :: rowAArr
+    Real(kind=DoubleReal), Dimension(1:1) :: rowBArr
+!Set variables
+	matH = arraySizeH
+	matW = 1
+!Only do if rows are in the matrix
+    If(rowA.ge.1.and.rowA.le.matH.and.rowB.ge.1.and.rowB.le.matH)Then
+!Swap rows
+	  Do i=1,matW
+	    rowAArr(i) = matrix(rowA)
+	    rowBArr(i) = matrix(rowB)
+	  End Do
+	  Do i=1,matW
+	    matrix(rowA) = rowBArr(i)
+	    matrix(rowB) = rowAArr(i)
+	  End Do
+    End If
+  End Subroutine swapMatrixRows1DA 
+  
+  Subroutine swapMatrixRows2DA(matrix,rowA,rowB,matH,matW) 
+!Swap rows of square dp matrix
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i, rowA, rowB, matH, matW
+	Real(kind=DoubleReal), Dimension(1:matH,1:matW) :: matrix
+    Real(kind=DoubleReal), Dimension(1:matW) :: rowAArr
+    Real(kind=DoubleReal), Dimension(1:matW) :: rowBArr
+!Only do if rows are in the matrix
+    If(rowA.ge.1.and.rowA.le.matH.and.rowB.ge.1.and.rowB.le.matH)Then
+!Swap rows
+	  Do i=1,matW
+	    rowAArr(i) = matrix(rowA,i)
+	    rowBArr(i) = matrix(rowB,i)
+	  End Do
+	  Do i=1,matW
+	    matrix(rowA,i) = rowBArr(i)
+	    matrix(rowB,i) = rowAArr(i)
+	  End Do
+    End If
+  End Subroutine swapMatrixRows2DA
   
   
   

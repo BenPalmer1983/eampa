@@ -1,5 +1,14 @@
+!---------------------- Verbose options
+#print
+yes
+!---------------------- Run type
+#runtype
+opti
+!---------------------- Potential details
 #potential
-"optimised.pot"
+"examples/optimum.pot"
+#zblcore pair core from 0.0 to 0.5, spline 0.5 to 1.0, dens to 1.0 from 0.5 embedding spline 0.2
+0.5 0.8 1.0 0.5 0.0 0.05
 #configurations
 "examples/atomsAl.conf"
 #datadir
@@ -10,8 +19,6 @@ no
 no
 #savepot
 yes
-#runtype
-opt
 #weighting energy stress forces
 1000 20 1
 #unitvector
@@ -19,15 +26,21 @@ opt
 0.0 1.0 0.0
 0.0 0.0 1.0
 #eaminterp
-FOURPOINT
+THREEPOINT
 #eamreducedpoints 
 50 50 30
 #saCycles Tstart Tend Tincs
-4 4 0 2
+30 2 0 2
+#saTemp  Temperature  Spread amount
+40.0D0 0.01D0
 #calcforces
 yes
 #calcstress
 yes
+#calcAllBM
+No
+#calcAllEC
+No
 #dftin-rc
 6.5
 #dftin-replacesym

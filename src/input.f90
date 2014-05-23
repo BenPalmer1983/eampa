@@ -48,7 +48,7 @@ Module input
   Real(kind=SingleReal) :: dftInOptEnergy
   Real(kind=SingleReal) :: dftInCohEnergy
   Character(len=255), Dimension( : ), Allocatable :: pwscfFilesList
-  Integer(kind=StandardInteger) :: saCycles
+  Integer(kind=StandardInteger) :: saCycles, saTStart, saTEnd, saTIncs
 !Isotope/Element Arrays
   Character(len=2), Dimension( : ), Allocatable :: isotopesChar
   Integer, Dimension( : , : ), Allocatable :: isotopesInt
@@ -107,7 +107,9 @@ Module input
   Public :: eamTrialPointsV, eamTrialPointsP, eamTrialPointsF
   Public :: eamEnergyOptWeight, eamStressOptWeight, eamForceOptWeight
   !User input variables
-  Public :: saCycles
+  Public :: saCycles, saTStart, saTEnd, saTIncs
+  Public :: readEamPot
+  Public :: reReadEamPot
   
   
   
@@ -349,9 +351,9 @@ contains
 	    dftInReplaceSym(i,j) = "   "
 	  End Do
 	End Do
-	eamReducedPointsV = 40
-	eamReducedPointsP = 40
-	eamReducedPointsF = 40
+	eamReducedPointsV = 50
+	eamReducedPointsP = 50
+	eamReducedPointsF = 25
 	eamTrialPointsV = 1001
 	eamTrialPointsP = 1001
 	eamTrialPointsF = 1001
@@ -359,6 +361,9 @@ contains
 	eamStressOptWeight = 10
 	eamForceOptWeight = 1
 	saCycles = 50
+	saTStart = 3 
+	saTEnd = 1 
+	saTIncs = 3
 	Do i=1,1000
 	  pwscfFiles(i) = "__empty__"
 	End Do
@@ -432,6 +437,15 @@ contains
 		if(buffera(1:3).eq."OPT")then		!OPTIMISE
 		  calcRunType = 6
 		endif
+		if(buffera(1:3).eq."ETR")then		!EVALUATE TRIAL
+		  calcRunType = 7
+		endif
+		if(buffera(1:3).eq."ESP")then		!EVALUATE SPLINE
+		  calcRunType = 8
+		endif
+		if(buffera(1:3).eq."TES".or.buffera(1:3).eq."TST")then		!Test
+		  calcRunType = 99
+		endif
 	  endif
 	  
 !Unit vector components
@@ -503,8 +517,11 @@ contains
 !#saCycles	  simulated annealing cycles	  
 	  If(buffera(1:9).eq."#saCycles")Then
 	  	!read next line
-	    Read(1,*,IOSTAT=ios) buffera
+	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd
 		Read(buffera,*) saCycles
+		Read(bufferb,*) saTStart
+		Read(bufferc,*) saTEnd
+		Read(bufferd,*) saTIncs		
       End If
 
 		
@@ -916,13 +933,26 @@ contains
 	  outputFile = trim(currentWorkingDirectory)//"/"//"output.pot"
 	  open(unit=21,file=trim(outputFile))
 	endif
-	
 !write to output file
     If(mpiProcessID.eq.0)Then
 	  write(999,"(F8.4,A2,A27,A60)") ProgramTime(),"  ",&
 	  "Reading EAM potential from ",potentialFilePathTemp
 	  !"Reading EAM potential from ",potentialFilePath
 	endif	
+!Deallocate already allocated arrays
+    If(Allocated(elements))Then
+	  Deallocate(elements)
+	End If
+    If(Allocated(elementsTemp))Then
+	  Deallocate(elementsTemp)
+	End If
+    If(Allocated(eamKey))Then
+	  Deallocate(eamKey)
+	End If
+    If(Allocated(eamData))Then
+	  Deallocate(eamData)
+	End If
+	
 !Set EAM type
     eamType = 1		!1 = default type/standard   2 = 2BMEAM	
 !allocate elements array
@@ -1242,6 +1272,314 @@ Open(UNIT=1,FILE=potentialFilePathTemp)
 	
 	
 	
+	
+!re-read eam potential file, assume element list is the same 
+  Subroutine reReadEamPot(inputEamFile)	
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
+	Integer(kind=StandardInteger) :: ios, i, j, k, functionResult, fileRows
+	Integer(kind=StandardInteger) :: potentialCounter, elementCounter, dataCounter
+	Integer(kind=StandardInteger) :: atomA, atomB, potType, atomMax, atomMin
+	Integer(kind=StandardInteger) :: potKey
+	Integer(kind=StandardInteger) :: potDataStart, potDataLength
+	Character(len=2), Dimension( : ), Allocatable :: elementsTemp 
+	Character(len=4) :: potTypeText
+	Character(len=32) :: buffera, bufferb, bufferc, bufferd
+	Character(len=255) :: bufferLongA
+	Character(len=255) :: fileRowData
+	Character(*) :: inputEamFile
+
+!Deallocate already allocated arrays
+    If(Allocated(elements))Then
+	  Deallocate(elements)
+	End If
+    If(Allocated(elementsTemp))Then
+	  Deallocate(elementsTemp)
+	End If
+    If(Allocated(eamKey))Then
+	  Deallocate(eamKey)
+	End If
+    If(Allocated(eamData))Then
+	  Deallocate(eamData)
+	End If
+	
+	
+!Set EAM type
+    eamType = 1		!1 = default type/standard   2 = 2BMEAM	
+!allocate elements array
+    Allocate(elements(1:300))
+    Allocate(elementsTemp(1:300))
+!"blank" elements array
+	do i=1,size(elements)
+	  elements(i) = "ZZ"
+	enddo	
+!Count file rows
+	fileRows = 0
+  	Open(UNIT=1,FILE=trim(inputEamFile)) 
+    do i=1,maxFileRows 
+!count file rows
+	  fileRows = fileRows + 1
+!Read in line
+	  Read(1,*,IOSTAT=ios) buffera
+!break out if end of file
+	  if (ios /= 0) then
+	    EXIT 
+	  end if
+	enddo
+!close file	
+	CLOSE(1)  		
+!Read eam pot file and store unique elements
+	potentialCounter = 0
+  	Open(UNIT=1,FILE=trim(inputEamFile)) 
+    do i=1,fileRows 
+!Read in line
+	  Read(1,*,IOSTAT=ios) buffera
+!break out if end of file
+	  if (ios /= 0) then
+	    EXIT 
+	  end if
+!skip blank or commented line      
+	  if(buffera(1:1).eq." ".or.buffera(1:1).eq."#".or.buffera(1:1).eq."!")then
+!skip
+	  else 
+!check if PAIR DENS or EMBE
+        if(StrToUpper(buffera(1:4)).eq."PAIR")then
+	      BACKSPACE(1)
+		  Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc
+		  potentialCounter = potentialCounter + 1
+		  functionResult = AddUniqueElement(bufferb(1:2))
+		  functionResult = AddUniqueElement(bufferc(1:2))
+	    elseif(&
+	    StrToUpper(buffera(1:4)).eq."DENS".or.StrToUpper(buffera(1:4)).eq."EMBE"&
+	    .or.StrToUpper(buffera(1:4)).eq."EMBS"&
+	    .or.StrToUpper(buffera(1:4)).eq."DEND".or.StrToUpper(buffera(1:4)).eq."EMBD"&
+	    )then	  
+!adjust potential type 
+	      if(&
+	        StrToUpper(buffera(1:4)).eq."DEND".or.StrToUpper(buffera(1:4)).eq."EMBD"&
+		    .or.StrToUpper(buffera(1:4)).eq."EMBS"&
+	      )then	
+		    eamType = 2	!2BMEAM
+		  endif
+!re-read line, count potential and add element if unique
+	      BACKSPACE(1)
+		  Read(1,*,IOSTAT=ios) buffera, bufferb
+		  potentialCounter = potentialCounter + 1
+		  functionResult = AddUniqueElement(bufferb(1:2))
+	    endif
+	  endif
+	enddo
+!close file	
+	CLOSE(1)   	  
+!adjust elements array
+    elementCounter = 0
+	do i=1,size(elements)
+	  if(elements(i).eq."ZZ")then
+	    exit
+	  else 	  
+	    elementCounter = elementCounter + 1
+		elementsTemp(i) = elements(i)
+	  endif
+	enddo
+	Deallocate(elements)
+	Allocate(elements(1:elementCounter))
+	do i=1,elementCounter
+	  elements(i) = elementsTemp(i)
+	enddo
+	Deallocate(elementsTemp)
+	elementCount = elementCounter	
+!store/output elements	
+    If(mpiProcessID.eq.0)Then
+      write(999,"(A16,F8.4)") "Program time:   ",ProgramTime()
+	  Do i=1,size(elements)
+	    write(999,"(A8,I4,A2,A2)") "Element ",i,": ",elements(i)
+	  End Do
+	End If			
+!count data points
+	dataCounter = 0	
+Open(UNIT=1,FILE=trim(inputEamFile)) 
+    do i=1,fileRows 
+!Read in line
+	  Read(1,'(A64)',IOSTAT=ios) fileRowData
+!break out if end of file
+	  if (ios /= 0) then
+	    EXIT 
+	  endif
+!skip blank or commented line   
+	  if(fileRowData(1:8).ne."        ".and.fileRowData(1:1).ne."#".and.fileRowData(1:1).ne."!")then
+!check if PAIR DENS or EMBE - store pot data start/length	
+		read(fileRowData,*) potTypeText 
+		potTypeText = trim(potTypeText)
+	    if(StrToUpper(potTypeText(1:4)).eq."PAIR".or.&
+	    StrToUpper(potTypeText(1:4)).eq."DENS".or.&
+	    StrToUpper(potTypeText(1:4)).eq."SDEN".or.&
+	    StrToUpper(potTypeText(1:4)).eq."DDEN".or.&
+	    StrToUpper(potTypeText(1:4)).eq."EMBE".or.&
+	    StrToUpper(potTypeText(1:4)).eq."SEMB".or.&
+	    StrToUpper(potTypeText(1:4)).eq."DEMB")then
+!potential header line          
+		else		
+	      dataCounter = dataCounter + 1
+		endif
+      endif
+	enddo
+	CLOSE(1) 
+!potential counts
+    if(eamType.eq.1)then
+	  numberPotentials = (elementCounter * ( elementCounter + 5)) / 2
+	  pairCount = (elementCounter * ( elementCounter + 1)) / 2
+	  densCount = elementCounter
+	  embeCount = elementCounter
+	elseif(eamType.eq.2)then
+	  if(elementCounter.eq.1)then
+	    numberPotentials = 1 + (elementCounter * ( elementCounter + 7)) / 2
+		pairCount = (elementCounter * ( elementCounter + 1)) / 2
+	    densCount = 1
+		dendCount = elementCounter
+	    embeCount = elementCounter
+	    embdCount = elementCounter
+	  else
+	    numberPotentials = (elementCounter * ( elementCounter + 3))
+		pairCount = (elementCounter * ( elementCounter + 1)) / 2
+	    densCount = (elementCounter * ( elementCounter - 1)) / 2
+		dendCount = elementCounter
+	    embeCount = elementCounter
+	    embdCount = elementCounter
+	  endif
+	endif	
+!store/output potential count etc
+
+!Allocate eam keys/data
+    Allocate(eamKey(1:numberPotentials,1:5))	
+    Allocate(eamData(1:dataCounter,1:3))
+!Initialise data array
+    Do i=1,size(eamData,1)
+      Do j=1,size(eamData,2)
+	    eamData(i,j) = 0.0D0
+	  End Do
+	End Do
+	potentialCounter = 0
+	eamType = 1
+	dataCounter = 0
+	potDataStart = 1
+	potDataLength = 0
+	Open(UNIT=1,FILE=trim(inputEamFile)) 
+    do i=1,fileRows 
+!Read in line
+	  Read(1,'(A64)',IOSTAT=ios) fileRowData
+!break out if end of file
+	  if (ios /= 0) then
+	    EXIT 
+	  endif
+!skip blank or commented line   
+	  If(fileRowData(1:8).ne."        ".and.fileRowData(1:1)&
+	    .ne."#".and.fileRowData(1:1).ne."!")Then
+!check if PAIR DENS or EMBE - store pot data start/length	
+		read(fileRowData,*) potTypeText 
+		potTypeText = trim(potTypeText)
+	    if(StrToUpper(potTypeText(1:4)).eq."PAIR".or.&
+	    StrToUpper(potTypeText(1:4)).eq."DENS".or.&
+	    StrToUpper(potTypeText(1:4)).eq."SDEN".or.&
+	    StrToUpper(potTypeText(1:4)).eq."DDEN".or.&
+	    StrToUpper(potTypeText(1:4)).eq."EMBE".or.&
+	    StrToUpper(potTypeText(1:4)).eq."SEMB".or.&
+	    StrToUpper(potTypeText(1:4)).eq."DEMB")then
+!read potential header line
+          potentialCounter = potentialCounter + 1
+	      if(StrToUpper(potTypeText(1:4)).eq."PAIR".or.&
+	      StrToUpper(potTypeText(1:4)).eq."SDEN")then
+		    Read(fileRowData,*) buffera, bufferb, bufferc
+		  else
+		    Read(fileRowData,*) buffera, bufferb
+		  endif		  
+!save start/length details of last potential         
+          if(potentialCounter.gt.1)then
+	        eamKey(potKey,4) = potDataStart
+	        eamKey(potKey,5) = potDataLength
+		  endif
+!get potential key
+          potKey = 0
+		  potType = 0 
+		  if(StrToUpper(potTypeText(1:4)).eq."PAIR")then	
+		    potType = 1	    
+		    atomA = QueryUniqueElement(bufferb(1:2))
+		    atomB = QueryUniqueElement(bufferc(1:2))
+            atomMax = max(atomA,atomB)-1
+            atomMin = min(atomA,atomB)-1
+		    potKey = 1+atomMin+(atomMax*(atomMax+1))/2
+		  endif
+		  if(StrToUpper(potTypeText(1:4)).eq."DENS")then	
+			potType = 2	    
+		    atomA = QueryUniqueElement(bufferb(1:2))
+			atomB = 0
+		    potKey = pairCount + atomA
+		  endif
+		  if(StrToUpper(potTypeText(1:4)).eq."SDEN")then	
+			potType = 2
+            eamType = 2		  
+		    atomA = QueryUniqueElement(bufferb(1:2))
+		    atomB = QueryUniqueElement(bufferc(1:2))
+			if(elementCounter.eq.1)then
+              potKey = pairCount + 1
+            else
+              atomMax = max(atomA,atomB)-1
+              atomMin = min(atomA,atomB)-1
+              potKey = pairCount+1+atomMin+(atomMax*(atomMax-1))/2
+            endif
+		  endif
+		  if(StrToUpper(potTypeText(1:4)).eq."DDEN")then	
+			potType = 4
+            eamType = 2		  
+		    atomA = QueryUniqueElement(bufferb(1:2))
+			atomB = 0
+			potKey = pairCount + densCount + atomA
+		  endif
+		  if(StrToUpper(potTypeText(1:4)).eq."EMBE")then	
+			potType = 3	    
+		    atomA = QueryUniqueElement(bufferb(1:2))
+			atomB = 0
+		    potKey = pairCount + densCount + atomA
+		  endif
+		  if(StrToUpper(potTypeText(1:4)).eq."SEMB")then	
+			potType = 3	    
+            eamType = 2
+		    atomA = QueryUniqueElement(bufferb(1:2))
+			atomB = 0
+		    potKey = pairCount + densCount + dendCount + atomA
+		  endif
+		  if(StrToUpper(potTypeText(1:4)).eq."DEMB")then	
+			potType = 5	    
+            eamType = 2
+		    atomA = QueryUniqueElement(bufferb(1:2))
+			atomB = 0
+		    potKey = pairCount + densCount + dendCount + embdCount + atomA
+		  endif
+!store potential details
+          eamKey(potKey,1) = atomA
+          eamKey(potKey,2) = atomB
+          eamKey(potKey,3) = potType
+!reset start/length details
+		  potDataStart = potDataStart + potDataLength
+		  potDataLength = 0
+		else		
+	      dataCounter = dataCounter + 1
+		  potDataLength = potDataLength + 1
+		  read(fileRowData,*) buffera, bufferb
+		  read(buffera,*) eamData(dataCounter,1)
+		  read(bufferb,*) eamData(dataCounter,2)		  	  
+		endif
+      endif
+	enddo
+!save last start/length entry
+	eamKey(potKey,4) = potDataStart
+	eamKey(potKey,5) = potDataLength
+	CLOSE(1) 	
+	
+	
+  End Subroutine reReadEamPot
+  
 	
 	
   

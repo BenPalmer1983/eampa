@@ -43,6 +43,7 @@ Module maths
   Public :: SetRandomSeedArray !Subroutine
   Public :: VaryPoint
   Public :: VaryPoints
+  Public :: VaryPointRand
 ! Laplace Transforms  
   Public :: GaverStehfestCoeffs
 ! Decay Equations    
@@ -2035,7 +2036,7 @@ Contains
   End Function VaryPoint  
   
   
-  Function VaryPoints(inputArray,T,pointIn) RESULT (outputArray)  
+  Function VaryPoints(inputArray,T,pointIn,gradIn) RESULT (outputArray)  
 !force declaration of all variables
 	Implicit None
 !declare variables  
@@ -2045,13 +2046,18 @@ Contains
 	Real(kind=DoubleReal), Dimension(:,:), Allocatable :: inputArray
 	Real(kind=DoubleReal), Dimension(:,:), Allocatable :: outputArray
 	Integer(kind=StandardInteger), optional :: pointIn
-!Allocate output array	
-	Allocate(outputArray(1:size(inputArray,1),1:2))
+	Real(kind=DoubleReal), Dimension(:,:), Allocatable, optional  :: gradIn
+	Real(kind=DoubleReal), Dimension(:,:), Allocatable :: grad
 !Optional in
     point = 0
     If(present(pointIn))Then
 	  point = pointIn
 	End If
+    If(present(gradIn))Then
+	  grad = gradIn
+	End If
+!Allocate output array	
+	Allocate(outputArray(1:size(inputArray,1),1:2))
 !Loop over points
     Do i=1,size(inputArray,1)	  
 	  If(point.eq.0)Then
@@ -2070,6 +2076,78 @@ Contains
 	  End If
 	End Do
   End Function VaryPoints 
+  
+  
+  Function VaryPointRand(x,T,varMax,randLargeVarMaxIn,randLargeVariationProbIn) RESULT (xV)  
+!force declaration of all variables
+	Implicit None
+!declare variables  
+    Integer(kind=StandardInteger) :: i, distributionDataPoints
+	Integer(kind=StandardInteger) :: factor
+	Real(kind=DoubleReal) :: x,T,xV,varMax
+	Real(kind=DoubleReal) :: distX, distY, distXInterval,yZero, yOne
+	Real(kind=DoubleReal) :: sigma, mu, piNum, normalisationFactor
+	Real(kind=DoubleReal) :: randNumber, variation, largeVariation
+	Real(kind=DoubleReal), Dimension(:,:), Allocatable :: distributionPoints
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Logical :: addVariation
+!Optional variables
+    Real(kind=DoubleReal), optional :: randLargeVarMaxIn
+    Real(kind=DoubleReal) :: randLargeVarMax
+    Real(kind=DoubleReal), optional :: randLargeVariationProbIn
+    Real(kind=DoubleReal) :: randLargeVariationProb
+!Set Variables	
+	If(Present(randLargeVarMaxIn))Then
+	  randLargeVarMax = randLargeVarMaxIn
+	Else
+      randLargeVarMax = 0.0D0	
+	End If
+	If(Present(randLargeVariationProbIn))Then
+	  randLargeVariationProb = randLargeVariationProbIn
+	Else
+      randLargeVariationProb = 0.01D0	
+	End If
+!Temperature start T=0 sigma=0.05, T=1000 sigma=5		20-30 good range
+    sigma = 0.05+4.95D-3*T
+!Make distribution set
+    distributionDataPoints = 21
+	mu = 0.0D0	
+!Allocate distribution data array
+    Allocate(distributionPoints(1:distributionDataPoints,1:2))
+!Set data points	
+	distXInterval = 1.0D0/(distributionDataPoints-1)
+	yZero = 1.0D0
+	yOne = exp(-1*((1.0D0-mu)**2)/(2*sigma**2))
+!Make array
+    distributionPoints(1,1) = 0.0D0
+    distributionPoints(1,2) = 1.0D0
+    distributionPoints(distributionDataPoints,1) = 1.0D0
+    distributionPoints(distributionDataPoints,2) = 0.0D0
+    Do i=2,distributionDataPoints-1
+	  distX = (i-1)*1.0D0*distXInterval
+	  distributionPoints(i,1) = distX
+	  distributionPoints(i,2) = (exp(-1*((distX-mu)**2)/(2*sigma**2))-yOne)/(1-yOne)
+	End Do
+!Generate random variation
+    Call RANDOM_NUMBER(randNumber)
+	yArray = PointInterpolationArr(distributionPoints,randNumber,3)
+	variation = yArray(1)
+!Whether to add or subtract variation
+    Call RANDOM_NUMBER(randNumber)
+	If((1.0D0*randNumber).ge.0.5D0)Then
+	  variation = -1.0D0*variation
+	End If
+	xV= x * (1.0D0 + variation*varMax)
+	If(randLargeVarMax.gt.0.0D0)Then
+	  Call RANDOM_NUMBER(randNumber)
+	  If(randNumber.le.randLargeVariationProb)Then
+	    xV= x * (1.0D0 + variation*randLargeVarMax)	
+	  End If
+	End If   
+  End Function VaryPointRand  
+  
+
+  
 
     
 !------------------------------------------------------------------------!

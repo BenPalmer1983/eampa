@@ -1,7 +1,5 @@
 #potential
-"examples/Al.lammps.eam"
-#pottype
-LAMMPS
+"optimised.pot"
 #configurations
 "examples/atomsAl.conf"
 #datadir
@@ -13,13 +11,19 @@ no
 #savepot
 yes
 #runtype
-energy
+eval
+#weighting energy stress forces
+1000 20 1
 #unitvector
 1.0 0.0 0.0
 0.0 1.0 0.0
 0.0 0.0 1.0
 #eaminterp
-FOURPOINT
+THREEPOINT
+#eamreducedpoints 
+50 50 30
+#saCycles Tstart Tend Tincs
+10 20 0 2
 #calcforces
 yes
 #calcstress
@@ -33,3 +37,14 @@ N Al
 -10112.77814219 Ry 256
 #dftin-cohenergy
 -3.36 eV
+#dft-pwscffiles 
+"examples/pwscf/Al.1101.out"
+"examples/pwscf/Al.1601.out"
+"examples/pwscf/Al.1701.out"
+"examples/pwscf/Al.1808.out"
+"examples/pwscf/Al.1820.out"
+"examples/pwscf/Al.1831.out"
+"examples/pwscf/Al.1839.out"
+"examples/pwscf/Al.1854.out"
+"examples/pwscf/Al.1857.out"
+"examples/pwscf/Al.1862.out"

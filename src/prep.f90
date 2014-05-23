@@ -146,15 +146,21 @@ Module prep
   Public :: applyUnitVectorAction
   Public :: makeTrialEAMSet
   Public :: makeReducedEAMSet
+  Public :: makeReducedEAMSetTrial
+  Public :: makeExpandedEAMSet
   Public :: storeReducedToOpt
   Public :: loadOptToReduced
   Public :: storeReducedToFile
   Public :: storeEAMToFile
+  Public :: printEAM
+  Public :: storeToReduced
   Public :: synchMpiProcesses
   Public :: storeNeighboutList
   Public :: loadNeighboutList
   Public :: applyDistortionVector
   Public :: calcConfigurationVolume
+  Public :: clearEAM,clearOptEAM,clearReducedEAM,clearTrialEAM
+  Public :: splinePotential
   
 !Functions  
   Public :: eamWobbliness
@@ -189,12 +195,11 @@ contains
 	Call makeNeighbourList()
 	!Call applyUnitVector(0)
 	Call orderEamPotentials()
-	Call calcEAMDerivative()
 	If(mpiProcessID.eq.0)Then
 	  Call storeEAM()
     End If
-	Call makeReducedEAMSet()
-	Call makeTrialEAMSet()
+	!Call makeReducedEAMSet()
+	!Call makeTrialEAMSet()
 	Call synchMpiProcesses()
 	Call prepDataStore()
 	If(mpiProcessID.eq.0)Then
@@ -1076,145 +1081,6 @@ contains
   End Subroutine orderEamPotentials
 
   
-    
-  Subroutine calcEAMDerivative()
-!force declaration of all variables
-	Implicit None
-!declare private variables
-	Integer(kind=StandardInteger) :: i,j,k  
-	Integer(kind=StandardInteger) :: eamCount, eamDataCount
-	Integer(kind=StandardInteger) :: eamDataStart, eamDataEnd
-	Integer(kind=StandardInteger) :: interpPointCount, posOffset
-	Real(kind=DoubleReal) :: x, y, dy
-	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: interpPoints
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: interpResults, yArray
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bufferArraySend
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bufferArrayRecv
-	Integer(kind=StandardInteger) :: selectProcess,status,error,tag,processID,processCount
-	Integer(kind=StandardInteger) :: processFrom, processTo
-	Real(kind=DoubleReal) :: testSend, testRecv
-!calculate derivatives for pair, density and embedding functions
-!PAIR 1, DENS/SDEN 2, EMBE/SEMB 3, DDEN 4, DEMB 5
-!call mpi subroutines
-    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
-    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-
-!Set variables
-    interpPointCount = eamInterpType + 1 !set interpolation count
-    eamCount = size(eamKey,1)
-	eamDataCount = size(eamData,1)
-!Allocate mpi buffer array
-	Allocate(bufferArraySend(1:eamDataCount))
-	Allocate(bufferArrayRecv(1:eamDataCount))
-!Initialise arrays
-    Do i=1,eamDataCount
-	  bufferArraySend(i) = 0.0D0
-	  bufferArrayRecv(i) = 0.0D0
-	End Do
-!Assign MPI processes 
-    Do i=1,eamCount
-	  selectProcess = mod(i-1,mpiProcessCount)
-	  If(selectProcess.eq.mpiProcessID)Then
-	    !print *,i,selectProcess,interpPointCount
-!data position start and end points
-        eamDataStart = eamKey(i,4)
-		eamDataEnd = eamKey(i,4)+eamKey(i,5)-1
-!Calculate derivative for function - loop through data points
-        !print *,i,eamDataStart,eamDataEnd
-		Do j=eamDataStart,eamDataEnd
-!Allocate array if not allocated
-          If(Allocated(interpPoints))Then
-		  Else 
-            Allocate(interpPoints(1:interpPointCount,1:2))
-		  End If
-!prepare set of data points used in interp
-		  posOffset = -1*floor(interpPointCount/2.0D0)
-		  If((j+posOffset).lt.eamDataStart)Then
-		    posOffset = 0  
-		  End If
-		  If((j-posOffset).gt.eamDataEnd)Then
-		    posOffset = -1*interpPointCount  
-		  End If
-!set x value		  
-		  x = eamData(j,1)
-!make interp array
-		  Do k=1,interpPointCount
-		    interpPoints(k,1) = eamData(j+posOffset+k,1)
-		    interpPoints(k,2) = eamData(j+posOffset+k,2)
-		  End Do
-!interpolate and get derivative at the point
-          interpResults = PointInterpolationArr(interpPoints,x)
-		  If(mpiProcessID.eq.0)Then
-		    eamData(j,3) = interpResults(2)  !store Master process directly
-		  Else 
-		    bufferArraySend(j) = interpResults(2) !store Worker process into buffer to send
-		  End If	
-		  !print *,selectProcess,j,x,eamData(j,2),interpResults(1),eamData(j,3),bufferArray(j)
-		End Do		
-	  End If
-	End Do  
-!Gather data from MPI worker processes
-    If(mpiProcessID.gt.0) Then
-	  testSend = 1.3D0
-!send buffers from all worker processes
-      processTo = 0
-      Do i=1,(mpiProcessCount-1)
-        If(i.eq.mpiProcessID)Then
-          tag = 1100 + i
-		  !print *,"send from ",mpiProcessID,eamDataCount,tag	
-          Call MPI_send(bufferArraySend,eamDataCount,&
-		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
-		  !Call MPI_send(testSend,1,&
-		  !MPI_double_precision,processTo,tag,MPI_comm_world,error)
-	    End If
-      End Do
-    End If
-	If(mpiProcessID.eq.0) Then
-!read buffers from worker processes
-      Do i=1,(mpiProcessCount-1)
-		processFrom = i		!set processFrom in MPI as a separate var for mpi call only
-        tag = 1100 + i
-	    !print *,"recv by ",mpiProcessID,eamDataCount,tag
-        Call MPI_recv(bufferArrayRecv,eamDataCount,&
-		MPI_double_precision,processFrom,tag,MPI_comm_world,status,error )
-		Do j=1,eamCount
-		  selectProcess = mod(j-1,mpiProcessCount)
-		  !print *,i,selectProcess
-	      If(selectProcess.eq.i)Then
-		    eamDataStart = eamKey(j,4)
-		    eamDataEnd = eamKey(j,4)+eamKey(j,5)-1
-			!print *,"...",j,eamDataStart,eamDataEnd
-		    Do k=eamDataStart,eamDataEnd
-		      eamData(k,3) = bufferArrayRecv(k)
-			End Do  
-	      End If
-	    End Do 
-      End Do
-	End If  
-!Send out data to all processes    
-!store column in buffer - from main process only
-	If(mpiProcessID.eq.0) Then
-	  Do i=1,eamDataCount
-	    bufferArraySend(i) = eamData(i,3)
-	  End Do
-	  Do i=1,(mpiProcessCount-1)
-        tag = 1200 + i	
-		processFrom = i
-        Call MPI_send(bufferArraySend,eamDataCount,MPI_double_precision,processFrom,tag,&
-		MPI_comm_world,error)
-      End Do
-	Else
-!retrieve array
-      tag = 1200 + processID
-	  processTo = 0
-	  Call MPI_recv(bufferArrayRecv,eamDataCount,MPI_double_precision,processTo,tag,&
-      MPI_comm_world,status,error)  
-	  Do i=1,eamDataCount
-	    eamData(i,3) = bufferArrayRecv(i)
-	  End Do
-    End If  
-  End Subroutine calcEAMDerivative
-  
   
   
   
@@ -1270,8 +1136,8 @@ contains
   End Subroutine storeEAM
   
   
-!Order eam potentials
-  Subroutine makeReducedEAMSet()  	
+!Reduced set of points from input eam
+  Subroutine makeReducedEAMSet(eamKeyArrayIn,eamDataArrayIn,eamKeyArrayOut,eamDataArrayOut) 	
 !force declaration of all variables
 	Implicit None
 !declare private variables
@@ -1281,151 +1147,98 @@ contains
 	Real(kind=DoubleReal) :: x, y, dy
 	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
 	Character(len=5)  :: eamTypeText
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArrayIn 
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArrayOut
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArrayIn
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArrayOut
 !Allocate arrays	
 	Allocate(yArray(1:2))
 !Sum number of reduced data points
     totalReducedDataPoints = 0
-    Do potKey=1,size(eamKey,1)
+    Do potKey=1,size(eamKeyArrayIn,1)
 !Get number of points to reduce to
-	  If(eamKey(potKey,3).eq.1)Then     !Pair
+	  If(eamKeyArrayIn(potKey,3).eq.1)Then     !Pair
 	    numberOfPoints = eamReducedPointsV
 	  End If	
-	  If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
+	  If(eamKeyArrayIn(potKey,3).eq.2.or.eamKeyArrayIn(potKey,3).eq.4)Then
 	    numberOfPoints = eamReducedPointsP
 	  End If		
-	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
+	  If(eamKeyArrayIn(potKey,3).eq.3.or.eamKeyArrayIn(potKey,3).eq.5)Then
 	    numberOfPoints = eamReducedPointsF
 	  End If	 
       totalReducedDataPoints = totalReducedDataPoints + numberOfPoints
     End Do	
 !Allocate arrays
-    If(Allocated(eamKeyReduced))Then
-	  Deallocate(eamKeyReduced)
+    If(Allocated(eamKeyArrayOut))Then
+	  Deallocate(eamKeyArrayOut)
 	End If
-    If(Allocated(eamDataReduced))Then
-	  Deallocate(eamDataReduced)
+    If(Allocated(eamDataArrayOut))Then
+	  Deallocate(eamDataArrayOut)
 	End If
-    Allocate(eamKeyReduced(1:size(eamKey,1),1:5))
-    Allocate(eamDataReduced(1:totalReducedDataPoints,1:3))
+    Allocate(eamKeyArrayOut(1:size(eamKeyArrayIn,1),1:5))
+    Allocate(eamDataArrayOut(1:totalReducedDataPoints,1:3))
 !Loop through potential functions
     dataPointCounter = 1
-	Do potKey=1,size(eamKey,1)
+	Do potKey=1,size(eamKeyArrayIn,1)
 !Get number of points to reduce to
-	  If(eamKey(potKey,3).eq.1)Then     !Pair
+	  If(eamKeyArrayIn(potKey,3).eq.1)Then     !Pair
 	    numberOfPoints = eamReducedPointsV
 	  End If	
-	  If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
+	  If(eamKeyArrayIn(potKey,3).eq.2.or.eamKeyArrayIn(potKey,3).eq.4)Then
 	    numberOfPoints = eamReducedPointsP
 	  End If		
-	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
+	  If(eamKeyArrayIn(potKey,3).eq.3.or.eamKeyArrayIn(potKey,3).eq.5)Then
 	    numberOfPoints = eamReducedPointsF
 	  End If
 !make reduces set of data points
-      !eamKeyReduced, eamDataReduced
-	  potStart = eamKey(potKey,4)
-      potLength = eamKey(potKey,5)
+	  potStart = eamKeyArrayIn(potKey,4)
+      potLength = eamKeyArrayIn(potKey,5)
 	  potEnd = potStart + potLength - 1
 !store key details
-      eamKeyReduced(potKey,1) = eamKey(potKey,1) !Atom i
-      eamKeyReduced(potKey,2) = eamKey(potKey,2) !Atom j
-	  eamKeyReduced(potKey,3) = eamKey(potKey,3) !Pot type
-	  eamKeyReduced(potKey,4) = dataPointCounter
-	  eamKeyReduced(potKey,5) = numberOfPoints
+      eamKeyArrayOut(potKey,1) = eamKeyArrayIn(potKey,1) !Atom i
+      eamKeyArrayOut(potKey,2) = eamKeyArrayIn(potKey,2) !Atom j
+	  eamKeyArrayOut(potKey,3) = eamKeyArrayIn(potKey,3) !Pot type
+	  eamKeyArrayOut(potKey,4) = dataPointCounter
+	  eamKeyArrayOut(potKey,5) = numberOfPoints
 !loop through reduced data points
 	  Do i=1,numberOfPoints
-	    x = eamData(potStart,1)+&
-		    1.0D0*(i-1)*((eamData(potEnd,1)-eamData(potStart,1))/(numberOfPoints-1))
+	    x = eamDataArrayIn(potStart,1)+&
+		    1.0D0*(i-1)*((eamDataArrayIn(potEnd,1)-eamDataArrayIn(potStart,1))/(numberOfPoints-1))
 		!yArray = PointInterpolationArr(eamData,x,5,potStart,potLength,"N")
-		yArray = PointInterpolationArr(eamData,x,5,potStart,potLength)
+		yArray = PointInterpolationArr(eamDataArrayIn,x,5,potStart,potLength)
 		y = yArray(1)
 		dy = yArray(2)
 !store data
-        eamDataReduced(dataPointCounter,1) = x
-        eamDataReduced(dataPointCounter,2) = y
-        eamDataReduced(dataPointCounter,3) = dy
+        eamDataArrayOut(dataPointCounter,1) = x
+        eamDataArrayOut(dataPointCounter,2) = y
+        eamDataArrayOut(dataPointCounter,3) = dy
 !increment counter
 		dataPointCounter = dataPointCounter + 1
 	  End Do	
     End Do
-!Store reduced potential to file
-	if(mpiProcessID.eq.0)then
-	  outputFile = trim(currentWorkingDirectory)//"/"//"outputreduced.pot"
-	  open(unit=22,file=trim(outputFile))
-	  Do potKey=1,size(eamKeyReduced,1)
-!Get number of points to reduce to
-	    If(eamKeyReduced(potKey,3).eq.1)Then     !Pair
-	      write(22,"(A5,A2,A1,A2,A1)") "PAIR ",elements(eamKeyReduced(potKey,1))," ",&
-		  elements(eamKeyReduced(potKey,2))," "
-		Else  
-		  If(eamKeyReduced(potKey,3).eq.2.and.eamType.eq.1)Then
-		    eamTypeText = "DENS "
-		  End If
-		  If(eamKeyReduced(potKey,3).eq.2.and.eamType.eq.2)Then
-		    eamTypeText = "SDEN "
-		  End If
-		  If(eamKeyReduced(potKey,3).eq.3.and.eamType.eq.1)Then
-		    eamTypeText = "EMBE "
-		  End If
-		  If(eamKeyReduced(potKey,3).eq.3.and.eamType.eq.2)Then
-		    eamTypeText = "SEMB "
-		  End If
-		  If(eamKeyReduced(potKey,3).eq.4)Then
-		    eamTypeText = "DDEN "
-		  End If
-		  If(eamKeyReduced(potKey,3).eq.5)Then
-		    eamTypeText = "DEMB "
-		  End If
-		  write(22,"(A5,A2)") eamTypeText,elements(eamKeyReduced(potKey,1))
-	    End If	
-!make reduces set of data points
-	    potStart = eamKeyReduced(potKey,4)
-        potLength = eamKeyReduced(potKey,5)
-	    potEnd = potStart + potLength - 1
-!loop over data points
-        k = 0
-	    Do i=potStart,potEnd
-		  k = k + 1
-	      x = eamDataReduced(i,1)
-		  y = eamDataReduced(i,2)
-		  dy = eamDataReduced(i,3)
-!write to file
-          write(22,"(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") x,"  ",&
-		  y,"  ",dy,"    ",potKey,k,i
-	    End Do	
-      End Do
-!Close file
-	  close(22)
-	endif
   End Subroutine makeReducedEAMSet
   
-  
-  
-!Make a trial set of points (expanded from the reduced set, using interp or 0,1st,2nd order spline)
-  Subroutine makeTrialEAMSet(fitTypeIn)  	
+!Make expanded set of points (expanded from the reduced set, using 2nd order spline)
+  Subroutine makeExpandedEAMSet(eamKeyArrayIn,eamDataArrayIn,eamKeyArrayOut,eamDataArrayOut)  	
 !force declaration of all variables
 	Implicit None
 !declare private variables
 	Integer(kind=StandardInteger) :: ios, i, j, k, potKey
-	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints
+	Integer(kind=StandardInteger) :: numberOfPoints, totalTrialDataPoints
 	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
 	Real(kind=DoubleReal) :: x, y, dy
 	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
 	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: splineXY
 	Character(len=5)  :: eamTypeText
-!Declare optional variables
-    Integer(kind=StandardInteger), Optional :: fitTypeIn
-    Integer(kind=StandardInteger) :: fitType
-!Set optional variables
-    If(Present(fitTypeIn))Then
-	  fitType = fitTypeIn
-	Else  
-	  fitType = 1
-	End If
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArrayIn 
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArrayOut
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArrayIn
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArrayOut
 !Allocate arrays	
 	Allocate(yArray(1:2))
 !Sum number of reduced data points
-    totalReducedDataPoints = 0
-    Do potKey=1,size(eamKeyReduced,1)
+    totalTrialDataPoints = 0
+    Do potKey=1,size(eamKeyArrayIn,1)
 !Get number of points to reduce to
 	  If(eamKey(potKey,3).eq.1)Then     !Pair
 	    numberOfPoints = eamTrialPointsV
@@ -1436,171 +1249,153 @@ contains
 	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
 	    numberOfPoints = eamTrialPointsF
 	  End If	 
-      totalReducedDataPoints = totalReducedDataPoints + numberOfPoints
+      totalTrialDataPoints = totalTrialDataPoints + numberOfPoints
     End Do
 !Allocate arrays
-    If(Allocated(eamKeyTrial))Then
-	  Deallocate(eamKeyTrial)
+    If(Allocated(eamKeyArrayOut))Then
+	  Deallocate(eamKeyArrayOut)
 	End If
-    If(Allocated(eamDataTrial))Then
-	  Deallocate(eamDataTrial)
+    If(Allocated(eamDataArrayOut))Then
+	  Deallocate(eamDataArrayOut)
 	End If
-    Allocate(eamKeyTrial(1:size(eamKeyReduced,1),1:5))
-    Allocate(eamDataTrial(1:totalReducedDataPoints,1:3))
+    Allocate(eamKeyArrayOut(1:size(eamKeyArrayIn,1),1:5))
+    Allocate(eamDataArrayOut(1:totalTrialDataPoints,1:3))
 !
 ! Spline nodes with matching zero, first and second order derivatives (6 points, 5th order poly)
 !
-    If(fitType.eq.1)Then
-	
 !Loop through potential functions
-      dataPointCounter = 1
-	  Do potKey=1,size(eamKeyTrial,1)
+    dataPointCounter = 1
+	Do potKey=1,size(eamKeyArrayIn,1)
 !Get number of points to expand to
-	    If(eamKey(potKey,3).eq.1)Then     !Pair
-	      numberOfPoints = eamTrialPointsV
-	    End If	
-	    If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
-	      numberOfPoints = eamTrialPointsP
-	    End If		
-	    If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
-	      numberOfPoints = eamTrialPointsF
-	    End If
+	  If(eamKey(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamTrialPointsV
+	  End If	
+	  If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
+	    numberOfPoints = eamTrialPointsP
+	  End If		
+	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
+	    numberOfPoints = eamTrialPointsF
+	  End If
 !make expanded set of data points
-	    potStart = eamKeyReduced(potKey,4)
-        potLength = eamKeyReduced(potKey,5)
-	    potEnd = potStart + potLength - 1
+	  potStart = eamKeyArrayIn(potKey,4)
+      potLength = eamKeyArrayIn(potKey,5)
+	  potEnd = potStart + potLength - 1
 !store key details
-        eamKeyTrial(potKey,1) = eamKeyReduced(potKey,1) !Atom i
-        eamKeyTrial(potKey,2) = eamKeyReduced(potKey,2) !Atom j
-	    eamKeyTrial(potKey,3) = eamKeyReduced(potKey,3) !Pot type
-	    eamKeyTrial(potKey,4) = dataPointCounter
-	    eamKeyTrial(potKey,5) = numberOfPoints
+      eamKeyArrayOut(potKey,1) = eamKeyArrayIn(potKey,1) !Atom i
+      eamKeyArrayOut(potKey,2) = eamKeyArrayIn(potKey,2) !Atom j
+	  eamKeyArrayOut(potKey,3) = eamKeyArrayIn(potKey,3) !Pot type		
+	  eamKeyArrayOut(potKey,4) = dataPointCounter
+	  eamKeyArrayOut(potKey,5) = numberOfPoints
 !loop through reduced data points
-        splineXY = Spline(eamDataReduced,numberOfPoints,potStart,potLength)
-	    Do i=1,numberOfPoints
+      splineXY = Spline(eamDataArrayIn,numberOfPoints,potStart,potLength)
+	  Do i=1,numberOfPoints
 !store data
-          eamDataTrial(dataPointCounter,1) = splineXY(i,1)
-          eamDataTrial(dataPointCounter,2) = splineXY(i,2)
-          eamDataTrial(dataPointCounter,3) = splineXY(i,3)
+        eamDataArrayOut(dataPointCounter,1) = splineXY(i,1)
+        eamDataArrayOut(dataPointCounter,2) = splineXY(i,2)
+        eamDataArrayOut(dataPointCounter,3) = splineXY(i,3)
 !increment counter
-		  dataPointCounter = dataPointCounter + 1
-	    End Do	
-      End Do
-	Else
-!
-! Interpolate nodes/points    
-!
-!Loop through potential functions
-      dataPointCounter = 1
-	  Do potKey=1,size(eamKeyTrial,1)
-!Get number of points to expand to
-	    If(eamKey(potKey,3).eq.1)Then     !Pair
-	      numberOfPoints = eamTrialPointsV
-	    End If	
-	    If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
-	      numberOfPoints = eamTrialPointsP
-	    End If		
-	    If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
-	      numberOfPoints = eamTrialPointsF
-	    End If
-!make expanded set of data points
-	    potStart = eamKeyReduced(potKey,4)
-        potLength = eamKeyReduced(potKey,5)
-	    potEnd = potStart + potLength - 1
-!store key details
-        eamKeyTrial(potKey,1) = eamKeyReduced(potKey,1) !Atom i
-        eamKeyTrial(potKey,2) = eamKeyReduced(potKey,2) !Atom j
-	    eamKeyTrial(potKey,3) = eamKeyReduced(potKey,3) !Pot type
-	    eamKeyTrial(potKey,4) = dataPointCounter
-	    eamKeyTrial(potKey,5) = numberOfPoints
-!loop through reduced data points
-	    Do i=1,numberOfPoints
-	      x = eamDataReduced(potStart,1)+&
-		    1.0D0*(i-1)*((eamDataReduced(potEnd,1)-&
-			eamDataReduced(potStart,1))/(numberOfPoints-1))
-		  !yArray = PointInterpolationArr(eamDataReduced,x,5,potStart,potLength,"N")
-		  yArray = PointInterpolationArr(eamDataReduced,x,5,potStart,potLength)
-		  y = yArray(1)
-		  dy = yArray(2)
-!store data
-          eamDataTrial(dataPointCounter,1) = x
-          eamDataTrial(dataPointCounter,2) = y
-          eamDataTrial(dataPointCounter,3) = dy
-!increment counter
-		  dataPointCounter = dataPointCounter + 1
-	    End Do	
-      End Do
-	End If
-!Store reduced potential to file
-	if(mpiProcessID.eq.0)then
-	  outputFile = trim(currentWorkingDirectory)//"/"//"outputtrial.pot"
-	  open(unit=23,file=trim(outputFile))
-	  Do potKey=1,size(eamKeyTrial,1)
-!Get number of points to reduce to
-	    If(eamKeyTrial(potKey,3).eq.1)Then     !Pair
-	      write(23,"(A5,A2,A1,A2,A1)") "PAIR ",elements(eamKeyTrial(potKey,1))," ",&
-		  elements(eamKeyTrial(potKey,2))," "
-		Else  
-		  If(eamKeyTrial(potKey,3).eq.2.and.eamType.eq.1)Then
-		    eamTypeText = "DENS "
-		  End If
-		  If(eamKeyTrial(potKey,3).eq.2.and.eamType.eq.2)Then
-		    eamTypeText = "SDEN "
-		  End If
-		  If(eamKeyTrial(potKey,3).eq.3.and.eamType.eq.1)Then
-		    eamTypeText = "EMBE "
-		  End If
-		  If(eamKeyTrial(potKey,3).eq.3.and.eamType.eq.2)Then
-		    eamTypeText = "SEMB "
-		  End If
-		  If(eamKeyTrial(potKey,3).eq.4)Then
-		    eamTypeText = "DDEN "
-		  End If
-		  If(eamKeyTrial(potKey,3).eq.5)Then
-		    eamTypeText = "DEMB "
-		  End If
-		  write(23,"(A5,A2)") eamTypeText,elements(eamKeyTrial(potKey,1))
-	    End If	
-!make reduces set of data points
-	    potStart = eamKeyTrial(potKey,4)
-        potLength = eamKeyTrial(potKey,5)
-	    potEnd = potStart + potLength - 1
-!loop over data points
-        k = 0
-	    Do i=potStart,potEnd
-		  k = k + 1
-	      x = eamDataTrial(i,1)
-		  y = eamDataTrial(i,2)
-		  dy = eamDataTrial(i,3)
-!write to file
-          write(23,"(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") x,"  ",&
-		  y,"  ",dy,"    ",potKey,k,i
-	    End Do	
-      End Do
-!Close file
-	  close(23)
-	End If
-  End Subroutine makeTrialEAMSet
-
+	    dataPointCounter = dataPointCounter + 1
+	  End Do	
+    End Do
+  End Subroutine makeExpandedEAMSet
+  
+  
+  
   
   
   Subroutine storeReducedToOpt()  	
 !force declaration of all variables
 	Implicit None
 !declare private variables  
+    If(Allocated(eamKeyOpt))Then
+	  Deallocate(eamKeyOpt)
+	End If
+    If(Allocated(eamDataOpt))Then
+	  Deallocate(eamDataOpt)
+	End If
     eamKeyOpt = eamKeyReduced  
     eamDataOpt = eamDataReduced
   End Subroutine storeReducedToOpt
+  
   
   
   Subroutine loadOptToReduced()  	
 !force declaration of all variables
 	Implicit None
 !declare private variables  
+    If(Allocated(eamKeyReduced))Then
+	  Deallocate(eamKeyReduced)
+	End If
+    If(Allocated(eamDataReduced))Then
+	  Deallocate(eamDataReduced)
+	End If
     eamKeyReduced = eamKeyOpt
     eamDataReduced = eamDataOpt
   End Subroutine loadOptToReduced
+    
+  Subroutine storeToReduced(eamKeyInput,eamDataInput)  	
+!force declaration of all variables
+	Implicit None	
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyInput
+    Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataInput
+!declare private variables  
+    If(Allocated(eamKeyReduced))Then
+	  Deallocate(eamKeyReduced)
+	End If
+    If(Allocated(eamDataReduced))Then
+	  Deallocate(eamDataReduced)
+	End If
+    eamKeyReduced = eamKeyInput
+    eamDataReduced = eamDataInput
+  End Subroutine storeToReduced
   
+  Subroutine clearReducedEAM()  	
+!force declaration of all variables
+	Implicit None	
+!declare private variables  
+    If(Allocated(eamKeyReduced))Then
+	  Deallocate(eamKeyReduced)
+	End If
+    If(Allocated(eamDataReduced))Then
+	  Deallocate(eamDataReduced)
+	End If
+  End Subroutine clearReducedEAM
+  
+  Subroutine clearOptEAM()  	
+!force declaration of all variables
+	Implicit None	
+!declare private variables  
+    If(Allocated(eamKeyOpt))Then
+	  Deallocate(eamKeyOpt)
+	End If
+    If(Allocated(eamDataOpt))Then
+	  Deallocate(eamDataOpt)
+	End If
+  End Subroutine clearOptEAM
+  
+  Subroutine clearTrialEAM()  	
+!force declaration of all variables
+	Implicit None	
+!declare private variables  
+    If(Allocated(eamKeyTrial))Then
+	  Deallocate(eamKeyTrial)
+	End If
+    If(Allocated(eamDataTrial))Then
+	  Deallocate(eamDataTrial)
+	End If
+  End Subroutine clearTrialEAM
+  
+  Subroutine clearEAM()  	
+!force declaration of all variables
+	Implicit None	
+!declare private variables  
+    If(Allocated(eamKey))Then
+	  Deallocate(eamKey)
+	End If
+    If(Allocated(eamData))Then
+	  Deallocate(eamData)
+	End If
+  End Subroutine clearEAM
 
   Subroutine storeReducedToFile()  	
 !force declaration of all variables
@@ -1654,6 +1449,7 @@ contains
 	      x = eamDataReduced(i,1)
 		  y = eamDataReduced(i,2)
 		  dy = eamDataReduced(i,3)
+		  dy = 0.0D0
 !write to file
           write(24,"(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") x,"  ",&
 		  y,"  ",dy,"    ",potKey,k,i
@@ -1662,8 +1458,7 @@ contains
 !Close file
 	  close(24)
 	End If
-  End Subroutine storeReducedToFile
-  
+  End Subroutine storeReducedToFile  
   
   Subroutine storeEAMToFile(eamKeyArray, eamDataArray, fileName, numberOfPointsIn)  	
 !force declaration of all variables
@@ -1786,10 +1581,525 @@ contains
 !Close file
 	  close(24)
 	End If
-  End Subroutine storeEAMToFile
-
+!Wait for all processes to catch up	 
+	Call synchMpiProcesses()
+  End Subroutine storeEAMToFile  
+  
+  Subroutine printEAM(eamKeyArray, eamDataArray)
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: ios, i, j, k, potKey
+	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints
+	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
+	Real(kind=DoubleReal) :: x, y, dy
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Character(len=5)  :: eamTypeText
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArray 
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArray
+!Print
+	If(mpiProcessID.eq.0)Then
+	  Do potKey=1,size(eamKeyArray,1)
+!Get number of points to reduce to
+	    If(eamKeyArray(potKey,3).eq.1)Then     !Pair
+	      print "(A5,A2,A1,A2,A1)","PAIR ",elements(eamKeyArray(potKey,1))," ",&
+		  elements(eamKeyArray(potKey,2))," "
+		Else  
+		  If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.1)Then
+		    eamTypeText = "DENS "
+		  End If
+		  If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.2)Then
+		    eamTypeText = "SDEN "
+		  End If
+		  If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.1)Then
+		    eamTypeText = "EMBE "
+		  End If
+		  If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.2)Then
+		    eamTypeText = "SEMB "
+		  End If
+		  If(eamKeyArray(potKey,3).eq.4)Then
+		    eamTypeText = "DDEN "
+		  End If
+		  If(eamKeyArray(potKey,3).eq.5)Then
+		    eamTypeText = "DEMB "
+		  End If
+		  print "(A5,A2)",eamTypeText,elements(eamKeyArray(potKey,1))
+	    End If	
+!pot positions
+	    potStart = eamKeyArray(potKey,4)
+        potLength = eamKeyArray(potKey,5)
+	    potEnd = potStart + potLength - 1
+!loop over data points
+        k = 0
+	    Do i=potStart,potEnd
+		  k = k + 1
+	      x = eamDataArray(i,1)
+		  y = eamDataArray(i,2)
+		  dy = eamDataArray(i,3)
+!write to file
+          print "(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)",x,"  ",&
+		  y,"  ",dy,"    ",potKey,k,i
+	    End Do	
+      End Do
+	End If
+  End Subroutine printEAM
+  
+!Convert input eam potential into a splined version
+  Subroutine splinePotential(eamKeyWorking,eamDataWorking,pointToVaryIn,varyAmountIn) 
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: i, j, k, potKey
+	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints, totalSplineDataPoints
+	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
+	Real(kind=DoubleReal) :: x, y, dy
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: splineXY
+	Character(len=5)  :: eamTypeText
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyWorking
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyReducedArray
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyOut 
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataWorking
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataReducedArray
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataOut
+!optional variables
+	Integer(kind=StandardInteger), Optional :: pointToVaryIn
+	Integer(kind=StandardInteger) :: pointToVary
+	Real(kind=DoubleReal), Optional :: varyAmountIn
+	Real(kind=DoubleReal) :: varyAmount	
+!Set optional variables
+    pointToVary = 0
+	varyAmount = 0.0D0
+    If(Present(pointToVaryIn))Then
+	  pointToVary = pointToVaryIn
+	End If		
+    If(Present(varyAmountIn))Then
+	  varyAmount = varyAmountIn
+	End If		
+!
+! Reduced points of input potential
+!		
+!Allocate arrays	
+	Allocate(yArray(1:2))
+!Sum number of reduced data points
+    totalReducedDataPoints = 0
+    Do potKey=1,size(eamKeyWorking,1)
+!Get number of points to reduce to
+	  If(eamKeyWorking(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamReducedPointsV	!Default 50
+	  End If	
+	  If(eamKeyWorking(potKey,3).eq.2.or.eamKeyWorking(potKey,3).eq.4)Then
+	    numberOfPoints = eamReducedPointsP	!Default 50
+	  End If		
+	  If(eamKeyWorking(potKey,3).eq.3.or.eamKeyWorking(potKey,3).eq.5)Then
+	    numberOfPoints = eamReducedPointsF	!Default 25
+	  End If	 
+      totalReducedDataPoints = totalReducedDataPoints + numberOfPoints
+    End Do	
+!Allocate arrays
+    If(Allocated(eamKeyReducedArray))Then
+	  Deallocate(eamKeyReducedArray)
+	End If
+    If(Allocated(eamDataReducedArray))Then
+	  Deallocate(eamDataReducedArray)
+	End If
+    Allocate(eamKeyReducedArray(1:size(eamKeyWorking,1),1:5))
+    Allocate(eamDataReducedArray(1:totalReducedDataPoints,1:3))
+!Loop through potential functions
+    dataPointCounter = 1
+	Do potKey=1,size(eamKeyWorking,1)
+!Get number of points to reduce to
+	  If(eamKeyWorking(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamReducedPointsV
+	  End If	
+	  If(eamKeyWorking(potKey,3).eq.2.or.eamKeyWorking(potKey,3).eq.4)Then
+	    numberOfPoints = eamReducedPointsP
+	  End If		
+	  If(eamKeyWorking(potKey,3).eq.3.or.eamKeyWorking(potKey,3).eq.5)Then
+	    numberOfPoints = eamReducedPointsF
+	  End If
+!make reduces set of data points
+	  potStart = eamKeyWorking(potKey,4)
+      potLength = eamKeyWorking(potKey,5)
+	  potEnd = potStart + potLength - 1
+!store key details
+      eamKeyReducedArray(potKey,1) = eamKeyWorking(potKey,1) !Atom i
+      eamKeyReducedArray(potKey,2) = eamKeyWorking(potKey,2) !Atom j
+	  eamKeyReducedArray(potKey,3) = eamKeyWorking(potKey,3) !Pot type
+	  eamKeyReducedArray(potKey,4) = dataPointCounter
+	  eamKeyReducedArray(potKey,5) = numberOfPoints
+!loop through reduced data points
+	  Do i=1,numberOfPoints
+	    x = eamDataWorking(potStart,1)+&
+		    1.0D0*(i-1)*((eamDataWorking(potEnd,1)-eamDataWorking(potStart,1))/(numberOfPoints-1))
+		yArray = PointInterpolationArr(eamDataWorking,x,5,potStart,potLength)
+		y = yArray(1)
+		dy = yArray(2)
+!store data
+        eamDataReducedArray(dataPointCounter,1) = x
+        eamDataReducedArray(dataPointCounter,2) = y
+        eamDataReducedArray(dataPointCounter,3) = dy
+!increment counter
+		dataPointCounter = dataPointCounter + 1
+	  End Do	
+    End Do
+!
+! Vary point if required
+!	
+	If(pointToVary.gt.0.and.varyAmount.ne.0.0D0)Then
+      pointToVary = mod(pointToVary,size(eamDataReducedArray,1))+1
+	  eamDataReducedArray = VaryPoints(eamDataReducedArray,varyAmount,pointToVary)
+    End If	
+!
+! Spline reduced points
+!	
+!Sum total spline points
+    totalSplineDataPoints = 0
+    Do potKey=1,size(eamKeyReducedArray,1)
+!Get number of points to reduce to
+	  If(eamKey(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamTrialPointsV	!default 1001
+	  End If	
+	  If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
+	    numberOfPoints = eamTrialPointsP	!default 1001
+	  End If		
+	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
+	    numberOfPoints = eamTrialPointsF	!default 1001
+	  End If	 
+      totalSplineDataPoints = totalSplineDataPoints + numberOfPoints
+    End Do	
+!Allocate arrays
+    If(Allocated(eamKeyWorking))Then
+	  Deallocate(eamKeyWorking)
+	End If
+    If(Allocated(eamDataWorking))Then
+	  Deallocate(eamDataWorking)
+	End If
+    Allocate(eamKeyWorking(1:size(eamKeyReducedArray,1),1:5))
+    Allocate(eamDataWorking(1:totalSplineDataPoints,1:3))
+!
+! Spline nodes with matching zero, first and second order derivatives (6 points, 5th order poly)
+!
+!Loop through potential functions
+    dataPointCounter = 1
+	Do potKey=1,size(eamKeyReducedArray,1)
+!Get number of points to expand to
+	  If(eamKeyReducedArray(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamTrialPointsV	!default 1001
+	  End If	
+	  If(eamKeyReducedArray(potKey,3).eq.2.or.eamKeyReducedArray(potKey,3).eq.4)Then
+	    numberOfPoints = eamTrialPointsP	!default 1001
+	  End If		
+	  If(eamKeyReducedArray(potKey,3).eq.3.or.eamKeyReducedArray(potKey,3).eq.5)Then
+	    numberOfPoints = eamTrialPointsF	!default 1001
+	  End If
+!make expanded set of data points
+	  potStart = eamKeyReducedArray(potKey,4)
+      potLength = eamKeyReducedArray(potKey,5)
+	  potEnd = potStart + potLength - 1
+!store key details
+      eamKeyWorking(potKey,1) = eamKeyReducedArray(potKey,1) !Atom i
+      eamKeyWorking(potKey,2) = eamKeyReducedArray(potKey,2) !Atom j
+	  eamKeyWorking(potKey,3) = eamKeyReducedArray(potKey,3) !Pot type
+	  eamKeyWorking(potKey,4) = dataPointCounter
+	  eamKeyWorking(potKey,5) = numberOfPoints	  
+!loop through reduced data points
+      splineXY = Spline(eamDataReducedArray,numberOfPoints,potStart,potLength)
+	  Do i=1,numberOfPoints
+!store data	  
+		eamDataWorking(dataPointCounter,1) = splineXY(i,1)
+        eamDataWorking(dataPointCounter,2) = splineXY(i,2)
+        eamDataWorking(dataPointCounter,3) = splineXY(i,3)	
+!increment counter
+	    dataPointCounter = dataPointCounter + 1
+	  End Do
+    End Do	
+  End Subroutine splinePotential
   
   
+  Subroutine prepDataStore()
+!force declaration of all variables
+	Implicit None	 
+!Internal subroutine variables
+    Integer(kind=StandardInteger) :: i, totalAtoms   
+  End Subroutine prepDataStore 
+   
+  
+  Subroutine synchMpiProcesses()
+!force declaration of all variables
+	Implicit None	 
+!Internal subroutine variables
+    Integer(kind=StandardInteger) :: i,send,receive,tag 
+    Integer(kind=StandardInteger) :: processID,processCount,error,status 
+!call mpi subroutines
+    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
+!Send out data to all processes
+    send = 0
+    If(processID.eq.0) Then
+      Do i=1,(processCount-1)
+        tag = 1000 + i	
+        Call MPI_send(send,1,MPI_integer,i,tag,&
+		MPI_comm_world,error)
+      End Do
+    Else
+      tag = 1000 + processID
+	  Call MPI_recv(receive,1,MPI_integer,0,tag,&
+      MPI_comm_world,status,error)  
+    End If  
+  End Subroutine synchMpiProcesses 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  !------------------------------------------------------------------------------------------
+  !
+  !  Old functions
+  !
+  !------------------------------------------------------------------------------------------  
+  
+  
+  
+  
+!Convert input eam potential into a splined version
+  Subroutine splinePotentialOld(eamKeyIn,eamDataIn,eamKeyOut,eamDataOut,pointToVaryIn,varyAmountIn) 
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: i, j, k, potKey
+	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints, totalSplineDataPoints
+	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
+	Real(kind=DoubleReal) :: x, y, dy
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: splineXY
+	Character(len=5)  :: eamTypeText
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyIn 
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyReducedArray
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyOut 
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataIn
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataReducedArray
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataOut
+!optional variables
+	Integer(kind=StandardInteger), Optional :: pointToVaryIn
+	Integer(kind=StandardInteger) :: pointToVary
+	Real(kind=DoubleReal), Optional :: varyAmountIn
+	Real(kind=DoubleReal) :: varyAmount	
+!Set optional variables
+    pointToVary = 0
+	varyAmount = 0.0D0
+    If(Present(pointToVaryIn))Then
+	  pointToVary = pointToVaryIn
+	End If		
+    If(Present(varyAmountIn))Then
+	  varyAmount = varyAmountIn
+	End If		
+!
+! Reduced points of input potential
+!		
+!Allocate arrays	
+	Allocate(yArray(1:2))
+!Sum number of reduced data points
+    totalReducedDataPoints = 0
+    Do potKey=1,size(eamKeyIn,1)
+!Get number of points to reduce to
+	  If(eamKeyIn(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamReducedPointsV	!Default 50
+	  End If	
+	  If(eamKeyIn(potKey,3).eq.2.or.eamKeyIn(potKey,3).eq.4)Then
+	    numberOfPoints = eamReducedPointsP	!Default 50
+	  End If		
+	  If(eamKeyIn(potKey,3).eq.3.or.eamKeyIn(potKey,3).eq.5)Then
+	    numberOfPoints = eamReducedPointsF	!Default 25
+	  End If	 
+      totalReducedDataPoints = totalReducedDataPoints + numberOfPoints
+    End Do	
+!Allocate arrays
+    If(Allocated(eamKeyReducedArray))Then
+	  Deallocate(eamKeyReducedArray)
+	End If
+    If(Allocated(eamDataReducedArray))Then
+	  Deallocate(eamDataReducedArray)
+	End If
+    Allocate(eamKeyReducedArray(1:size(eamKeyIn,1),1:5))
+    Allocate(eamDataReducedArray(1:totalReducedDataPoints,1:3))
+!Loop through potential functions
+    dataPointCounter = 1
+	Do potKey=1,size(eamKeyIn,1)
+!Get number of points to reduce to
+	  If(eamKeyIn(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamReducedPointsV
+	  End If	
+	  If(eamKeyIn(potKey,3).eq.2.or.eamKeyIn(potKey,3).eq.4)Then
+	    numberOfPoints = eamReducedPointsP
+	  End If		
+	  If(eamKeyIn(potKey,3).eq.3.or.eamKeyIn(potKey,3).eq.5)Then
+	    numberOfPoints = eamReducedPointsF
+	  End If
+!make reduces set of data points
+	  potStart = eamKeyIn(potKey,4)
+      potLength = eamKeyIn(potKey,5)
+	  potEnd = potStart + potLength - 1
+!store key details
+      eamKeyReducedArray(potKey,1) = eamKeyIn(potKey,1) !Atom i
+      eamKeyReducedArray(potKey,2) = eamKeyIn(potKey,2) !Atom j
+	  eamKeyReducedArray(potKey,3) = eamKeyIn(potKey,3) !Pot type
+	  eamKeyReducedArray(potKey,4) = dataPointCounter
+	  eamKeyReducedArray(potKey,5) = numberOfPoints
+!loop through reduced data points
+	  Do i=1,numberOfPoints
+	    x = eamDataIn(potStart,1)+&
+		    1.0D0*(i-1)*((eamDataIn(potEnd,1)-eamDataIn(potStart,1))/(numberOfPoints-1))
+		yArray = PointInterpolationArr(eamDataIn,x,5,potStart,potLength)
+		y = yArray(1)
+		dy = yArray(2)
+!store data
+        eamDataReducedArray(dataPointCounter,1) = x
+        eamDataReducedArray(dataPointCounter,2) = y
+        eamDataReducedArray(dataPointCounter,3) = dy
+!increment counter
+		dataPointCounter = dataPointCounter + 1
+	  End Do	
+    End Do
+!
+! Vary point if required
+!	
+	If(pointToVary.gt.0.and.varyAmount.ne.0.0D0)Then
+      pointToVary = mod(pointToVary,size(eamDataReducedArray,1))+1
+	  If(mpiProcessID.eq.0)Then
+	    print *,varyAmount,pointToVary
+	    print *,eamDataReducedArray(pointToVary,1),eamDataReducedArray(pointToVary,2)
+	  End If
+	  eamDataReducedArray = VaryPoints(eamDataReducedArray,varyAmount,pointToVary)
+	  If(mpiProcessID.eq.0)Then
+	    print *,eamDataReducedArray(pointToVary,1),eamDataReducedArray(pointToVary,2)
+	  End If
+    End If
+!
+! Spline reduced points
+!	
+!Sum total spline points
+    totalSplineDataPoints = 0
+    Do potKey=1,size(eamKeyReducedArray,1)
+!Get number of points to reduce to
+	  If(eamKey(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamTrialPointsV	!default 1001
+	  End If	
+	  If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
+	    numberOfPoints = eamTrialPointsP	!default 1001
+	  End If		
+	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
+	    numberOfPoints = eamTrialPointsF	!default 1001
+	  End If	 
+      totalSplineDataPoints = totalSplineDataPoints + numberOfPoints
+    End Do
+!Allocate arrays
+    If(Allocated(eamKeyOut))Then
+	  Deallocate(eamKeyOut)
+	End If
+    If(Allocated(eamDataOut))Then
+	  Deallocate(eamDataOut)
+	End If
+    Allocate(eamKeyOut(1:size(eamKeyReducedArray,1),1:5))
+    Allocate(eamDataOut(1:totalSplineDataPoints,1:3))
+!
+! Spline nodes with matching zero, first and second order derivatives (6 points, 5th order poly)
+!
+!Loop through potential functions
+    dataPointCounter = 1
+	Do potKey=1,size(eamKeyReducedArray,1)
+!Get number of points to expand to
+	  If(eamKeyReducedArray(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamTrialPointsV	!default 1001
+	  End If	
+	  If(eamKeyReducedArray(potKey,3).eq.2.or.eamKeyReducedArray(potKey,3).eq.4)Then
+	    numberOfPoints = eamTrialPointsP	!default 1001
+	  End If		
+	  If(eamKeyReducedArray(potKey,3).eq.3.or.eamKeyReducedArray(potKey,3).eq.5)Then
+	    numberOfPoints = eamTrialPointsF	!default 1001
+	  End If
+!make expanded set of data points
+	  potStart = eamKeyReducedArray(potKey,4)
+      potLength = eamKeyReducedArray(potKey,5)
+	  potEnd = potStart + potLength - 1
+!store key details
+      eamKeyOut(potKey,1) = eamKeyReducedArray(potKey,1) !Atom i
+      eamKeyOut(potKey,2) = eamKeyReducedArray(potKey,2) !Atom j
+	  eamKeyOut(potKey,3) = eamKeyReducedArray(potKey,3) !Pot type
+	  eamKeyOut(potKey,4) = dataPointCounter
+	  eamKeyOut(potKey,5) = numberOfPoints
+!loop through reduced data points
+      splineXY = Spline(eamDataReducedArray,numberOfPoints,potStart,potLength)
+	  Do i=1,numberOfPoints
+!store data
+        eamDataOut(dataPointCounter,1) = splineXY(i,1)
+        eamDataOut(dataPointCounter,2) = splineXY(i,2)
+        eamDataOut(dataPointCounter,3) = splineXY(i,3)
+!increment counter
+	    dataPointCounter = dataPointCounter + 1
+	  End Do	
+    End Do
+  End Subroutine splinePotentialOld
+!-----------------------------
 !Make a trial set of points (expanded from the reduced set, using interp or 0,1st,2nd order spline)
   Function eamWobbliness(eamKeyArray, eamDataArray, numberOfPoints) result (wobbliness)  	
 !force declaration of all variables
@@ -1825,8 +2135,7 @@ contains
 	  End Do	
     End Do    
   End Function eamWobbliness
-  
-  
+!-----------------------------
   Function eamTotalWobbliness(eamKeyArray, eamDataArray, numberOfPoints) result (wobbliness)  	
 !force declaration of all variables
 	Implicit None
@@ -1843,10 +2152,7 @@ contains
 	  wobbliness = wobbliness + wobblinessArray(i)
 	End Do    
   End Function eamTotalWobbliness
-  
-  
-  
-  
+!-----------------------------
 !Make a trial set of points (expanded from the reduced set, using interp or 0,1st,2nd order spline)
   Function eamCurvature(eamKeyArray, eamDataArray, numberOfPointsIn) result (curvature)  	
 !force declaration of all variables
@@ -1893,8 +2199,7 @@ contains
 		yArray = PointInterpolationArr(eamDataArray,xA,5,potStart,potLength)
 		yA = yArray(1)
 		dyA = yArray(2)
-		ddy = (yA-y)/(0.2D0*h)
-		
+		ddy = (yA-y)/(0.2D0*h)		
 		If(mpiProcessID.eq.0)Then
 		  print *,x,y,dy,ddy
 		End If
@@ -1931,8 +2236,7 @@ contains
 	  End Do	
     End Do 	
   End Function eamCurvature
-  
-  
+!-----------------------------
   Function eamCurveLength(eamKeyArray, eamDataArray, numberOfPointsIn) result (curveLength) 
  !force declaration of all variables
 	Implicit None
@@ -1984,51 +2288,321 @@ contains
   End Function eamCurveLength 
   
   
-  
-  
-  Subroutine prepDataStore()
-!force declaration of all variables
-	Implicit None	 
-!Internal subroutine variables
-    Integer(kind=StandardInteger) :: i, totalAtoms   
-  End Subroutine prepDataStore 
    
   
-  Subroutine synchMpiProcesses()
+  
+  
+!Reduced set of points from input eam
+  Subroutine makeReducedEAMSetOld()  	
 !force declaration of all variables
-	Implicit None	 
-!Internal subroutine variables
-    Integer(kind=StandardInteger) :: i,send,receive,tag 
-    Integer(kind=StandardInteger) :: processID,processCount,error,status 
-!call mpi subroutines
-    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
-    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-!Send out data to all processes
-    send = 0
-    If(processID.eq.0) Then
-      Do i=1,(processCount-1)
-        tag = 1000 + i	
-        Call MPI_send(send,1,MPI_integer,i,tag,&
-		MPI_comm_world,error)
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: ios, i, j, k, potKey
+	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints
+	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
+	Real(kind=DoubleReal) :: x, y, dy
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Character(len=5)  :: eamTypeText
+!Allocate arrays	
+	Allocate(yArray(1:2))
+!Sum number of reduced data points
+    totalReducedDataPoints = 0
+    Do potKey=1,size(eamKey,1)
+!Get number of points to reduce to
+	  If(eamKey(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamReducedPointsV
+	  End If	
+	  If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
+	    numberOfPoints = eamReducedPointsP
+	  End If		
+	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
+	    numberOfPoints = eamReducedPointsF
+	  End If	 
+      totalReducedDataPoints = totalReducedDataPoints + numberOfPoints
+    End Do	
+!Allocate arrays
+    If(Allocated(eamKeyReduced))Then
+	  Deallocate(eamKeyReduced)
+	End If
+    If(Allocated(eamDataReduced))Then
+	  Deallocate(eamDataReduced)
+	End If
+    Allocate(eamKeyReduced(1:size(eamKey,1),1:5))
+    Allocate(eamDataReduced(1:totalReducedDataPoints,1:3))
+!Loop through potential functions
+    dataPointCounter = 1
+	Do potKey=1,size(eamKey,1)
+!Get number of points to reduce to
+	  If(eamKey(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamReducedPointsV
+	  End If	
+	  If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
+	    numberOfPoints = eamReducedPointsP
+	  End If		
+	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
+	    numberOfPoints = eamReducedPointsF
+	  End If
+!make reduces set of data points
+      !eamKeyReduced, eamDataReduced
+	  potStart = eamKey(potKey,4)
+      potLength = eamKey(potKey,5)
+	  potEnd = potStart + potLength - 1
+!store key details
+      eamKeyReduced(potKey,1) = eamKey(potKey,1) !Atom i
+      eamKeyReduced(potKey,2) = eamKey(potKey,2) !Atom j
+	  eamKeyReduced(potKey,3) = eamKey(potKey,3) !Pot type
+	  eamKeyReduced(potKey,4) = dataPointCounter
+	  eamKeyReduced(potKey,5) = numberOfPoints
+!loop through reduced data points
+	  Do i=1,numberOfPoints
+	    x = eamData(potStart,1)+&
+		    1.0D0*(i-1)*((eamData(potEnd,1)-eamData(potStart,1))/(numberOfPoints-1))
+		!yArray = PointInterpolationArr(eamData,x,5,potStart,potLength,"N")
+		yArray = PointInterpolationArr(eamData,x,5,potStart,potLength)
+		y = yArray(1)
+		dy = yArray(2)
+!store data
+        eamDataReduced(dataPointCounter,1) = x
+        eamDataReduced(dataPointCounter,2) = y
+        eamDataReduced(dataPointCounter,3) = dy
+!increment counter
+		dataPointCounter = dataPointCounter + 1
+	  End Do	
+    End Do
+  End Subroutine makeReducedEAMSetOld
+  
+  
+  
+!Reduced set of points from trial eam
+  Subroutine makeReducedEAMSetTrial()  	
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: ios, i, j, k, potKey
+	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints
+	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
+	Real(kind=DoubleReal) :: x, y, dy
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Character(len=5)  :: eamTypeText
+!Allocate arrays	
+	Allocate(yArray(1:2))
+!Sum number of reduced data points
+    totalReducedDataPoints = 0
+    Do potKey=1,size(eamKeyTrial,1)
+!Get number of points to reduce to
+	  If(eamKeyTrial(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamReducedPointsV
+	  End If	
+	  If(eamKeyTrial(potKey,3).eq.2.or.eamKeyTrial(potKey,3).eq.4)Then
+	    numberOfPoints = eamReducedPointsP
+	  End If		
+	  If(eamKeyTrial(potKey,3).eq.3.or.eamKeyTrial(potKey,3).eq.5)Then
+	    numberOfPoints = eamReducedPointsF
+	  End If	 
+      totalReducedDataPoints = totalReducedDataPoints + numberOfPoints
+    End Do	
+!Allocate arrays
+    If(Allocated(eamKeyReduced))Then
+	  Deallocate(eamKeyReduced)
+	End If
+    If(Allocated(eamDataReduced))Then
+	  Deallocate(eamDataReduced)
+	End If
+    Allocate(eamKeyReduced(1:size(eamKeyTrial,1),1:5))
+    Allocate(eamDataReduced(1:totalReducedDataPoints,1:3))
+!Loop through potential functions
+    dataPointCounter = 1
+	Do potKey=1,size(eamKeyTrial,1)
+!Get number of points to reduce to
+	  If(eamKeyTrial(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamReducedPointsV
+	  End If	
+	  If(eamKeyTrial(potKey,3).eq.2.or.eamKeyTrial(potKey,3).eq.4)Then
+	    numberOfPoints = eamReducedPointsP
+	  End If		
+	  If(eamKeyTrial(potKey,3).eq.3.or.eamKeyTrial(potKey,3).eq.5)Then
+	    numberOfPoints = eamReducedPointsF
+	  End If
+!make reduces set of data points
+      !eamKeyReduced, eamDataReduced
+	  potStart = eamKeyTrial(potKey,4)
+      potLength = eamKeyTrial(potKey,5)
+	  potEnd = potStart + potLength - 1
+!store key details
+      eamKeyReduced(potKey,1) = eamKeyTrial(potKey,1) !Atom i
+      eamKeyReduced(potKey,2) = eamKeyTrial(potKey,2) !Atom j
+	  eamKeyReduced(potKey,3) = eamKeyTrial(potKey,3) !Pot type
+	  eamKeyReduced(potKey,4) = dataPointCounter
+	  eamKeyReduced(potKey,5) = numberOfPoints
+!loop through reduced data points
+	  Do i=1,numberOfPoints
+	    x = eamDataTrial(potStart,1)+&
+		    1.0D0*(i-1)*((eamDataTrial(potEnd,1)-eamDataTrial(potStart,1))/(numberOfPoints-1))
+		!yArray = PointInterpolationArr(eamDataTrial,x,5,potStart,potLength,"N")
+		yArray = PointInterpolationArr(eamDataTrial,x,5,potStart,potLength)
+		y = yArray(1)
+		dy = yArray(2)
+!store data
+        eamDataReduced(dataPointCounter,1) = x
+        eamDataReduced(dataPointCounter,2) = y
+        eamDataReduced(dataPointCounter,3) = dy
+!increment counter
+		dataPointCounter = dataPointCounter + 1
+	  End Do	
+    End Do
+!Store reduced potential to file
+	if(mpiProcessID.eq.0)then
+	  outputFile = trim(currentWorkingDirectory)//"/"//"outputreduced.pot"
+	  open(unit=22,file=trim(outputFile))
+	  Do potKey=1,size(eamKeyReduced,1)
+!Get number of points to reduce to
+	    If(eamKeyReduced(potKey,3).eq.1)Then     !Pair
+	      write(22,"(A5,A2,A1,A2,A1)") "PAIR ",elements(eamKeyReduced(potKey,1))," ",&
+		  elements(eamKeyReduced(potKey,2))," "
+		Else  
+		  If(eamKeyReduced(potKey,3).eq.2.and.eamType.eq.1)Then
+		    eamTypeText = "DENS "
+		  End If
+		  If(eamKeyReduced(potKey,3).eq.2.and.eamType.eq.2)Then
+		    eamTypeText = "SDEN "
+		  End If
+		  If(eamKeyReduced(potKey,3).eq.3.and.eamType.eq.1)Then
+		    eamTypeText = "EMBE "
+		  End If
+		  If(eamKeyReduced(potKey,3).eq.3.and.eamType.eq.2)Then
+		    eamTypeText = "SEMB "
+		  End If
+		  If(eamKeyReduced(potKey,3).eq.4)Then
+		    eamTypeText = "DDEN "
+		  End If
+		  If(eamKeyReduced(potKey,3).eq.5)Then
+		    eamTypeText = "DEMB "
+		  End If
+		  write(22,"(A5,A2)") eamTypeText,elements(eamKeyReduced(potKey,1))
+	    End If	
+!make reduces set of data points
+	    potStart = eamKeyReduced(potKey,4)
+        potLength = eamKeyReduced(potKey,5)
+	    potEnd = potStart + potLength - 1
+!loop over data points
+        k = 0
+	    Do i=potStart,potEnd
+		  k = k + 1
+	      x = eamDataReduced(i,1)
+		  y = eamDataReduced(i,2)
+		  dy = eamDataReduced(i,3)
+!write to file
+          write(22,"(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") x,"  ",&
+		  y,"  ",dy,"    ",potKey,k,i
+	    End Do	
       End Do
-    Else
-      tag = 1000 + processID
-	  Call MPI_recv(receive,1,MPI_integer,0,tag,&
-      MPI_comm_world,status,error)  
-    End If  
-  End Subroutine synchMpiProcesses 
+!Close file
+	  close(22)
+	endif
+  End Subroutine makeReducedEAMSetTrial
   
   
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
+!Make a trial set of points (expanded from the reduced set, using interp or 0,1st,2nd order spline)
+  Subroutine makeTrialEAMSet(fitTypeIn,eamKeyArrayIn,eamDataArrayIn)  	
+!force declaration of all variables
+	Implicit None
+!declare private variables
+	Integer(kind=StandardInteger) :: ios, i, j, k, potKey
+	Integer(kind=StandardInteger) :: numberOfPoints, totalTrialDataPoints
+	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
+	Real(kind=DoubleReal) :: x, y, dy
+	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: splineXY
+	Character(len=5)  :: eamTypeText
+!Declare optional variables
+    Integer(kind=StandardInteger), Optional :: fitTypeIn
+    Integer(kind=StandardInteger) :: fitType
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable, Optional :: eamKeyArrayIn 
+	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArray
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable, Optional :: eamDataArrayIn
+	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArray
+!Set optional variables
+    If(Present(fitTypeIn))Then
+	  fitType = fitTypeIn
+	Else  
+	  fitType = 1
+	End If
+    If(Present(eamKeyArrayIn))Then
+	  eamKeyArray = eamKeyArrayIn
+	Else  
+	  eamKeyArray = eamKeyReduced
+	End If
+    If(Present(eamDataArrayIn))Then
+	  eamDataArray = eamDataArrayIn
+	Else  
+	  eamDataArray = eamDataReduced
+	End If
+!Allocate arrays	
+	Allocate(yArray(1:2))
+!Sum number of reduced data points
+    totalTrialDataPoints = 0
+    Do potKey=1,size(eamKeyArray,1)
+!Get number of points to reduce to
+	  If(eamKey(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamTrialPointsV
+	  End If	
+	  If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
+	    numberOfPoints = eamTrialPointsP
+	  End If		
+	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
+	    numberOfPoints = eamTrialPointsF
+	  End If	 
+      totalTrialDataPoints = totalTrialDataPoints + numberOfPoints
+    End Do
+!Allocate arrays
+    If(Allocated(eamKeyTrial))Then
+	  Deallocate(eamKeyTrial)
+	End If
+    If(Allocated(eamDataTrial))Then
+	  Deallocate(eamDataTrial)
+	End If
+    Allocate(eamKeyTrial(1:size(eamKeyArray,1),1:5))
+    Allocate(eamDataTrial(1:totalTrialDataPoints,1:3))
+!
+! Spline nodes with matching zero, first and second order derivatives (6 points, 5th order poly)
+!
+!Loop through potential functions
+    dataPointCounter = 1
+	Do potKey=1,size(eamKeyTrial,1)
+!Get number of points to expand to
+	  If(eamKey(potKey,3).eq.1)Then     !Pair
+	    numberOfPoints = eamTrialPointsV
+	  End If	
+	  If(eamKey(potKey,3).eq.2.or.eamKey(potKey,3).eq.4)Then
+	    numberOfPoints = eamTrialPointsP
+	  End If		
+	  If(eamKey(potKey,3).eq.3.or.eamKey(potKey,3).eq.5)Then
+	    numberOfPoints = eamTrialPointsF
+	  End If
+!make expanded set of data points
+	  potStart = eamKeyArray(potKey,4)
+      potLength = eamKeyArray(potKey,5)
+	  potEnd = potStart + potLength - 1
+!store key details
+      eamKeyTrial(potKey,1) = eamKeyArray(potKey,1) !Atom i
+      eamKeyTrial(potKey,2) = eamKeyArray(potKey,2) !Atom j
+	  eamKeyTrial(potKey,3) = eamKeyArray(potKey,3) !Pot type
+	  eamKeyTrial(potKey,4) = dataPointCounter
+	  eamKeyTrial(potKey,5) = numberOfPoints
+!loop through reduced data points
+      splineXY = Spline(eamDataArray,numberOfPoints,potStart,potLength)
+	  Do i=1,numberOfPoints
+!store data
+        eamDataTrial(dataPointCounter,1) = splineXY(i,1)
+        eamDataTrial(dataPointCounter,2) = splineXY(i,2)
+        eamDataTrial(dataPointCounter,3) = splineXY(i,3)
+!increment counter
+	    dataPointCounter = dataPointCounter + 1
+	  End Do	
+    End Do
+  End Subroutine makeTrialEAMSet
+
   
   
 

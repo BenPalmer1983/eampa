@@ -1,0 +1,59 @@
+#PRINT                                                          
+yes                                                             
+#RUNTYPE                                                        
+optf                                                            
+#POTENTIAL                                                      
+"examples/sheng_al_eam.pot"                                     
+#ZBLCORE PAIR CORE FROM 0.0 TO 0.5, SPLINE 0.5 TO 1.0, DENS TO 1
+0.5 0.8 1.0 0.5 0.0 0.05                                        
+#CONFIGURATIONS                                                 
+"examples/atomsAl.conf"                                         
+#DATADIR                                                        
+"data"                                                          
+#SAVECOORDS                                                     
+no                                                              
+#SAVENEIGHBOURLIST                                              
+no                                                              
+#SAVEPOT                                                        
+yes                                                             
+#WEIGHTING ENERGY STRESS FORCE EVOL BM ECS 100 20 1 20 20 20    
+5 2 1 1 1 1                                                     
+#UNITVECTOR                                                     
+1.0 0.0 0.0                                                     
+0.0 1.0 0.0                                                     
+0.0 0.0 1.0                                                     
+#EAMINTERP                                                      
+THREEPOINT                                                      
+#EAMREDUCEDPOINTS                                               
+50 50 30                                                        
+#SACYCLES TSTART TEND TINCS                                     
+2 2 0 2                                                         
+#SATEMP  TEMPERATURE  SPREAD AMOUNT                             
+40.0D0 0.01D0                                                   
+#CALCFORCES                                                     
+yes                                                             
+#CALCSTRESS                                                     
+yes                                                             
+#CALCALLBM                                                      
+No                                                              
+#CALCALLEC                                                      
+No                                                              
+#DFTIN-RC                                                       
+6.5                                                             
+#DFTIN-REPLACESYM                                               
+1                                                               
+N Al                                                            
+#DFTIN-OPTENERGY                                                
+-10112.77814219 Ry 256                                          
+#DFTIN-COHENERGY                                                
+-3.36 eV                                                        
+#DFT-PWSCFFILES                                                 
+"examples/pwscf/Al.1101.out"                                    
+"examples/pwscf/Al.1601.out"                                    
+"examples/pwscf/Al.1701.out"                                    
+"examples/pwscf/Al.1808.out"                                    
+"examples/pwscf/Al.1820.out"                                    
+"examples/pwscf/Al.1831.out"                                    
+"examples/pwscf/Al.1839.out"                                    
+"examples/pwscf/Al.1854.out"                                    
+"examples/pwscf/Al.1857.out"                                    

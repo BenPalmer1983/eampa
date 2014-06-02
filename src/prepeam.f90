@@ -50,19 +50,16 @@ Contains
 	Implicit None	
 !declare private variables
 	Integer(kind=StandardInteger) :: i	
-!PRP1   15     Prepare a potential file	
-	If(calcRunType.eq.15)Then	!output potential in formatted file
-	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-		print *,ProgramTime(),"Prepare potential file"
-	  End If
-	  Call eamForceZBLCore(eamKey,eamData) 
-	  Call setPotentialDerivatives(eamKey,eamData) 
-	  Call storeEAMToFile(eamKey, eamData, trim(eamPreparedFile)) 
-	  Call outputPrepareEAM()	        !Print output to file
+    If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
+	  print *,ProgramTime(),"Prepare potential file"
+	End If
+	Call eamForceZBLCore(eamKey,eamData) 
+	Call setPotentialDerivatives(eamKey,eamData) 
+	Call storeEAMToFile(eamKey, eamData, trim(eamPreparedFile)) 
+	Call outputPrepareEAM()	        !Print output to file
 	  
-	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-		print *,ProgramTime(),"Saved to ",trim(eamPreparedFile)
-	  End If
+	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
+	  print *,ProgramTime(),"Saved to ",trim(eamPreparedFile)
 	End If
 	
 	

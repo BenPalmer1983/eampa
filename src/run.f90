@@ -107,7 +107,7 @@ contains
 	End If
 !BMOD    3     Calculate bulk modulus of all input configurations	
 !ECON    4     Calculate elastic constants of all input configurations	
-!EVAL    5     Evaluate bulk properties of all input configurations	
+!EVAL    5     Evaluate energy, stress, forces
 	If(calcRunType.eq.5)Then	!Evaluate	
 	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 		print *,ProgramTime(),"Evaluate configurations (energy, stresses, forces, bulk properties)"
@@ -115,7 +115,7 @@ contains
 	  eamDataSet = 1 	 	  
 	  Call eamForceZBLCore(eamKey,eamData) 
 	  Call setPotentialDerivatives(eamKey,eamData) 	  
-	  Call calcEvalFull()  
+	  Call calcEval()  
 	  Call calcOutput()	        !Print output to file
 	  Call calcOutputForces()
 	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
@@ -133,39 +133,39 @@ contains
 	  Call storeEAMToFile(eamKey, eamData, "opt/inputPrepared.pot") 
 	  Call optimisePotential()	  
 	End If
-
-	
+!OPTI    7     Optimise the input potential	full evaluation
+	If(calcRunType.eq.7)Then	!Optimise
+	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
+		print *,ProgramTime(),"Optimise potential"
+	  End If
+	  Call storeEAMToFile(eamKey, eamData, "opt/inputVanilla.pot") 
+	  Call eamForceZBLCore(eamKey,eamData) 
+	  Call setPotentialDerivatives(eamKey,eamData) 
+	  Call storeEAMToFile(eamKey, eamData, "opt/inputPrepared.pot") 
+	  Call optimisePotential()	  
+	End If
+!EVAF    8     Evaluate bulk properties of all input configurations	
+	If(calcRunType.eq.8)Then	!Evaluate	
+	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
+		print *,ProgramTime(),"Evaluate configurations (energy, stresses, forces, bulk properties)"
+	  End If
+	  eamDataSet = 1 	 	  
+	  Call eamForceZBLCore(eamKey,eamData) 
+	  Call setPotentialDerivatives(eamKey,eamData) 	  
+	  Call calcEvalFull()  
+	  Call calcOutput()	        !Print output to file
+	  Call calcOutputForces()
+	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
+		print *,ProgramTime(),"RSS: ",trialResidualSquareSum
+	  End If
+	End If
+!TEST
 	If(calcRunType.eq.99)Then    !Test
 	  	  
 	End If
 	
 	
-	
-	
-	!EVAL    6     Optimise the input potential	
-	If(calcRunType.eq.1007)Then    !Eval Trial
-	  eamDataSet = 3 	 
-      !Call makeReducedEAMSet()
-	  Call makeTrialEAMSet()	  
-	  Call calcEvalFull()  
-	  Call calcOutput()	        !Print output to file
-	  Call calcOutputForces()
-	  If(mpiProcessID.eq.0)Then
-	    print *,"Input Potential RSS:",trialResidualSquareSum  !Starting RSS
-	  End If 
-	End If
-	If(calcRunType.eq.1008)Then    !Eval Spline
-	  eamDataSet = 3 	 
-      !Call makeReducedEAMSet()
-	  !Call makeTrialEAMSet(1,eamKeyReduced,eamDataReduced)	  
-	  Call calcEvalFull()  
-	  Call calcOutput()	        !Print output to file
-	  Call calcOutputForces()
-	  If(mpiProcessID.eq.0)Then
-	    print *,"Input Potential RSS:",trialResidualSquareSum  !Starting RSS
-	  End If 
-	End If
-	
+
 	
   End Subroutine runProcessesAction 
   

@@ -94,6 +94,8 @@ contains
 		End If
 !Calculated stress
 		If(calcStressOnOff.eq.1)Then
+		  write(999,"(I4,A22)") i,&
+		  "  Calculated Stresses:"
 		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
 		  "  Sxx:",configurationStress((i-1)*9+1)," Sxy:",&
 		  configurationStress((i-1)*9+2)," Sxz:",configurationStress((i-1)*9+3)
@@ -103,6 +105,19 @@ contains
 		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
 		  "  Szx:",configurationStress((i-1)*9+7)," Szy:",&
 		  configurationStress((i-1)*9+8)," Szz:",configurationStress((i-1)*9+9)
+		End If
+		If(configurationRefStress((i-1)*9+1).gt.-2.0D20)Then
+		  write(999,"(I4,A21)") i,&
+		  "  Reference Stresses:"
+		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
+		  "  Sxx:",configurationRefStress((i-1)*9+1)," Sxy:",&
+		  configurationRefStress((i-1)*9+2)," Sxz:",configurationRefStress((i-1)*9+3)
+		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
+		  "  Syx:",configurationRefStress((i-1)*9+4)," Syy:",&
+		  configurationRefStress((i-1)*9+5)," Syz:",configurationRefStress((i-1)*9+6)
+		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
+		  "  Szx:",configurationRefStress((i-1)*9+7)," Szy:",&
+		  configurationRefStress((i-1)*9+8)," Szz:",configurationRefStress((i-1)*9+9)
 		End If
 !Calculated equilibrium volume
 		If(configurationEquVolume(i).gt.-2.0D20)Then
@@ -158,7 +173,15 @@ contains
 		End If
 		If(configurationRSS(i,2).gt.0.0D0)Then
 		  write(999,"(I4,A13,F18.10)") i,&
-		  "  Force RSS: ",configurationRSS(i,2)
+		  "  Stress RSS: ",configurationRSS(i,2)
+		End If
+		If(configurationRSS(i,3).gt.0.0D0)Then
+		  write(999,"(I4,A13,F18.10)") i,&
+		  "  Force RSS: ",configurationRSS(i,3)
+		End If
+		If(configurationRSS(i,4).gt.0.0D0)Then
+		  write(999,"(I4,A13,F18.10)") i,&
+		  "  Eq Vol RSS: ",configurationRSS(i,4)
 		End If
 	    write(999,"(A1)") " "
 	  End Do 

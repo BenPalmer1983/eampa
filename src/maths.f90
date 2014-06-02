@@ -2329,7 +2329,14 @@ Contains
   End Function VaryPoints 
   
   
-  Function VaryPointRand(x,T,varMax,randLargeVarMaxIn,randLargeVariationProbIn) RESULT (xV)  
+  Function VaryPointRand(x,T,varMax,randLargeVarMaxIn,&
+  randLargeVariationProbIn,varTypeIn) RESULT (xV)  
+! x - input value
+! T - temperature of gaussian
+! varMax - maximum variation 
+! randLargeVarMaxIn - random larger variation
+! randLargeVariationProbIn - probability of larger random variation 0-1
+! varTypeIn - 0 absolute (add on fraction of vMax), 1 relative (frac vmax times x)
 !force declaration of all variables
 	Implicit None
 !declare variables  
@@ -2347,6 +2354,8 @@ Contains
     Real(kind=DoubleReal) :: randLargeVarMax
     Real(kind=DoubleReal), optional :: randLargeVariationProbIn
     Real(kind=DoubleReal) :: randLargeVariationProb
+    Integer(kind=StandardInteger), optional :: varTypeIn
+    Integer(kind=StandardInteger) :: varType
 !Set Variables	
 	If(Present(randLargeVarMaxIn))Then
 	  randLargeVarMax = randLargeVarMaxIn
@@ -2357,6 +2366,11 @@ Contains
 	  randLargeVariationProb = randLargeVariationProbIn
 	Else
       randLargeVariationProb = 0.01D0	
+	End If
+	If(Present(varTypeIn))Then
+	  varType = varTypeIn
+	Else
+      varType = 1	
 	End If
 !Temperature start T=0 sigma=0.05, T=1000 sigma=5		20-30 good range
     sigma = 0.05+4.95D-3*T
@@ -2388,11 +2402,21 @@ Contains
 	If((1.0D0*randNumber).ge.0.5D0)Then
 	  variation = -1.0D0*variation
 	End If
-	xV= x * (1.0D0 + variation*varMax)
+!set xV with standard variation
+	If(varType.eq.0)Then
+	  xV= 1.0D0 * (x + variation*varMax)
+	Else If(varType.eq.1)Then
+	  xV= x * (1.0D0 + variation*varMax)
+	End If
+!set xV with random large variation
 	If(randLargeVarMax.gt.0.0D0)Then
 	  Call RANDOM_NUMBER(randNumber)
 	  If(randNumber.le.randLargeVariationProb)Then
-	    xV= x * (1.0D0 + variation*randLargeVarMax)	
+	    If(varType.eq.0)Then
+	      xV= 1.0D0 * (x + variation*randLargeVarMax)
+	    Else If(varType.eq.1)Then
+	      xV= x * (1.0D0 + variation*randLargeVarMax)
+	    End If
 	  End If
 	End If   
   End Function VaryPointRand  

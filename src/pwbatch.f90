@@ -24,7 +24,7 @@ Module pwbatch
 !Include MPI header
   Include 'mpif.h'  
 !declare global variables  
-  Real(kind=DoubleReal), Dimension(1:3,1:3) :: pwbUnitVector
+  Real(kind=DoubleReal), Dimension(1:3,1:3) :: pwbUnitVector, pwbUnitVectorWorking
   Real(kind=DoubleReal) :: pwbLatticeParameter
   Integer(kind=StandardInteger) :: pwbXCopy, pwbYCopy, pwbZCopy	
   Character(len=8), Dimension(1:1024)   :: pwbAtomLabelsInput
@@ -34,8 +34,10 @@ Module pwbatch
   Character(len=64), Dimension(1:128,1:2)   :: pwbAtomicSpeciesC  	
   Real(kind=DoubleReal), Dimension(1:128)   :: pwbAtomicSpeciesDP
 !PWscf options
-  Character(len=16) :: pwbRestartMode, pwbCalculation, pwbDiskIO, pwbOccupations, pwbSmearing, &
-                       pwbDiagonalization, pwbMixingMode, pwbIonDynamics, pwbCellDynamics  
+  Character(len=64) :: pwbRestartMode, pwbCalculation, pwbOutDir, pwbPseudoDir, pwbPrefix,&
+                       pwbDiskIO, pwbOccupations, pwbSmearing, &
+                       pwbDiagonalization, pwbMixingMode, pwbIonDynamics, pwbCellDynamics, &
+                       pwbKpoints					   
   Character(len=6) :: pwbTprnfor, pwbTstress
   Real(kind=DoubleReal) :: pwbEtotConvThr, pwbForcConvThr, pwbDegauss, pwbMixingBeta, &
                            pwbConvThr, pwbPress, pwbCellFactor
@@ -50,8 +52,10 @@ Module pwbatch
   Public :: pwbAtomLabels, pwbAtomLabelsInput, pwbAtomLabelsWorking
   Public :: pwbAtomCoords, pwbAtomCoordsInput, pwbAtomCoordsWorking
 !Variables - PWscf options 
-  Public :: pwbRestartMode, pwbCalculation, pwbDiskIO, pwbOccupations, pwbSmearing, &
-            pwbDiagonalization, pwbMixingMode, pwbIonDynamics, pwbCellDynamics 
+  Public :: pwbRestartMode, pwbCalculation, pwbOutDir, pwbPseudoDir, pwbPrefix, &
+            pwbDiskIO, pwbOccupations, pwbSmearing, &
+            pwbDiagonalization, pwbMixingMode, pwbIonDynamics, pwbCellDynamics, &
+            pwbKpoints			
   Public :: pwbTprnfor, pwbTstress
   Public :: pwbEtotConvThr, pwbForcConvThr, pwbDegauss, pwbMixingBeta, &
             pwbConvThr, pwbPress, pwbCellFactor
@@ -82,14 +86,19 @@ Contains
 	Integer(kind=StandardInteger) :: i	
 	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 	  print *,ProgramTime(),"PWscf batch files"
-	  print *,ProgramTime(),pwbOptConfFile
+	  print *,ProgramTime(),trim(pwbOptConfFile)
 	End If
 !Read in pwbOptConf files
     Call readPWBatchConf()
 !prep config
     Call prepPWBatchConf()
-
-	Call writePWscfFile("pwscfbatch.in")
+!make pwscf batch files
+    Call makePWBatchFiles()
+    
+!write file
+    !If(mpiProcessID.eq.0)Then	
+	!  Call writePWscfFile("output/batch/pwscfbatch.in")
+	!End If
 	
   End Subroutine runPWBatch    
 !------------------------------------------------------------------
@@ -100,9 +109,9 @@ Contains
 	Implicit None	
 !declare private variables
 	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
-	Integer(kind=StandardInteger) :: ios, i, atomCounter	
+	Integer(kind=StandardInteger) :: ios, i, atomCounter, atomicSpeciesCounter	
 	Character(len=128) :: inputFile
-	Character(len=255) :: fileRow	
+	Character(len=255) :: fileRow, fileRowOrig	
 	Character(len=64) :: bufferA, bufferB, bufferC, bufferD
 !Default values
 !--------------------------------------------------
@@ -110,10 +119,13 @@ Contains
 	pwbAtomLabelsInput = "#BLANK##"
 	pwbAtomCoordsInput = -2.1D20
 	pwbAtomicSpeciesC = "#BLANK##"
-	pwbAtomicSpeciesD = -2.1D20
+	pwbAtomicSpeciesDP = -2.1D20
 !Default pwscf file values, text
 	pwbRestartMode = "from_scratch"
 	pwbCalculation = "scf"
+	pwbOutDir = "/gpfs/bb/bxp912/scratch"
+	pwbPseudoDir = "/gpfs/bb/bxp912/pseudopotentials"
+	pwbPrefix = TrimSpaces(dpToString(GetClockTime()))
 	pwbDiskIO = "low"
 	pwbOccupations = "smearing"
 	pwbSmearing = "mv"
@@ -121,6 +133,7 @@ Contains
 	pwbMixingMode = "plain"
 	pwbIonDynamics = "bfgs"
 	pwbCellDynamics = "bfgs"
+	pwbKpoints = "2 2 2 1 1 1"
 !Default pwscf file values, boolean
     pwbTprnfor = ".true."
     pwbTstress = ".true."
@@ -144,6 +157,7 @@ Contains
 	inputFile = trim(currentWorkingDirectory)//"/"//pwbOptConfFile
 	Open(unit=101,file=trim(inputFile))   
 	atomCounter = 0
+	atomicSpeciesCounter = 0
 	Do i=1,maxFileRows 
 !Read in line
 	  Read(101,"(A255)",IOSTAT=ios) fileRow
@@ -151,6 +165,7 @@ Contains
 	  If (ios /= 0) Then
 	    EXIT 
 	  End If
+	  fileRowOrig = fileRow
 	  fileRow = StrToUpper(fileRow)
 !Lattice parameter
       If(fileRow(1:3).eq."#LP")Then
@@ -185,13 +200,21 @@ Contains
 		Read(bufferC,*) pwbYCopy
 		Read(bufferD,*) pwbZCopy
 	  End If
+!Atom Speciec
+      If(fileRow(1:3).eq."#AS")Then
+	    atomicSpeciesCounter = atomicSpeciesCounter + 1
+	    Read(fileRowOrig,*) bufferA, bufferB, bufferC, bufferD
+		Read(bufferB,*) pwbAtomicSpeciesC(atomicSpeciesCounter,1)
+		Read(bufferC,*) pwbAtomicSpeciesDP(atomicSpeciesCounter)
+		Read(bufferD,*) pwbAtomicSpeciesC(atomicSpeciesCounter,2)
+	  End If	  
 !Co-ordinates
       If(fileRow(1:1).ne."#".and.fileRow(1:1).ne."!")Then
-	    Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
+	    Read(fileRowOrig,*) bufferA, bufferB, bufferC, bufferD
 		If(bufferA(1:1).ne." ".and.bufferB(1:1).ne." ".and.&
 		bufferC(1:1).ne." ".and.bufferD(1:1).ne." ")Then
 		  atomCounter = atomCounter + 1
-		  bufferA = StrToUpper(bufferA)
+		  !bufferA = StrToUpper(bufferA)
 		  pwbAtomLabelsInput(atomCounter) = bufferA(1:8)
 		  Read(bufferB,*) pwbAtomCoordsInput(atomCounter,1)
 		  Read(bufferC,*) pwbAtomCoordsInput(atomCounter,2)
@@ -199,6 +222,7 @@ Contains
 		End If
       End If
     End Do	
+	pwbNtyp = atomicSpeciesCounter
   End Subroutine readPWBatchConf
 !------------------------------------------------------------------
 ! Prep atom config 
@@ -231,18 +255,191 @@ Contains
 		End Do
 	  End Do
     End Do	  
-	
-	!Do n=1,1024      
-	!  If(pwbAtomLabels(n).ne."#BLANK##".and.mpiProcessID.eq.0)Then
-	!    print *,pwbAtomLabels(n),pwbAtomCoords(n,1),pwbAtomCoords(n,2),pwbAtomCoords(n,3)
-	!  End If
-	!End Do
-	
+	pwbNat = n
+!Store working labels and coords
+    pwbAtomCoordsWorking = pwbAtomCoords
+    pwbAtomLabelsWorking = pwbAtomLabels
   End Subroutine prepPWBatchConf  
-  
-  
-  
-  
+!------------------------------------------------------------------
+! Make pwscf batch files 
+!------------------------------------------------------------------    
+  Subroutine makePWBatchFiles()
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i, j, k, n
+	Real(kind=DoubleReal), Dimension(1:23) :: hStrain
+	Real(kind=DoubleReal), Dimension(1:10) :: oStrain
+	Real(kind=DoubleReal), Dimension(1:10) :: mStrain
+	Real(kind=DoubleReal), Dimension(1:3,1:3) :: strainArray
+	Real(kind=DoubleReal) :: x, xV, y, yV, z, zV, T
+
+    If(mpiProcessID.eq.0)Then
+	
+!----------------------------------------------------------	
+! Init batch script files
+!----------------------------------------------------------	
+
+!Blue Bear All
+    open(unit=1021,file=trim("output/batch/bbBatchAll.sh"))
+	write(1021,"(A)") '#!/bin/bash'
+	write(1021,"(A)") '#MOAB -l walltime=00:10:00'
+	write(1021,"(A)") '#MOAB -j oe'
+	write(1021,"(A)") '#MOAB -q bbtest'
+	write(1021,"(A)") 'cd "$HOME/pwscf/test\"'
+	write(1021,"(A)") 'module load apps/intel/v2013.0.079'
+	write(1021,"(A)") 'module load apps/QE/v5.0.2'
+	
+	
+
+
+
+
+!----------------------------------------------------------	
+! Make 1201 to 1223		Homogeneous strain
+!----------------------------------------------------------	
+	
+    pwbUnitVectorWorking = pwbUnitVector
+	Call writePWscfFile("output/batch/pwscfbatch"//&
+	TrimSpaces(intToString(1101))//".in")
+	
+
+!----------------------------------------------------------	
+! Make 1201 to 1223		Homogeneous strain
+!----------------------------------------------------------	
+    Do i=0,4 
+	  hStrain(1+i) = 0.75D0+i*0.05D0
+	End Do
+    Do i=0,3 
+	  hStrain(6+i) = 0.96D0+i*0.01D0
+	End Do
+    Do i=0,4 
+	  hStrain(10+i) = 1.01D0+i*0.01D0
+	End Do
+    Do i=0,8 
+	  hStrain(15+i) = 1.10D0+i*0.05D0
+	End Do
+!Loop through strains
+    Do i=1,23 
+      pwbUnitVectorWorking = pwbUnitVector
+!Make strain array
+	  strainArray = 0.0D0
+	  strainArray(1,1) = hStrain(i)
+	  strainArray(2,2) = hStrain(i)
+	  strainArray(3,3) = hStrain(i)	  
+!Make working vector
+      pwbUnitVectorWorking = matmul(strainArray,pwbUnitVectorWorking)
+!Write pwscf input file
+	  Call writePWscfFile("output/batch/pwscfbatch"//&
+	  TrimSpaces(intToString(1200+i))//".in")
+!Write to batch files
+      write(1021,"(A)") "mpirun pw.x < "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".in > "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".out"
+	
+	
+
+!mpirun pw.x < atom.in > atom.out
+	End Do
+!----------------------------------------------------------
+! Make 1301 to 1310		Orthorhombic strain	
+!----------------------------------------------------------
+	Do i=0,3 
+	  oStrain(1+i) = -0.08D0+i*0.02D0
+	End Do
+    Do i=0,5 
+	  oStrain(5+i) = 0.01D0+i*0.02D0
+	End Do	
+	Do i=1,10 
+      pwbUnitVectorWorking = pwbUnitVector
+!Make strain array
+	  strainArray = 0.0D0
+	  strainArray(1,1) = 1.0D0+oStrain(i)
+	  strainArray(2,2) = 1.0D0-oStrain(i)
+	  strainArray(3,3) = 1.0D0+(oStrain(i)*oStrain(i))/&
+	                     (1-oStrain(i)*oStrain(i))
+!Make working vector
+      pwbUnitVectorWorking = matmul(strainArray,pwbUnitVectorWorking)
+	  Call writePWscfFile("output/batch/pwscfbatch"//&
+	  TrimSpaces(intToString(1300+i))//".in")
+	End Do
+!----------------------------------------------------------	
+! Make 1401 to 1410		Orthorhombic strain
+!----------------------------------------------------------	
+	Do i=1,10 
+	  mStrain(i) = 0.0D0+i*0.01D0
+	End Do	
+	Do i=1,10 
+!load input unit vector
+      pwbUnitVectorWorking = pwbUnitVector
+!Make strain array
+	  strainArray = 0.0D0
+	  strainArray(1,1) = 1.0D0+mStrain(i)
+	  strainArray(2,2) = 1.0D0+mStrain(i)
+	  strainArray(3,3) = (1.0D0+mStrain(i))**(-2.0D0)
+!Make working vector
+      pwbUnitVectorWorking = matmul(strainArray,pwbUnitVectorWorking)
+	  Call writePWscfFile("output/batch/pwscfbatch"//&
+	  TrimSpaces(intToString(1400+i))//".in")
+	End Do
+!----------------------------------------------------------	
+! Make 1501 to 1544		Specific interstitials and vacancies
+!----------------------------------------------------------		
+		
+
+!----------------------------------------------------------	
+! Make 1601 to 1610		Random triclinic strains
+!----------------------------------------------------------	
+		
+
+!----------------------------------------------------------	
+! Make 1701 to 1714		Fixed positions, increasing pressures
+!----------------------------------------------------------	    
+
+	
+	
+!----------------------------------------------------------	
+! Make 1801 to 1899		Optimum cell alat, randomly varied positions
+!----------------------------------------------------------	  
+!Loop through configurations
+	Do i=1,99
+!load input unit vector
+      pwbUnitVectorWorking = pwbUnitVector
+!Set labels and co-ords
+	  pwbAtomLabelsWorking = pwbAtomLabels
+	  pwbAtomCoordsWorking = pwbAtomCoords
+!loop through atoms/positions
+	  Do n=1,4096
+		If(pwbAtomLabelsWorking(n).eq."#BLANK##".or.pwbAtomCoordsWorking(n,1).lt.-2.1D20)Then
+			  Exit
+		End If
+!Vary co-ordinate
+        x = pwbAtomCoordsWorking(n,1)
+        y = pwbAtomCoordsWorking(n,2)
+        z = pwbAtomCoordsWorking(n,3)
+        xV = VaryPointRand(x,50.0D0,0.01D0/(1.0D0*pwbXCopy),0.0D0,0.0D0,0)
+        yV = VaryPointRand(y,50.0D0,0.01D0/(1.0D0*pwbYCopy),0.0D0,0.0D0,0)
+        zV = VaryPointRand(z,50.0D0,0.01D0/(1.0D0*pwbZCopy),0.0D0,0.0D0,0)
+!Store variations
+        pwbAtomCoordsWorking(n,1) = xV
+        pwbAtomCoordsWorking(n,2) = yV
+        pwbAtomCoordsWorking(n,3) = zV
+	  End Do
+!Make file
+	  Call writePWscfFile("output/batch/pwscfbatch"//&
+	  TrimSpaces(intToString(1800+i))//".in")
+	End Do
+	
+	
+	
+	
+	
+!Close files
+    Close(1021)
+	
+	
+	End If
+  End Subroutine makePWBatchFiles  
   
 !------------------------------------------------------------------
 ! Write pwscf file 
@@ -252,49 +449,79 @@ Contains
 	Implicit None	
 !declare private variables
 	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8  
+	Integer(kind=StandardInteger) :: i
+	Real(kind=DoubleReal) :: a, b, c, cosBC, cosAC, cosAB
 	Character(*) :: outputFileName
 	Character(len=128) :: outputFilePath	
-  
+!calculate variables
+    a = 1.0D0*sqrt(pwbUnitVectorWorking(1,1)**2+pwbUnitVectorWorking(1,2)**2+&
+	    pwbUnitVectorWorking(1,3)**2)*&
+		pwbXCopy*pwbLatticeParameter
+	b = 1.0D0*(sqrt(pwbUnitVectorWorking(2,1)**2+pwbUnitVectorWorking(2,2)**2+&
+	    pwbUnitVectorWorking(2,3)**2)*&
+		pwbXCopy*pwbLatticeParameter)/a	
+	c = 1.0D0*(sqrt(pwbUnitVectorWorking(3,1)**2+pwbUnitVectorWorking(3,2)**2+&
+	    pwbUnitVectorWorking(3,3)**2)*&
+		pwbXCopy*pwbLatticeParameter)/a		
+	cosBC = 1.0D0*(pwbUnitVectorWorking(2,1)*pwbUnitVectorWorking(3,1)+&
+	        pwbUnitVectorWorking(2,2)*pwbUnitVectorWorking(3,2)+&
+	        pwbUnitVectorWorking(2,3)*pwbUnitVectorWorking(3,3))/(1.0D0*b*c)
+	cosAC = 1.0D0*(pwbUnitVectorWorking(1,1)*pwbUnitVectorWorking(3,1)+&
+	        pwbUnitVectorWorking(1,2)*pwbUnitVectorWorking(3,2)+&
+	        pwbUnitVectorWorking(1,3)*pwbUnitVectorWorking(3,3))/(1.0D0*a*c)
+	cosAB = 1.0D0*(pwbUnitVectorWorking(1,1)*pwbUnitVectorWorking(2,1)+&
+	        pwbUnitVectorWorking(1,2)*pwbUnitVectorWorking(2,2)+&
+	        pwbUnitVectorWorking(1,3)*pwbUnitVectorWorking(2,3))/(1.0D0*a*c)
   
 !Open output file	  
 	outputFilePath = trim(currentWorkingDirectory)//"/"//trim(outputFileName)
 	open(unit=103,file=trim(outputFilePath))
-  
 !---------------------------
 ! Control
 !---------------------------
     write(103,"(A8)") "&CONTROL"
     write(103,"(A)") "restart_mode = '"//TrimSpaces(pwbRestartMode)//"',"
     write(103,"(A)") "calculation = '"//TrimSpaces(pwbCalculation)//"',"
-    write(103,"(A)") "etot_conv_thr = '"//TrimSpaces(dpToString(pwbEtotConvThr))//"',"
-    write(103,"(A)") "forc_conv_thr = '"//TrimSpaces(dpToString(pwbForcConvThr))//"',"
-    write(103,"(A)") "nstep = '"//TrimSpaces(intToString(pwbNstep))//"',"
-    write(103,"(A)") "tprnfor = '"//TrimSpaces(pwbTprnfor)//"',"
-    write(103,"(A)") "tstress = '"//TrimSpaces(pwbTstress)//"',"
+    write(103,"(A)") "outdir = '"//TrimSpaces(pwbOutDir)//"',"
+    write(103,"(A)") "pseudo_dir = '"//TrimSpaces(pwbPseudoDir)//"',"
+    write(103,"(A)") "prefix = '"//TrimSpaces(pwbPrefix)//"',"
+    write(103,"(A)") "etot_conv_thr = "//TrimSpaces(dpToString(pwbEtotConvThr))//","
+    write(103,"(A)") "forc_conv_thr = "//TrimSpaces(dpToString(pwbForcConvThr))//","
+    write(103,"(A)") "nstep = "//TrimSpaces(intToString(pwbNstep))//","
+    write(103,"(A)") "tprnfor = "//TrimSpaces(pwbTprnfor)//","
+    write(103,"(A)") "tstress = "//TrimSpaces(pwbTstress)//","
     write(103,"(A)") "disk_io = '"//TrimSpaces(pwbDiskIO)//"',"
 	write(103,"(A1)") "/" 
 !---------------------------
 ! System
 !---------------------------
     write(103,"(A7)") "&SYSTEM"  
-    write(103,"(A)") "ibrav = '"//TrimSpaces(intToString(pwbIbrav))//"',"
+    write(103,"(A)") "ibrav = "//TrimSpaces(intToString(pwbIbrav))//","
 !----Unit cell 6 parameters----! 
-    write(103,"(A)") "nat = '"//TrimSpaces(intToString(pwbNat))//"',"
-    write(103,"(A)") "ntyp = '"//TrimSpaces(intToString(pwbNtyp))//"',"
-    write(103,"(A)") "ecutwfc = '"//TrimSpaces(intToString(pwbEcutwfc))//"',"
-    write(103,"(A)") "ecutrho = '"//TrimSpaces(intToString(pwbEcutrho))//"',"
+    write(103,"(A)") "celldm(1) = "//TrimSpaces(dpToString(a))//","
+	write(103,"(A)") "celldm(2) = "//TrimSpaces(dpToString(b))//","
+	write(103,"(A)") "celldm(3) = "//TrimSpaces(dpToString(c))//","
+	write(103,"(A)") "celldm(4) = "//TrimSpaces(dpToString(cosBC))//","
+	write(103,"(A)") "celldm(5) = "//TrimSpaces(dpToString(cosAC))//","
+	write(103,"(A)") "celldm(6) = "//TrimSpaces(dpToString(cosAB))//","
+
+!----Unit cell 6 parameters----! 
+    write(103,"(A)") "nat = "//TrimSpaces(intToString(pwbNat))//","
+    write(103,"(A)") "ntyp = "//TrimSpaces(intToString(pwbNtyp))//","
+    write(103,"(A)") "ecutwfc = "//TrimSpaces(intToString(pwbEcutwfc))//","
+    write(103,"(A)") "ecutrho = "//TrimSpaces(intToString(pwbEcutrho))//","
     write(103,"(A)") "occupations = '"//TrimSpaces(pwbOccupations)//"',"
     write(103,"(A)") "smearing = '"//TrimSpaces(pwbSmearing)//"',"
-    write(103,"(A)") "degauss = '"//TrimSpaces(dpToString(pwbDegauss))//"',"
+    write(103,"(A)") "degauss = "//TrimSpaces(dpToString(pwbDegauss))//","
 	write(103,"(A1)") "/" 
 !---------------------------
 ! Electrons
 !---------------------------
     write(103,"(A10)") "&ELECTRONS"  
     write(103,"(A)") "diagonalization = '"//TrimSpaces(pwbDiagonalization)//"',"
-    write(103,"(A)") "mixing_mode = '"//TrimSpaces(pwbMixingMode)//"',"
-    write(103,"(A)") "mixing_beta = '"//TrimSpaces(dpToString(pwbMixingBeta))//"',"
-    write(103,"(A)") "conv_thr = '"//TrimSpaces(dpToString(pwbConvThr))//"',"
+    write(103,"(A)") "mixing_mode = "//TrimSpaces(pwbMixingMode)//","
+    write(103,"(A)") "mixing_beta = "//TrimSpaces(dpToString(pwbMixingBeta))//","
+    write(103,"(A)") "conv_thr = "//TrimSpaces(dpToString(pwbConvThr))//","
 	write(103,"(A1)") "/" 
 !---------------------------
 ! Ions
@@ -307,11 +534,38 @@ Contains
 !---------------------------
     write(103,"(A5)") "&CELL"  
     write(103,"(A)") "cell_dynamics = '"//TrimSpaces(pwbCellDynamics)//"',"
-    write(103,"(A)") "press = '"//TrimSpaces(dpToString(pwbPress))//"',"
-    write(103,"(A)") "cell_factor = '"//TrimSpaces(dpToString(pwbCellFactor))//"',"
+    write(103,"(A)") "press = "//TrimSpaces(dpToString(pwbPress))//","
+    write(103,"(A)") "cell_factor = "//TrimSpaces(dpToString(pwbCellFactor))//","
 	write(103,"(A1)") "/" 
+!---------------------------
+! Atomic Species
+!---------------------------
+    write(103,"(A14)") "ATOMIC_SPECIES"  
+    Do i=1,pwbNtyp
+      write(103,"(A)") trim(pwbAtomicSpeciesC(i,1))//"  "//&
+	                   TrimSpaces(dpToString(pwbAtomicSpeciesDP(i)))//"  "//&
+					   trim(pwbAtomicSpeciesC(i,2))
+	End Do
+!---------------------------
+! Atomic Positions
+!---------------------------
+    write(103,"(A24)") "ATOMIC_POSITIONS crystal"  
+    Do i=1,pwbNat
+      write(103,"(A)") trim(pwbAtomLabelsWorking(i))//"  "//&
+	                   TrimSpaces(dpToString(pwbAtomCoordsWorking(i,1)))//"  "//&
+	                   TrimSpaces(dpToString(pwbAtomCoordsWorking(i,2)))//"  "//&
+	                   TrimSpaces(dpToString(pwbAtomCoordsWorking(i,3)))
+	End Do
+!---------------------------
+! K-Points
+!---------------------------
+    write(103,"(A18)") "K_POINTS automatic" 
+    write(103,"(A)") TrimSpaces(pwbKpoints)
   
-  
+  	!pwbAtomLabelsInput = "#BLANK##"
+	!pwbAtomCoordsInput = -2.1D20
+	!pwbAtomicSpeciesC = "#BLANK##"
+	!pwbAtomicSpeciesDP = -2.1D20
   
   	!pwbRestartMode = "from_scratch"
 	!pwbCalculation = "scf"

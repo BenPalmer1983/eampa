@@ -88,7 +88,11 @@ contains
 	Call eamForceZBLCore(eamKey,eamData) 			!If set, force hard zbl core
 	Call setPotentialDerivatives(eamKey,eamData) 	!Fill in derivatives
     eamDataSet = 1	!eamData
-	Call calcEval()
+	If(calcRunType.eq.6)Then	!Optimise normal
+	  Call calcEval()
+	Else If(calcRunType.eq.7)Then	!Optimise full
+	  Call calcEvalFull()  
+	End If
 	Call calcOutput()	        !Print output to file
 	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 	  print *,ProgramTime(),"Input Potential RSS:",trialResidualSquareSum  !Starting RSS
@@ -104,7 +108,11 @@ contains
 	Call storeEAMToFile(eamKey, eamData, "temp.pot")			!Store to file	
 	Call reReadEamPot("temp.pot")								!Re-read potential
 	eamDataSet = 1	!eamDataTrial
-	Call calcEval()
+	If(calcRunType.eq.6)Then	!Optimise normal
+	  Call calcEval()
+	Else If(calcRunType.eq.7)Then	!Optimise full
+	  Call calcEvalFull()  
+	End If
 	Call calcOutput()	        !Print output to file
 	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 	  print *,ProgramTime(),"Reduced splined potential RSS:",trialResidualSquareSum  !Starting RSS
@@ -121,7 +129,11 @@ contains
 	Call reReadEamPot("temp/preOpt.pot")						!Re-read potential
 !Calculate RSS
     eamDataSet = 1	!eamDataTrial
-	Call calcEval()
+	If(calcRunType.eq.6)Then	!Optimise normal
+	  Call calcEval()
+	Else If(calcRunType.eq.7)Then	!Optimise full
+	  Call calcEvalFull()  
+	End If
 	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 	  print *,ProgramTime(),"Pre-optimise (SA1) potential RSS: ",trialResidualSquareSum  !Starting RSS
 	End If 
@@ -242,7 +254,11 @@ contains
 !Calculate the unperturbed response function value
     Call makeExpandedEAMSet(eamKeyW,eamDataW,eamKeyTrial,eamDataTrial)
     eamDataSet = 3	!eamDataTrial
-	Call calcEval()
+	If(calcRunType.eq.6)Then	!Optimise normal
+	  Call calcEval()
+	Else If(calcRunType.eq.7)Then	!Optimise full
+	  Call calcEvalFull()  
+	End If
     unperturbed = trialResidualSquareSum
     Allocate(interpPoints(1:4,1:2))
 !loop through each parameter and perturb each
@@ -265,7 +281,11 @@ contains
 	  eamDataP(i,2) = eamDataP(i,2)-perturbAmount
       Call makeExpandedEAMSet(eamKeyP,eamDataP,eamKeyTrial,eamDataTrial)
       eamDataSet = 3	!eamDataTrial
-	  Call calcEval()
+	  If(calcRunType.eq.6)Then	!Optimise normal
+	    Call calcEval()
+	  Else If(calcRunType.eq.7)Then	!Optimise full
+	    Call calcEvalFull()  
+	  End If
 	  interpPoints(1,1) = eamDataP(i,2)	
 	  interpPoints(1,2) = 1.0D0*trialResidualSquareSum
 !Store unperturbed amount/second point
@@ -276,7 +296,11 @@ contains
 	  eamDataP = eamDataW	  
 	  eamDataP(i,2) = eamDataP(i,2)+perturbAmount
       Call makeExpandedEAMSet(eamKeyP,eamDataP,eamKeyTrial,eamDataTrial)
-	  Call calcEval()
+	  If(calcRunType.eq.6)Then	!Optimise normal
+	    Call calcEval()
+	  Else If(calcRunType.eq.7)Then	!Optimise full
+	    Call calcEvalFull()  
+	  End If
 	  interpPoints(3,1) = eamDataP(i,2)	
 	  interpPoints(3,2) = 1.0D0*trialResidualSquareSum
 !Third pertubation/fourth point
@@ -284,7 +308,11 @@ contains
 	  eamDataP = eamDataW	  
 	  eamDataP(i,2) = eamDataP(i,2)+2.0D0*perturbAmount
       Call makeExpandedEAMSet(eamKeyP,eamDataP,eamKeyTrial,eamDataTrial)
-	  Call calcEval()
+	  If(calcRunType.eq.6)Then	!Optimise normal
+	    Call calcEval()
+	  Else If(calcRunType.eq.7)Then	!Optimise full
+	    Call calcEvalFull()  
+	  End If
 	  interpPoints(4,1) = eamDataP(i,2)	
 	  interpPoints(4,2) = 1.0D0*trialResidualSquareSum
 !Pot points		
@@ -394,7 +422,7 @@ contains
 !Vary on master, share to workers
 	    If(mpiProcessID.eq.0)Then
 		  x = eamDataRVary(point,2)
-	      xV = VaryPointRand(x,saTemp,saSpreadFactor) 
+	      xV = VaryPointRand(x,saTemp,saSpreadFactor,1.2D0,0.01D0,1) 
 	      eamDataRVary(point,2) = xV		  
         End If  
 	  End If
@@ -410,11 +438,15 @@ contains
 	    Call makeExpandedEAMSet(eamKeyRInput,eamDataRInput,eamKey,eamData)                !Expand 
 	    Call eamForceZBLCore(eamKey, eamData) 
       End If
-	  Call MPI_sendData2DInt(eamKey,size(eamKey,1),size(eamKey,2))
+	  !Call MPI_sendData2DInt(eamKey,size(eamKey,1),size(eamKey,2))
 	  Call MPI_sendData2DDP(eamData,size(eamData,1),size(eamData,2))
 !Calculate rss
 	  eamDataSet = 1		
-      Call calcEval()
+	  If(calcRunType.eq.6)Then	!Optimise normal
+	    Call calcEval()
+	  Else If(calcRunType.eq.7)Then	!Optimise full
+	    Call calcEvalFull()  
+	  End If
 !Store first/optimum 	  
 	  If(n.eq.0)Then
         bestRSS = trialResidualSquareSum
@@ -449,7 +481,7 @@ contains
 	          End Do
             End Do	
 		  End If		  
-	      Call MPI_sendData2DInt(eamKeyOptimum,size(eamKeyOptimum,1),size(eamKeyOptimum,2))
+	      !Call MPI_sendData2DInt(eamKeyOptimum,size(eamKeyOptimum,1),size(eamKeyOptimum,2))
 		  Call MPI_sendData2DDP(eamDataOptimum,size(eamDataOptimum,1),size(eamDataOptimum,2))
 	    Else	   
 		  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then

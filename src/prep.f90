@@ -64,9 +64,11 @@ Module prep
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceX
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceY
   Real(kind=DoubleReal), Dimension( : ), Allocatable :: configurationRefForceZ
+  Real(kind=DoubleReal), Dimension(1:9216) :: configurationRefStress
   
 !RSS configuration array    
-  Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configurationRSS
+  !Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configurationRSS
+  Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configurationRSS
     
 !RSS configuration opt weights    
   Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configurationOptWeights
@@ -141,6 +143,7 @@ Module prep
   Public :: configurationRefBM
   Public :: configurationRefEC
   Public :: configurationRefEquVolume
+  Public :: configurationRefStress
 !potential arrays
   Public :: atomTypeKey
   Public :: eamKeyReduced, eamDataReduced
@@ -270,7 +273,7 @@ contains
 	!Allocate(configurationUnitVector(1:(9*configCount)))
 	!Allocate(configLatticeParameters(1:configCount,1:3))
 	Allocate(configurationRadiusCutoff(1:configCount))
-	Allocate(configurationRSS(1:configCount,1:10))
+	!Allocate(configurationRSS(1:configCount,1:10))
 	Allocate(configurationOptWeights(1:configCount,1:4))
 	!Allocate(configurationEC(1:configCount,1:6))
 	!Allocate(configurationEquVolume(1:configCount))
@@ -319,6 +322,9 @@ contains
 	  configurationEquLat(i) = -2.1D20
 	  Do j=1,6
 	    configurationEC(i,j) = -2.1D20 
+	  End Do
+	  Do j=1,9
+	    configurationRefStress(9*(i-1)+j) = configHeaderR(i,27+j)
 	  End Do
 	  configAtoms(i) = configHeaderI(i,10) * configHeaderI(i,11) *&
 	  configHeaderI(i,12) * configHeaderI(i,headerWidth)

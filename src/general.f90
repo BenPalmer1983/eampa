@@ -24,6 +24,7 @@ Module general
   Public :: extractArrayColumnDP, extractArrayColumnInt
 !Public functions
   Public :: dpToString, intToString
+  Public :: GetClockTime
   
   
 Contains
@@ -172,6 +173,14 @@ Contains
 	Write(outputString,"(I16)") inputInt
   End Function intToString
   
+  
+  
+  
+  Function GetClockTime () RESULT (outputTime)
+    ! -- Argument and result
+	Real(kind=DoubleReal) :: outputTime 
+	Call cpu_time(outputTime)
+  End Function GetClockTime    
   
   
 End Module general  

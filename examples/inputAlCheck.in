@@ -2,6 +2,8 @@
 yes
 #potential
 "opt/optimum.pot"
+#eamPrepFile
+"output/eamfile.pot"
 #configurations
 "examples/atomsAl.conf"
 #datadir
@@ -53,4 +55,3 @@ N Al
 "examples/pwscf/Al.1839.out"
 "examples/pwscf/Al.1854.out"
 "examples/pwscf/Al.1857.out"
-"examples/pwscf/Al.1862.out"

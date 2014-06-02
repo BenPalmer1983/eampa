@@ -84,11 +84,12 @@ contains
     globalCounter(2) = globalCounter(2) + 1
 !Calculate energies, forces and stresses
     Call calcConfigEnergies()
+!Equilibrium Volume	
 	Call calcEquilibriumVolume()
 !Bulk modulus
     Call calcBulkModulii()
 !Bulk modulus
-    Call calcCubicElasticConstants()
+    !Call calcCubicElasticConstants()
 !Synch MPI processes
 	Call synchMpiProcesses()
 !Calc difference 
@@ -443,7 +444,10 @@ Subroutine calcBulkModulii()
 	Integer(kind=StandardInteger) :: i,j,k
 	Integer(kind=StandardInteger) :: configCounter, atomCounter
 	Real(kind=DoubleReal) :: energyDifference, forceDifference, trialRSS
+	Real(kind=DoubleReal) :: volumeDifference
 	Real(kind=DoubleReal) :: bmDifference, tempRSS, configForceDifference
+	Real(kind=DoubleReal) :: calcEnergy
+	Real(kind=DoubleReal) :: maxValue
 	Logical :: printOut
 !mpi variables
     Integer(kind=StandardInteger) :: selectProcess,status,error,tag
@@ -462,15 +466,18 @@ Subroutine calcBulkModulii()
     Do i=1,configCount
 !Check if there is a reference energy
       If(configAtomsMap(i,5).gt.0)Then
-	    tempRSS = 1.0D0*(configurationEnergy(i)/configAtoms(i)-&
-	    configurationRefEnergy(i))**2
-		tempRSS = 1.0D0*configurationOptWeights(i,1)*eamEnergyOptWeight*tempRSS	!Apply global and config weighting
-	    energyDifference = energyDifference + tempRSS
+		calcEnergy = 1.0D0*(configurationEnergy(i)/configAtoms(i))
+	    tempRSS = 1.0D0*(configurationRefEnergy(i)-calcEnergy)**2
 		configurationRSS(i,1) = configurationRSS(i,1) + tempRSS
 	  End If	
 	End Do  
+!Apply weighting and store
 	trialResidualSquareSum = energyDifference
 	rssEnergyDifference = energyDifference
+!-------------------------------------
+!Stress Difference
+!-------------------------------------
+
 !-------------------------------------
 !Force Difference
 !-------------------------------------
@@ -483,16 +490,15 @@ Subroutine calcBulkModulii()
 	    atomCounter = atomCounter + 1
 		If(configAtomsMap(configCounter,4).gt.0)Then  
 		  tempRSS = 1.0D0*(configurationForceX(i)-configurationRefForceX(i))**2+&
-			   1.0D0*(configurationForceY(i)-configurationRefForceY(i))**2+&
-			      1.0D0*(configurationForceZ(i)-configurationRefForceZ(i))**2				  
-		  tempRSS = 1.0D0*configurationOptWeights(configCounter,2)*eamForceOptWeight*tempRSS	!Apply global and config weighting
-          forceDifference=forceDifference+tempRSS
+			  1.0D0*(configurationForceY(i)-configurationRefForceY(i))**2+&
+			  1.0D0*(configurationForceZ(i)-configurationRefForceZ(i))**2	
+		  forceDifference=forceDifference+tempRSS  
 		  configForceDifference = configForceDifference + tempRSS
 		End If		  
 		If(atomCounter.eq.configAtoms(configCounter))Then
 		  atomCounter = 0
-		  configurationRSS(configCounter,2) = &
-		    configurationRSS(configCounter,2) + configForceDifference
+!Store config ev rss
+		  configurationRSS(configCounter,3) = configurationRSS(configCounter,3) + configForceDifference
 		  configCounter = configCounter + 1
 		  configForceDifference = 0.0D0
 		End If 		  
@@ -501,10 +507,19 @@ Subroutine calcBulkModulii()
 	  rssForceDifference = forceDifference
     End If
 !-------------------------------------
-!Stress Difference
+!Equilibrium Volume
 !-------------------------------------
-
-
+    volumeDifference = 0.0D0
+	Do i=1,configCount
+	  If(configurationRefEquVolume(i).gt.-2.1D20.and.configurationEquVolume(i).gt.-2.1D20)Then
+		tempRSS = (configurationEquVolume(i)-configurationRefEquVolume(i))**2
+!Store config ev rss
+		configurationRSS(i,4) = configurationRSS(i,4) + tempRSS
+!sum total ev rss
+		volumeDifference = volumeDifference + tempRSS
+	  End If
+    End Do	
+	trialResidualSquareSum = trialResidualSquareSum + volumeDifference
 !-------------------------------------
 !Bulk Modulus Difference
 !-------------------------------------
@@ -515,8 +530,42 @@ Subroutine calcBulkModulii()
 		!print *,i,configurationRefBM(i),configurationBM(i)
 	  End If
 	End Do
-	
-
+!------------------------------------
+! Normalise
+!------------------------------------    
+    Do j=1,4
+	  maxValue = 0.0D0
+	  Do i=1,configCount
+        If(configurationRSS(i,j).ne.0.0D0)Then
+          If(configurationRSS(i,j).gt.maxValue)Then
+		    maxValue = configurationRSS(i,j)
+		  End If
+		End If
+      End Do
+	  If(maxValue.gt.0.0D0)Then
+	    Do i=1,configCount
+	      configurationRSS(i,j) = configurationRSS(i,j)/maxValue
+        End Do
+	  End If
+	End Do  
+!------------------------------------
+! Apply config and global weights
+!------------------------------------   
+	Do j=1,4
+	  Do i=1,configCount 	
+	    configurationRSS(i,j) = 1.0D0*configurationOptWeights(i,j)*&
+		  eamOptWeights(j)*configurationRSS(i,j)
+	  End Do
+    End Do
+!------------------------------------
+! Sum
+!------------------------------------	
+	trialResidualSquareSum = 0.0D0
+	Do j=1,4
+	  Do i=1,configCount
+	    trialResidualSquareSum = trialResidualSquareSum + configurationRSS(i,j)
+      End Do
+	End Do 
   
   End Subroutine calcDifference
   

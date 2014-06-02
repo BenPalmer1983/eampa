@@ -1,0 +1,64 @@
+!---------------------- Verbose options
+#print
+yes
+!---------------------- Run type
+#runtype
+evaf
+!---------------------- Potential details
+#potential
+"examples/sheng_al_eam.pot"
+#zblcore pair core from 0.0 to 0.5, spline 0.5 to 1.0, dens to 1.0 from 0.5 embedding spline 0.2
+0.5 0.8 1.0 0.5 0.0 0.05
+#configurations
+"examples/atomsAl.conf"
+#datadir
+"data"
+#savecoords
+no
+#saveneighbourlist
+no
+#savepot
+yes
+#weighting energy stress force evol bm ecs 100 20 1 20 20 20
+5 2 1 1 1 1
+#weighttype Absolute or Relative (relative doesn't work)
+Absolute
+#unitvector
+1.0 0.0 0.0
+0.0 1.0 0.0
+0.0 0.0 1.0
+#eaminterp
+THREEPOINT
+#eamreducedpoints 
+50 50 30
+#saCycles Tstart Tend Tincs
+2 2 0 2
+#saTemp  Temperature  Spread amount
+40.0D0 0.01D0
+#calcforces
+yes
+#calcstress
+yes
+#calcAllBM
+No
+#calcAllEC
+No
+#dftin-rc
+6.5
+#dftin-replacesym
+1
+N Al
+#dftin-optenergy
+-10112.77814219 Ry 256
+#dftin-cohenergy
+-3.36 eV
+#dft-pwscffiles 
+"examples/pwscf/Al.1101.out"
+"examples/pwscf/Al.1601.out"
+"examples/pwscf/Al.1701.out"
+"examples/pwscf/Al.1808.out"
+"examples/pwscf/Al.1820.out"
+"examples/pwscf/Al.1831.out"
+"examples/pwscf/Al.1839.out"
+"examples/pwscf/Al.1854.out"
+"examples/pwscf/Al.1857.out"

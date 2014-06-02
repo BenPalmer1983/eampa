@@ -14,6 +14,7 @@ Module mpif
 !variables
   Public :: mpiProcessTimeStart
 !Subroutines
+  Public :: MPI_synchProcesses
   Public :: MPI_distributeArray1D
   Public :: MPI_sendout
   Public :: MPI_sendout2D
@@ -34,6 +35,31 @@ Module mpif
 !                                                                        !
 !------------------------------------------------------------------------!   
 
+
+
+  Subroutine MPI_synchProcesses()
+!force declaration of all variables
+	Implicit None	 
+!Internal subroutine variables
+    Integer(kind=StandardInteger) :: i,send,receive,tag 
+    Integer(kind=StandardInteger) :: processID,processCount,error,status 
+!call mpi subroutines
+    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
+!Send out data to all processes
+    send = 0
+    If(processID.eq.0) Then
+      Do i=1,(processCount-1)
+        tag = 1000 + i	
+        Call MPI_send(send,1,MPI_integer,i,tag,&
+		MPI_comm_world,error)
+      End Do
+    Else
+      tag = 1000 + processID
+	  Call MPI_recv(receive,1,MPI_integer,0,tag,&
+      MPI_comm_world,status,error)  
+    End If  
+  End Subroutine MPI_synchProcesses 
 
 
   Subroutine MPI_distributeArray1D(distributedArray,processMap)

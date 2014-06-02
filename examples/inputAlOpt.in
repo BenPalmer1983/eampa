@@ -3,10 +3,10 @@
 yes
 !---------------------- Run type
 #runtype
-opti
+optf
 !---------------------- Potential details
 #potential
-"examples/optimum.pot"
+"examples/sheng_al_eam.pot"
 #zblcore pair core from 0.0 to 0.5, spline 0.5 to 1.0, dens to 1.0 from 0.5 embedding spline 0.2
 0.5 0.8 1.0 0.5 0.0 0.05
 #configurations
@@ -19,8 +19,8 @@ no
 no
 #savepot
 yes
-#weighting energy stress forces
-1000 20 1
+#weighting energy stress force evol bm ecs 100 20 1 20 20 20
+5 2 1 1 1 1
 #unitvector
 1.0 0.0 0.0
 0.0 1.0 0.0
@@ -30,7 +30,7 @@ THREEPOINT
 #eamreducedpoints 
 50 50 30
 #saCycles Tstart Tend Tincs
-30 2 0 2
+2 2 0 2
 #saTemp  Temperature  Spread amount
 40.0D0 0.01D0
 #calcforces
@@ -60,4 +60,3 @@ N Al
 "examples/pwscf/Al.1839.out"
 "examples/pwscf/Al.1854.out"
 "examples/pwscf/Al.1857.out"
-"examples/pwscf/Al.1862.out"

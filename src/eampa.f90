@@ -15,6 +15,7 @@ Program eampa
   Use prep     			! prep module
   Use calc			    ! calc
   Use prepeam			! calc
+  Use prepdl     		! prep dlpoly files
   Use run			    ! calc
   Use pwbatch			! calc
   Use output			! output
@@ -42,6 +43,11 @@ Program eampa
 !prepare eam potential
   If(optionRunPrepEAM.eq.1)Then 
     Call runPrepeam()
+  End If
+
+!prepare dlpoly files
+  If(optionRunDLPrep.eq.1)Then 
+    Call runPrepdl()
   End If
 
 !start calculations

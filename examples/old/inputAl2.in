@@ -1,0 +1,33 @@
+#potential
+"examples/sheng_al_eam.pot"
+#configurations
+"examples/atomsAl2.conf"
+#datadir
+"examples"
+#savecoords
+no
+#saveneighbourlist
+no
+#savepot
+yes
+#runtype
+energy
+#unitvector
+1.0 0.0 0.0
+0.0 1.0 0.0
+0.0 0.0 1.0
+#eaminterp
+FOURPOINT
+#calcforces
+yes
+#calcstress
+yes
+#dftin-rc
+6.5
+#dftin-replacesym
+1
+N Al
+#dftin-optenergy
+-10112.77814219 Ry 256
+#dftin-cohenergy
+-3.36 eV

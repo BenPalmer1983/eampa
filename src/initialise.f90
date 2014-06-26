@@ -16,7 +16,9 @@ Module initialise
   Character(len=255) :: outputFile
   Character(len=255) :: outputFileEnergies
   Character(len=255) :: outputFileForces
-
+!Ini Variables
+  Character(len=255) :: outputDirectory
+  Character(len=255) :: tempDirectory
 !MPI Global Variables
   Integer(kind=StandardInteger) :: mpiProcessCount, mpiProcessID  
 
@@ -29,7 +31,9 @@ Module initialise
   Public :: outputFileEnergies    	!Variable
   Public :: outputFileForces    	!Variable
   Public :: currentWorkingDirectory	!Variable
-  
+!Ini Variables
+  Public :: outputDirectory
+  Public :: tempDirectory
 !MPI Variables  
   Public :: mpiProcessCount
   Public :: mpiProcessID
@@ -51,28 +55,70 @@ Module initialise
 contains 
 
 !Run all the input subroutines
-
   Subroutine runInitialise()
+!Internal subroutine variables
+    Integer(kind=StandardInteger) :: error  
+!get the working directory
+	Call getcwd(currentWorkingDirectory)	
+!MPI variables (public)
+	Call MPI_Init(error)
+    Call MPI_Comm_size( MPI_COMM_WORLD ,mpiProcessCount,error)
+    Call MPI_Comm_rank(MPI_COMM_WORLD,mpiProcessID,error)	
+!store start time
+	Call cpu_time(programStartTime)
+!Call init subroutines
+    Call readInitFile()
+    Call initDataFiles()
+	Call SetRandomSeedArray()      !Set random seed		
+  End Subroutine runInitialise	
 	
+!Read INIT file
+  Subroutine readInitFile()	
+!declare private variables
+	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
+    Integer(kind=StandardInteger) :: i, ios, rowCount  
+	Character(len=128) :: fileRow
+	Character(len=128) :: bufferA, bufferB, bufferC
+!Open ini file and read	
+	Open(unit=10,file="eampa.ini")
+	rowCount = 0
+	Do i=1,maxFileRows 
+      rowCount = rowCount + 1
+	  Read(1,"(A128)",IOSTAT=ios) fileRow
+	  If (ios /= 0) Then
+	    EXIT 
+	  End If
+	End Do  
+	Close(10)
+!Set defaults
+    outputDirectory = Trim(currentWorkingDirectory)//"/output"
+    tempDirectory = Trim(currentWorkingDirectory)//"/temp"
+!Open ini file and reread	
+	Open(unit=10,file="eampa.ini")
+	Do i=1,rowCount 	
+	  Read(1,"(A128)",IOSTAT=ios) fileRow
+	  If(StrToUpper(fileRow(1:10)).eq."#OUTPUTDIR")Then
+	    Read(fileRow,*) bufferA, bufferB
+		If(StrToUpper(bufferB(1:7)).ne."DEFAULT")Then
+		  outputDirectory = bufferB
+		End If
+	  End If
+	End Do
+	Close(10)
+	
+
+	
+  End Subroutine readInitFile	
+
+
+!Run all the input subroutines
+  Subroutine initDataFiles()	
 !Internal subroutine variables
 	Integer(kind=StandardInteger) :: i, j, k
 	Integer(kind=StandardInteger), Dimension(1:3) :: theTime, theDate
-	Character(len=255) :: outputFilePath
-	Integer(kind=StandardInteger), Dimension(1:10) :: rnSeed
-    Integer(kind=StandardInteger) :: error  
-	
-!MPI
-	Call MPI_Init(error)
-    Call MPI_Comm_size( MPI_COMM_WORLD ,mpiProcessCount,error)
-    Call MPI_Comm_rank(MPI_COMM_WORLD,mpiProcessID,error)
-	
-!store start time
-	Call cpu_time(programStartTime)
+!Call date subroutines
 	Call idate(theDate)   ! theDate(1)=day, (2)=month, (3)=year
     Call itime(theTime)   ! theDate(1)=hour, (2)=minute, (3)=second
-	
-!get the working directory
-	Call getcwd(currentWorkingDirectory)
 !save output file name
 	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
 !Create output file
@@ -91,7 +137,7 @@ contains
 !close output file
 	  close(999)
 	End If
-	!save output file name
+!save output file name
 	outputFileForces = trim(currentWorkingDirectory)//"/"//"outputForces.dat"
 !Create output file
     If(mpiProcessID.eq.0)Then
@@ -108,12 +154,26 @@ contains
 	  write(989,"(A1)") " "
 !close output file
 	  close(989)
-	End If
-	
-!Set random seed
-    Call SetRandomSeedArray()
-	
-  End Subroutine runInitialise
+	End If   
+!save output file name
+	outputFileForces = trim(outputDirectory)//"/"//"rssLog.dat"
+!Create output file
+    If(mpiProcessID.eq.0)Then
+	  open(unit=979,file=trim(outputFileForces))
+	  write(979,"(A38)") "======================================"
+	  write(979,"(A38)") "            RSS Log File              "
+	  write(979,"(A38)") "      University of Birmingham        "
+	  write(979,"(A38)") "             Ben Palmer               "
+	  write(979,"(A38)") "======================================"
+	  write(979,"(A1)") " "
+	  write(979,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+	  "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)	
+	  write(979,"(A1)") " "
+	  write(979,"(A1)") " "
+!close output file
+	  close(979)
+	End If   
+  End Subroutine initDataFiles
   
   
     

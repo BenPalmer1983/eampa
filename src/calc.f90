@@ -29,8 +29,6 @@ Module calc
   Public :: calcEvalFull		
   Public :: calcConfigEnergies
   Public :: calcDifference
-  !Public :: calcOutput
-  Public :: calcOutputForces
 !functions
   
 
@@ -54,6 +52,8 @@ contains
 	Implicit None	
 !declare private variables
 	Integer(kind=StandardInteger) :: i,j,k
+	Real(kind=DoubleReal) :: rss
+	Real(kind=DoubleReal), Dimension(1:1024,1:10) :: rssTable
 !Clear values
     trialResidualSquareSum = 0.0D0	
 !Count energy calculation
@@ -66,7 +66,7 @@ contains
 !Synch MPI processes
 	Call synchMpiProcesses()
 !Calc difference 
-    Call calcDifference()
+    Call calcDifference(rss,rssTable)
 !Save difference to file
 	Call calcOutputDifference() 
   End Subroutine calcEval
@@ -78,6 +78,8 @@ contains
 	Implicit None	
 !declare private variables
 	Integer(kind=StandardInteger) :: i,j,k
+	Real(kind=DoubleReal) :: rss
+	Real(kind=DoubleReal), Dimension(1:1024,1:10) :: rssTable
 !Clear values
     trialResidualSquareSum = 0.0D0	
 !Count energy calculation
@@ -93,7 +95,9 @@ contains
 !Synch MPI processes
 	Call synchMpiProcesses()
 !Calc difference 
-    Call calcDifference()
+    Call calcDifference(rss,rssTable)
+	!print *,configurationRSS(1,4)
+	!print *,configurationRSS(1,5)
 !Save difference to file
 	Call calcOutputDifference() 
   End Subroutine calcEvalFull
@@ -128,24 +132,16 @@ contains
     startTime = ProgramTime()
     If(mpiProcessID.eq.0.and.printOut.eqv..true.)Then
 !open output file	
-	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
+	  !outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	  !open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
 !write to output file
-	  write(999,"(A33,F8.4,A3,I4)") "Calculating configuration energy ",&
-	  ProgramTime(),"   ",globalCounter(1)
+	  !write(999,"(A33,F8.4,A3,I4)") "Calculating configuration energy ",&
+	  !ProgramTime(),"   ",globalCounter(1)
 	End If
-!zero out energies
-    Do i=1,configCount
-      configurationEnergy(i) = 0.0D0	
-	End Do
-!zero out forces
-    If(calcForcesOnOff.eq.1)Then
-      Do i=1,configAtomsTotal
-        configurationForceX(i) = 0.0D0
-        configurationForceY(i) = 0.0D0
-        configurationForceZ(i) = 0.0D0	
-	  End Do
-	End If  
+!zero out arrays
+	configurationEnergy = 0.0D0
+	configurationForce = 0.0D0
+	configurationStresses = 0.0D0
 !-----------------------------------------------------
 ! Split over MPI processes and calc energies, forces
 !-----------------------------------------------------
@@ -163,131 +159,14 @@ contains
 ! Collect energy results from all processes then distribute
 !-----------------------------------------------------------
 	Call distributeData1DDP(configurationEnergy,size(configurationEnergy,1),21)
-!-----------------------------------------------------------
-! Collect force results from all processes then distribute
-!-----------------------------------------------------------	
-	!Collect data from processes
-    If(Allocated(bufferArray))Then
-	  Deallocate(bufferArray)
-	End If
-    Allocate(bufferArray(1:configAtomsTotal))
-    If(mpiProcessID.gt.0) Then
-!send buffers from all worker processes
-      Do i=1,(mpiProcessCount-1)
-        If(i.eq.mpiProcessID)Then
-          processTo = 0
-          tag = 1100 + mpiProcessID	
-          Call MPI_send(configurationForceX,configAtomsTotal,&
-		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
-          processTo = 0
-          tag = 1200 + mpiProcessID	
-          Call MPI_send(configurationForceY,configAtomsTotal,&
-		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
-          processTo = 0
-          tag = 1300 + mpiProcessID	
-          Call MPI_send(configurationForceZ,configAtomsTotal,&
-		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
-	    End If
-      End Do
-    End If
-    If(mpiProcessID.eq.0) Then
-!read buffers from worker processes
-      Do j=1,(mpiProcessCount-1)
-!receive arrays - X force component
-		processFrom = j
-        tag = 1100 + j
-        Call MPI_recv(bufferArray,configAtomsTotal,&
-		MPI_double_precision,processFrom,tag,MPI_comm_world,status,error )
-!loop and transfer data
-        Do i=1,configCount
-		  If(configAtomsMap(i,3).eq.j)Then !Check if this process j calculated forces fr config i
-!Transfer data if calculated for those atoms
-            Do k=configAtomsMap(i,1),configAtomsMap(i,2)
-			  configurationForceX(k) = bufferArray(k)
-			End Do
-		  End If
-		End Do
-!receive arrays - Y force component
-		processFrom = j
-        tag = 1200 + j
-        Call MPI_recv(bufferArray,configAtomsTotal,&
-		MPI_double_precision,processFrom,tag,MPI_comm_world,status,error )
-!loop and transfer data
-        Do i=1,configCount
-		  If(configAtomsMap(i,3).eq.j)Then !Check if this process j calculated forces fr config i
-!Transfer data if calculated for those atoms
-            Do k=configAtomsMap(i,1),configAtomsMap(i,2)
-			  configurationForceY(k) = bufferArray(k)
-			End Do
-		  End If
-		End Do
-!receive arrays - Z force component
-		processFrom = j
-        tag = 1300 + j
-        Call MPI_recv(bufferArray,configAtomsTotal,&
-		MPI_double_precision,processFrom,tag,MPI_comm_world,status,error )
-!loop and transfer data
-        Do i=1,configCount
-		  If(configAtomsMap(i,3).eq.j)Then !Check if this process j calculated forces fr config i
-!Transfer data if calculated for those atoms
-            Do k=configAtomsMap(i,1),configAtomsMap(i,2)
-			  configurationForceZ(k) = bufferArray(k)
-			End Do
-		  End If
-		End Do	
-      End Do
+    Call MPI_sumData2DDP(configurationForce,&
+	size(configurationForce,1),size(configurationForce,2))
+    Call MPI_sumData2DDP(configurationStresses,&
+	size(configurationStresses,1),size(configurationStresses,2))
+!Save forces to file
+    If(saveFileForces.eq."Y")Then
+	  Call outputForces()
     End If	
-!send arrays from master to worker processes
-	Call sendData1DDP(configurationForceX,size(configurationForceX))
-	Call sendData1DDP(configurationForceY,size(configurationForceY))
-	Call sendData1DDP(configurationForceZ,size(configurationForceZ))
-!-----------------------------------------------------------
-! Collect Stress results from all processes then distribute
-!-----------------------------------------------------------	
-
-    If(mpiProcessID.gt.0) Then
-!send buffers from all worker processes
-      Do i=1,(mpiProcessCount-1)
-        If(i.eq.mpiProcessID)Then
-          processTo = 0
-          tag = 1400 + mpiProcessID	
-		  bufferArraySize = (9*configCount)
-          Call MPI_send(configurationStress,bufferArraySize,&
-		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
-	    End If
-      End Do
-    End If
-!read buffers from worker processes
-	If(mpiProcessID.eq.0) Then
-!read buffers from worker processes
-      Do j=1,(mpiProcessCount-1)
-!receive arrays - X force component
-		processFrom = j
-        tag = 1400 + j
-		bufferArraySize = (9*configCount)
-        Call MPI_recv(bufferArray,bufferArraySize,&
-		MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
-		n = 0
-		Do k=1,configCount
-		  Do i=1,9
-		    n = n + 1
-			If(configAtomsMap(k,21).eq.j)Then
-			  configurationStress(n) = bufferArray(n) 
-			End If
-		  End Do
-		End Do
-      End Do
-	End If  
-!send array from master to worker processes
-	Call sendData1DDP(configurationStress,size(configurationStress))
-!Set end time	
-    endTime = ProgramTime() 	
-!-----------------------------
-! Deallocate arrays
-!-----------------------------
-	If(Allocated(bufferArray))Then
-	  Deallocate(bufferArray)
-	End If
   End Subroutine calcConfigEnergies
 
 
@@ -437,136 +316,165 @@ Subroutine calcBulkModulii()
 ! ***calcDifference*** 
 !------------------------------------------------------------------------!
     
-  Subroutine calcDifference()
+  Subroutine calcDifference(rss, rssTable)
 !force declaration of all variables
 	Implicit None	
 !declare private variables
-	Integer(kind=StandardInteger) :: i,j,k
-	Integer(kind=StandardInteger) :: configCounter, atomCounter
+	Integer(kind=StandardInteger) :: i,j,k,n
+	Integer(kind=StandardInteger) :: configCounter, atomCounter, configAtomsCount
 	Real(kind=DoubleReal) :: energyDifference, forceDifference, trialRSS
 	Real(kind=DoubleReal) :: volumeDifference
 	Real(kind=DoubleReal) :: bmDifference, tempRSS, configForceDifference
 	Real(kind=DoubleReal) :: calcEnergy
 	Real(kind=DoubleReal) :: maxValue
+	Real(kind=DoubleReal), Dimension(1:10) :: normMultipliers
+	Real(kind=DoubleReal) :: rss, configRss
+	Real(kind=DoubleReal), Dimension(1:1024,1:10) :: rssTable
 	Logical :: printOut
 !mpi variables
     Integer(kind=StandardInteger) :: selectProcess,status,error,tag
 !Total residual square sum
     trialResidualSquareSum = 0.0D0  
 !zero rss array
-    Do i=1,configCount
-	  Do j=1,10
-	    configurationRSS(i,j) = 0.0D0
-	  End Do	
-	End Do
+    rssTable = 0.0D0
 !-------------------------------------
 !Energy Difference
 !-------------------------------------
-    energyDifference = 0.0D0
     Do i=1,configCount
 !Check if there is a reference energy
       If(configAtomsMap(i,5).gt.0)Then
 		calcEnergy = 1.0D0*(configurationEnergy(i)/configAtoms(i))
-	    tempRSS = 1.0D0*(configurationRefEnergy(i)-calcEnergy)**2
-		configurationRSS(i,1) = configurationRSS(i,1) + tempRSS
+		rssTable(i,1) = 1.0D0*(configurationRefEnergy(i)-calcEnergy)**2
+		!rss energy per atom
 	  End If	
 	End Do  
-!Apply weighting and store
-	trialResidualSquareSum = energyDifference
-	rssEnergyDifference = energyDifference
 !-------------------------------------
 !Stress Difference
 !-------------------------------------
-
+    Do i=1,configCount	
+	  If(configurationRefStresses(i,1).gt.-2.1D20)Then
+	    Do j=1,9
+		  rssTable(i,2) = rssTable(i,2) + &
+		    1.0D0*((configurationRefStresses(i,j)-configurationStresses(i,j))&
+			    /9.0D0)**2
+		  !per stress tensor component
+		End Do
+      End If
+	End Do
 !-------------------------------------
 !Force Difference
 !-------------------------------------
-    forceDifference = 0.0D0
     If(calcForcesOnOff.eq.1)Then
 	  configCounter = 1
 	  atomCounter = 0
 	  configForceDifference = 0.0D0
-  	  Do i=1,configAtomsTotal 
-	    atomCounter = atomCounter + 1
-		If(configAtomsMap(configCounter,4).gt.0)Then  
-		  tempRSS = 1.0D0*(configurationForceX(i)-configurationRefForceX(i))**2+&
-			  1.0D0*(configurationForceY(i)-configurationRefForceY(i))**2+&
-			  1.0D0*(configurationForceZ(i)-configurationRefForceZ(i))**2	
-		  forceDifference=forceDifference+tempRSS  
-		  configForceDifference = configForceDifference + tempRSS
-		End If		  
-		If(atomCounter.eq.configAtoms(configCounter))Then
-		  atomCounter = 0
-!Store config ev rss
-		  configurationRSS(configCounter,3) = configurationRSS(configCounter,3) + configForceDifference
-		  configCounter = configCounter + 1
-		  configForceDifference = 0.0D0
-		End If 		  
-	  End Do
-	  trialResidualSquareSum = trialResidualSquareSum + forceDifference
-	  rssForceDifference = forceDifference
+!Loop through atoms
+	  Do i=1,configCount
+	    configAtomsCount = configAtoms(i)
+	    Do j=1,configAtomsCount
+	      n = configAtomsStart(i) + j		  
+		  If(configurationRefForce(n,1).gt.-2.0D20)Then
+		    Do k=1,3
+		      rssTable(i,3) = rssTable(i,3) + &
+		      1.0D0*((configurationRefForce(n,k)-configurationForce(n,k))/&
+			  (configAtomsCount*3.0D0))**2	!rss avg force per atom per direction
+		    End Do
+		  End If
+	    End Do
+	  End Do	  
     End If
 !-------------------------------------
 !Equilibrium Volume
 !-------------------------------------
-    volumeDifference = 0.0D0
 	Do i=1,configCount
+	  configAtomsCount = configAtoms(i)
 	  If(configurationRefEquVolume(i).gt.-2.1D20.and.configurationEquVolume(i).gt.-2.1D20)Then
-		tempRSS = (configurationEquVolume(i)-configurationRefEquVolume(i))**2
 !Store config ev rss
-		configurationRSS(i,4) = configurationRSS(i,4) + tempRSS
-!sum total ev rss
-		volumeDifference = volumeDifference + tempRSS
+		rssTable(i,4) = rssTable(i,4) + &
+		    1.0D0*((configurationEquVolume(i)-configurationRefEquVolume(i))/&
+			configAtomsCount)**2 !rss volume per atom
 	  End If
     End Do	
-	trialResidualSquareSum = trialResidualSquareSum + volumeDifference
 !-------------------------------------
 !Bulk Modulus Difference
 !-------------------------------------
     bmDifference = 0.0D0
     Do i=1,configCount 
 	  If(configurationBM(i).gt.(-2.0D20).and.configurationRefBM(i).gt.(-2.0D20))Then
-	    bmDifference = bmDifference + 1.0D0*(configurationRefBM(i)-configurationBM(i))
-		!print *,i,configurationRefBM(i),configurationBM(i)
+	    rssTable(i,5) = rssTable(i,5) + &
+		    1.0D0*(configurationRefBM(i)-configurationBM(i))**2
 	  End If
 	End Do
 !------------------------------------
 ! Normalise
-!------------------------------------    
-    Do j=1,4
-	  maxValue = 0.0D0
-	  Do i=1,configCount
-        If(configurationRSS(i,j).ne.0.0D0)Then
-          If(configurationRSS(i,j).gt.maxValue)Then
-		    maxValue = configurationRSS(i,j)
-		  End If
-		End If
-      End Do
-	  If(maxValue.gt.0.0D0)Then
-	    Do i=1,configCount
-	      configurationRSS(i,j) = configurationRSS(i,j)/maxValue
-        End Do
-	  End If
-	End Do  
+!------------------------------------  
+	normMultipliers = 1.0D0
+	normMultipliers(1) = (1.0D-1)**2		!energy normal per atom eV
+	normMultipliers(2) = (1.0D-2)**2		!stress normal per direction gpa
+	normMultipliers(3) = (1.0D-4)**2		!force normal per atom eV/ang
+	normMultipliers(4) = (0.1D0)**2		    !vol normal per atom ang3
+	normMultipliers(5) = (5.0D0)**2		    !bm normal per atom gpa
+    Do i=1,configCount 
+	  Do j=1,10 
+	    rssTable(i,j) = rssTable(i,j) / normMultipliers(j)
+	  End Do
+	End Do 
 !------------------------------------
 ! Apply config and global weights
 !------------------------------------   
-	Do j=1,4
-	  Do i=1,configCount 	
-	    configurationRSS(i,j) = 1.0D0*configurationOptWeights(i,j)*&
-		  eamOptWeights(j)*configurationRSS(i,j)
+	Do j=1,10
+	  Do i=1,configCount 
+        If(configurationOptWeights(i,j).gt.0)Then
+	      rssTable(i,j) = 1.0D0*configurationOptWeights(i,j)*&
+		  eamOptWeights(j)*rssTable(i,j)
+		End If
 	  End Do
     End Do
 !------------------------------------
 ! Sum
 !------------------------------------	
-	trialResidualSquareSum = 0.0D0
-	Do j=1,4
+	rss = 0.0D0
+	Do j=1,10
 	  Do i=1,configCount
-	    trialResidualSquareSum = trialResidualSquareSum + configurationRSS(i,j)
+	    rss = rss + rssTable(i,j)
       End Do
 	End Do 
-  
+    configurationRSS = rssTable
+	trialResidualSquareSum = rss
+!------------------------------------
+! Record rss
+!------------------------------------	
+	
+!Create output file
+    If(mpiProcessID.eq.0)Then
+      globalCounter(3) = globalCounter(3) + 1
+	  open(unit=979,file=trim(outputDirectory)//"/"//"rssLog.dat",&
+	  status="old",position="append",action="write")	
+	  If(globalCounter(3).eq.1)Then
+	    write(979,"(A88)") &
+		"========================================================================================"
+	    write(979,"(A88)") &
+		"n     Config    RSS         Energy      Stress      Forces      Eq.Vol      BM          "
+	    write(979,"(A88)") &
+		"========================================================================================"
+	  End If
+	  Do i=1,configCount
+	    configRss = 0.0D0
+	    Do j=1,10
+	      configRss = configRss + rssTable(i,j)
+	    End Do
+	    write(979,"(I5,A1,I9,A1,F11.5,A1,F11.5,A1,F11.5,A1,F11.5,A1,F11.5,A1,F11.5,A1)")&
+		globalCounter(2)," ",i," ",configRss," ",&
+		rssTable(i,1)," ",rssTable(i,2)," ",rssTable(i,3)," ",rssTable(i,4)," ",rssTable(i,5)," "		
+	  End Do 
+      write(979,"(A17,F11.5)") "Calculation RSS: ",rss
+	  write(979,"(A88)") &
+	  "----------------------------------------------------------------------------------------"
+!close output file
+	  close(979)
+	End If
+	
+	
   End Subroutine calcDifference
   
   
@@ -582,45 +490,7 @@ Subroutine calcBulkModulii()
 ! splitting the work over the MPI processes
 !------------------------------------------------------------------------!
   
-  Subroutine calcOutputForces() 
-!Outputs configuration forces to file
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i, j, k 
-	Integer(kind=StandardInteger) :: configCounter, atomCounter
-!If root/master process
-    If(mpiProcessID.eq.0)Then
-!-------------------------------------
-! Output Forces to force file
-!-------------------------------------
-!Write forces to output file, if master process
-!open forces output file	
-	  open(unit=989,file=trim(outputFileForces),status="old",position="append",action="write")	  
-	  configCounter = 1
-	  atomCounter = 0
-	  Do i=1,configAtomsTotal  
-	    atomCounter = atomCounter + 1
-	    If(configAtomsMap(configCounter,4).gt.0)Then	!Reference forces
-	      write(989,"(I4,E20.10,E20.10,E20.10,E20.10,E20.10,E20.10,A10,I8,I8,I8)") atomCounter,&
-		  configurationForceX(i),configurationForceY(i),configurationForceZ(i),&
-		  configurationRefForceX(i),configurationRefForceY(i),&
-		  configurationRefForceZ(i),&
-		  "          ",i,configCounter,configAtomsMap(configCounter,3)
-		Else
-	      write(989,"(I4,E20.10,E20.10,E20.10,A10,I8,I8,I8)") atomCounter,&
-		  configurationForceX(i),configurationForceY(i),configurationForceZ(i),&
-		  "          ",i,configCounter,configAtomsMap(configCounter,3)
-		End If 
-		If(atomCounter.eq.configAtoms(configCounter))Then
-		  atomCounter = 0
-		  configCounter = configCounter + 1
-		End If 
-	  End Do	  
-	  close(989)	
-!----------------------------------
-  	End If  
-  End Subroutine calcOutputForces
+
   
    
 !------------------------------------------------------------------------!
@@ -644,10 +514,10 @@ Subroutine calcBulkModulii()
 	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
 	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	 
 !Write to file	  
-	  write(999,"(A19,I4,A7,E20.10,A14,E20.10,A13,E20.10)") "Evaluation count: ",&
-	  globalCounter(1),", RSS: ",trialResidualSquareSum,&
-	  ", Energy RSS: ",rssEnergyDifference,&
-	  ", Force RSS: ",rssForceDifference
+	  !write(999,"(A19,I4,A7,E20.10,A14,E20.10,A13,E20.10)") "Evaluation count: ",&
+	  !globalCounter(1),", RSS: ",trialResidualSquareSum,&
+	  !", Energy RSS: ",rssEnergyDifference,&
+	  !", Force RSS: ",rssForceDifference
 	  
 !Close output file
       close(999)
@@ -701,161 +571,158 @@ Subroutine calcBulkModulii()
 !force declaration of all variables
 	Implicit None	
 !declare private variables
-	Integer(kind=StandardInteger) :: i, j, k, l, n, configurationID, keyIJ, forceKey  
-	Integer(kind=StandardInteger) :: ii, jj
-	Integer(kind=StandardInteger) :: configStart, configLength
-	Integer(kind=StandardInteger) :: atoms, atomI, atomJ, atomIType, atomJType
-	Integer(kind=StandardInteger) :: densityCount
-	Real(kind=DoubleReal) :: pairEnergy, embeddingEnergy, energy, time
-	Real(kind=DoubleReal) :: embedForce
-	Real(kind=DoubleReal) :: pairEnergyDifferential
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: density  
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayV  
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayP  
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayE 
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayEi 
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArrayEj 
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: atomForce
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: atomForceMagnitude
-	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: atomForceComponent  
-	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: densityGrad  
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: embeddingGrad  
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: refStress  
-!Info	
-!neighbourListI(j,1) A type, neighbourListI(j,2) B type, 
-!neighbourListI(j,3) A id, neighbourListI(j,4) B id
-!Set Variables
-    configStart = neighbourListKey(configurationID,1)
+    Integer(kind=StandardInteger) :: configurationID
+	Real(kind=DoubleReal) :: energy
+	Integer(kind=StandardInteger) :: i, j, k, l, n, m
+	Integer(kind=StandardInteger) :: configStart, configLength, configAtomsCount
+	Integer(kind=StandardInteger) :: densityCount, forceKeyA, forceKeyB
+!Data arrays
+    Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
+    Real(kind=DoubleReal), Dimension(1:500000) :: density
+!Data variables	
+	Real(kind=DoubleReal) :: r, pairEnergy, embeddingEnergy
+	Real(kind=DoubleReal) :: forceM, forceS, forceX, forceY, forceZ
+	Real(kind=DoubleReal), Dimension(1:3) :: forceArr, forceA
+	Real(kind=DoubleReal) :: densDerivAB, densDerivBA, embeDerivA, embeDerivB
+!config values
+	configStart = neighbourListKey(configurationID,1)
     configLength = neighbourListKey(configurationID,2)
-    atoms = configAtoms(configurationID)
-	densityCount = atoms*elementCount
-	functionOutOfRangeCounter = 0
-!Allocate arrays
-    if(Allocated(density))Then
-	  Deallocate(density)
-	endif
-    Allocate(density(1:atoms))
-	If(calcForcesOnOff.eq.1)Then 
-	  If(Allocated(atomForce))Then
-	    Deallocate(atomForce)
-	  End If
-      Allocate(atomForce(1:atoms))
-	  If(Allocated(atomForceMagnitude))Then
-	    Deallocate(atomForceMagnitude)
-	  End If
-      Allocate(atomForceMagnitude(1:configLength))
-	  If(Allocated(densityGrad))Then
-	    Deallocate(densityGrad)
-	  End If
-      Allocate(densityGrad(1:configLength,1:2))
-	  If(Allocated(embeddingGrad))Then
-	    Deallocate(embeddingGrad)
-	  End If
-      Allocate(embeddingGrad(1:atoms))
-	  If(Allocated(atomForceComponent))Then
-	    Deallocate(atomForceComponent)
-	  End If
-	  Allocate(atomForceComponent(1:configLength,1:3))
-	End If
-!configurationForceMPIKey(i,1)
-!zero density and atomForce
-    Do j=1,atoms
-	  density(j) = 0.0D0 	  	
+    configAtomsCount = configAtoms(configurationID)
+!Set starting values
+    energy = 0.0D0	
+    pairEnergy = 0.0D0
+    density	= 0.0D0
+	embeddingEnergy	= 0.0D0	
+!Zero forces for this configuration
+    Do i=1,configAtomsCount
+	  n = configAtomsStart(configurationID) + i
+	  configurationForce(n,1) = 0.0D0
+	  configurationForce(n,2) = 0.0D0
+	  configurationForce(n,3) = 0.0D0
 	End Do
-!pair energy contribution and density calculation
-	pairEnergy = 0.0D0
-	pairEnergyDifferential = 0.0D0
-	embeddingEnergy = 0.0D0
-!sum pair energy and density	
+!
+! Neighbour list information
+! neighbourListR(n)    Atom separation
+! neighbourListI(n,1)  Atom A type
+! neighbourListI(n,2)  Atom B type
+! neighbourListI(n,3)  Atom A id
+! neighbourListI(n,4)  Atom B id
+!
+!--------------------------------------------------
+! Loop 1 - sum pair energy and density	
+!--------------------------------------------------
     k = 0
-	do j=configStart,configStart+configLength-1 
+	Do n=configStart,configStart+configLength-1 		!loop through neighbour list for configuration
 	  k = k + 1
-	  atomIType = neighbourListI(j,1)
-	  atomJType = neighbourListI(j,2)
-	  atomI = neighbourListI(j,3)
-	  atomJ = neighbourListI(j,4)
-!Pair potential
-	  If(neighbourListR(j).le.configurationRadiusCutoff(configurationID))Then	
-	    yArrayV = SearchPotentialPoint(atomIType,atomJType,1,neighbourListR(j))  
-	    pairEnergy = pairEnergy + yArrayV(1)
-!Density function
-	    yArrayP = SearchPotentialPoint(atomJType,0,2,neighbourListR(j))
-	    density(atomI) = density(atomI) + yArrayP(1)
-	    If(calcForcesOnOff.eq.1)Then	  
-!Add pair potential to each force component
-          atomForceMagnitude(k) = 1.0D0*yArrayV(2)
-!Store density gradient for atom i-j pair
-		  densityGrad(k,2) = yArrayP(2)
-		  yArrayP = SearchPotentialPoint(atomIType,0,2,neighbourListR(j))
-		  densityGrad(k,1) = yArrayP(2)
-	    End If
-	  Else
-	    If(calcForcesOnOff.eq.1)Then
-		  atomForceMagnitude(k) = 0.0D0
-		  densityGrad(k,2) = 0.0D0 
-		  densityGrad(k,1) = 0.0D0
-		End If
+!If within cutoff radius
+      If(neighbourListR(n).le.configurationRadiusCutoff(configurationID))Then
+!Pot Energy: Sum pair potential energy between A and all the Bs around it
+	    yArray = SearchPotentialPoint(neighbourListI(n,1),&			!Returns yArray(1) value of function at r [neighbourListR(n)]
+		         neighbourListI(n,2),1,neighbourListR(n))           !yArray(2) derivative of function at r [neighbourListR(n)]
+	    pairEnergy = pairEnergy+yArray(1)
+!Forces: pair potential component of force	 
+        forceArr(1) = yArray(2)*neighbourListCoords(n,10)	!x component direction and force from atom A to B
+        forceArr(2) = yArray(2)*neighbourListCoords(n,11)	!y component direction and force from atom A to B
+        forceArr(3) = yArray(2)*neighbourListCoords(n,12)	!z component direction and force from atom A to B
+!Force key
+        forceKeyA = configAtomsStart(configurationID) + neighbourListI(n,3)
+        forceKeyB = configAtomsStart(configurationID) + neighbourListI(n,4)
+!Force on atom A		
+		configurationForce(forceKeyA,1)=configurationForce(forceKeyA,1)-1.0D0*forceArr(1)
+		configurationForce(forceKeyA,2)=configurationForce(forceKeyA,2)-1.0D0*forceArr(2)
+		configurationForce(forceKeyA,3)=configurationForce(forceKeyA,3)-1.0D0*forceArr(3)
+!Force on atom B		
+		configurationForce(forceKeyB,1)=configurationForce(forceKeyB,1)+1.0D0*forceArr(1)
+		configurationForce(forceKeyB,2)=configurationForce(forceKeyB,2)+1.0D0*forceArr(2)
+		configurationForce(forceKeyB,3)=configurationForce(forceKeyB,3)+1.0D0*forceArr(3)
+!Pot Energy: Electron density of each A due to the electrons of the Bs around it	
+        yArray = SearchPotentialPoint(neighbourListI(n,2),0,2,neighbourListR(n))	
+		density(neighbourListI(n,3)) = density(neighbourListI(n,3)) + yArray(1)
+!Pot Energy: Electron density of each B due to the electrons of the As around it			
+        yArray = SearchPotentialPoint(neighbourListI(n,1),0,2,neighbourListR(n))	
+		density(neighbourListI(n,4)) = density(neighbourListI(n,4)) + yArray(1)
+!Stress from pair contribution
+		If(neighbourListI(n,6).eq.1)Then
+	      Do i=1,3   !coord i j k
+		    Do j=1,3 !force on k due to l
+		      k = (i-1)*3+j
+			  configurationStresses(configurationID,k) = &
+			  configurationStresses(configurationID,k) + &
+			  (neighbourListCoords(n,i+3)-neighbourListCoords(n,i)) * forceArr(j)
+			End Do
+          End Do
+        End If	
 	  End If
-	End Do	
-!sum embedding energy and embedding grad for each atom
-    do j=1,atoms
-	  n = configAtomsStart(configurationID) + j
-	 !atomTypeKey
-	  yArrayE = SearchPotentialPoint(atomTypeKey(n),0,3,density(j))
-	  embeddingEnergy = embeddingEnergy + yArrayE(1)	
-	enddo
-!sum force	
-    If(calcForcesOnOff.eq.1)Then	
-      k = 0
-	  Do j=configStart,configStart+configLength-1 
-	    k = k + 1
-		atomIType = neighbourListI(j,1)
-		atomJType = neighbourListI(j,2)
-		atomI = neighbourListI(j,3)
-		atomJ = neighbourListI(j,4)
-		yArrayEi = SearchPotentialPoint(atomIType,0,3,density(atomI))
-		yArrayEj = SearchPotentialPoint(atomJType,0,3,density(atomJ))
-		embedForce = 0.0D0
-		embedForce = 1.0D0*yArrayEi(2)*densityGrad(k,2)+1.0D0*yArrayEj(2)*densityGrad(k,1)
-!Add embedding potential to each force component
-        atomForceMagnitude(k) = atomForceMagnitude(k) + 1.0D0*embedForce
-!sum up forces by atom
-        forceKey = configAtomsStart(configurationID)+atomI
-		configurationForceX(forceKey) = configurationForceX(forceKey) + &
-		atomForceMagnitude(k) * neighbourListCoords(j,10)
-		configurationForceY(forceKey) = configurationForceY(forceKey) + &
-		atomForceMagnitude(k) * neighbourListCoords(j,11)
-		configurationForceZ(forceKey) = configurationForceZ(forceKey) + &
-		atomForceMagnitude(k) * neighbourListCoords(j,12)
-!Stress
-        If(calcStressOnOff.eq.1)Then 
-		  Do ii=1,3
-		    Do jj=1,3 
-              n = ((configurationID-1)*9)+3*(ii-1)+jj
-			  configurationStress(n) = configurationStress(n)+&
-			  neighbourListCoords(j,3+ii)*atomForceMagnitude(k)*&
-			  neighbourListCoords(j,9+jj)
-			End Do  
-          End Do			
-		End If
-	  End Do
-	End If	
+	End Do
+!--------------------------------------------------
+! Loop 2 - embedding energy	
+!--------------------------------------------------
+    Do n=1,configAtomsCount		!loop through atoms in the configuration
+!Pot Energy: Embedding energy	
+	  m = configAtomsStart(configurationID) + n			!atom id
+      yArray = SearchPotentialPoint(atomTypeKey(m),0,3,density(n))		!get energy to embed atom at that density
+	  embeddingEnergy = embeddingEnergy+yArray(1)	
+	End Do  
+!--------------------------------------------------
+! Loop 3 - remaining derivative values for force	
+!--------------------------------------------------
+    k = 0
+	Do n=configStart,configStart+configLength-1 
+	  k = k + 1	
+!If within cutoff radius
+      If(neighbourListR(n).le.configurationRadiusCutoff(configurationID))Then  
+!Density derivatives
+	    yArray = SearchPotentialPoint(neighbourListI(n,2),0,2,neighbourListR(n))
+	    densDerivAB = yArray(2)		!derivative of the density
+	    yArray = SearchPotentialPoint(neighbourListI(n,1),0,2,neighbourListR(n))
+	    densDerivBA = yArray(2)
+!Embedding derivatives
+        yArray = SearchPotentialPoint(neighbourListI(n,1),0,3,density(neighbourListI(n,3)))
+	    embeDerivA = yArray(2)
+        yArray = SearchPotentialPoint(neighbourListI(n,2),0,3,density(neighbourListI(n,4)))
+	    embeDerivB = yArray(2)
+!Force, embedding dens A
+	    forceM = (embeDerivA*densDerivAB+embeDerivB*densDerivBA)
+	    forceArr(1) = forceM*neighbourListCoords(n,10)
+	    forceArr(2) = forceM*neighbourListCoords(n,11)
+	    forceArr(3) = forceM*neighbourListCoords(n,12)
+!Force key
+        forceKeyA = configAtomsStart(configurationID) + neighbourListI(n,3)
+        forceKeyB = configAtomsStart(configurationID) + neighbourListI(n,4)
+!Force on atom A		
+	    configurationForce(forceKeyA,1)=configurationForce(forceKeyA,1)-1.0D0*forceA(1)
+	    configurationForce(forceKeyA,2)=configurationForce(forceKeyA,2)-1.0D0*forceA(2)
+	    configurationForce(forceKeyA,3)=configurationForce(forceKeyA,3)-1.0D0*forceA(3)
+!Force on atom B		
+	    configurationForce(forceKeyB,1)=configurationForce(forceKeyB,1)+1.0D0*forceA(1)
+	    configurationForce(forceKeyB,2)=configurationForce(forceKeyB,2)+1.0D0*forceA(2)
+	    configurationForce(forceKeyB,3)=configurationForce(forceKeyB,3)+1.0D0*forceA(3)
+!Stress from embedding contribution
+		If(neighbourListI(n,6).eq.1)Then
+	      Do i=1,3   !coord i j k
+		    Do j=1,3 !force on k due to l
+		      k = (i-1)*3+j
+			  configurationStresses(configurationID,k) = &
+			  configurationStresses(configurationID,k) + &
+			  (neighbourListCoords(n,i+3)-neighbourListCoords(n,i)) * forceArr(j)
+			End Do
+          End Do
+        End If	
+	  End If	
+	End Do
 !total energy of configuration
-    energy = 0.5D0 * pairEnergy + embeddingEnergy   
-!Calculate volume	
-	!configurationVolume(configurationID) = calcConfigurationVolume(configurationID)
-!Convert stress to GPa
-	If(calcStressOnOff.eq.1)Then
-      Do ii=1,3
-	    Do jj=1,3
-          n = ((configurationID-1)*9)+3*(ii-1)+jj
-          configurationStress(n) = UnitConvert(configurationStress(n),"EVAN3","GPA")
-          configurationStress(n) = &
-	      (1.0D0/(2.0D0*configurationVolume(configurationID))) * configurationStress(n)
-        End Do
-      End Do		
-	End If
-  End function CalcEnergy  
+    energy = pairEnergy+embeddingEnergy   	
+!convert stress to gpa
+    Do i=1,9
+      configurationStresses(configurationID,i) = &
+	    UnitConvert(configurationStresses(configurationID,i),"EVAN3","GPA")
+	  configurationStresses(configurationID,i) = &
+	    (1.0D0/(2.0D0*configurationVolume(configurationID)))*configurationStresses(configurationID,i)
+	End Do 
+  End function CalcEnergy
+    
+  
+  
 
 !================================================================================================================================================  
 !================================================================================================================================================
@@ -1040,10 +907,14 @@ Subroutine calcBulkModulii()
 	Real(kind=DoubleReal), Dimension(1:2) :: equArray
 	Real(kind=DoubleReal), Dimension(1:2) :: secondDerivative
 	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: strainArray, volEnergy
+	Real(kind=DoubleReal), Dimension(1:50,1:3) :: bmData
 	Real(kind=DoubleReal), Dimension( : ), Allocatable :: bmFit	
 !Allocate arrays
 	Allocate(StrainArray(1:3,1:3))
 	Allocate(volEnergy(1:9,1:2))	
+    If(saveFileBM.eq."Y")Then	
+	  bmData = -2.1D20
+	End If
 !Store original neighbour list
     Call storeNeighboutList()
 !Check if equilibrium has been calculated	
@@ -1087,13 +958,23 @@ Subroutine calcBulkModulii()
 	  End If
 	  volEnergy(j,1) = volume
 	  volEnergy(j,2) = configEnergyVal
+!bm data array
+      If(saveFileBM.eq."Y")Then
+        bmData(j,1) = 1.0D0*strainAmount
+        bmData(j,2) = 1.0D0*volume
+        bmData(j,3) = 1.0D0*configEnergyVal
+	  End If
     End Do
 !Load original neighbour list
     Call loadNeighboutList()
 !calculate second derivative d2E/dV2	
 	secondDerivative = CalcSecondDerivativeMinimum(volEnergy)
 	bulkModulus = secondDerivative(2)*secondDerivative(1)
-	bulkModulus = bulkModulus*elementaryCharge*1.0D30*1.0D-9	
+	bulkModulus = bulkModulus*elementaryCharge*1.0D30*1.0D-9		
+!Output BM details
+    If(saveFileBM.eq."Y")Then
+	  Call outputBM(configurationID,bmData)	
+	End If
   End function CalcBulkModulus
 !================================================================================================================================================  
 !================================================================================================================================================

@@ -23,6 +23,8 @@ Module output
 !Subroutines  
   Public :: calcOutput
   Public :: outputPrepareEAM	    
+  Public :: outputForces
+  Public :: outputBM
 !Functions
   
   
@@ -54,6 +56,9 @@ contains
 !                                                                        !
 !                                                                        !
 !------------------------------------------------------------------------!
+  
+  
+  
   
 !------------------------------------------------------------------------!
 ! ***calcOutput*** 
@@ -93,37 +98,40 @@ contains
 		  (configurationEnergy(i)/configAtoms(i))," eV per atom (no ref)"
 		End If
 !Calculated stress
-		If(calcStressOnOff.eq.1)Then
+		If(configurationStresses(i,1).gt.-2.0D20)Then
 		  write(999,"(I4,A22)") i,&
 		  "  Calculated Stresses:"
 		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Sxx:",configurationStress((i-1)*9+1)," Sxy:",&
-		  configurationStress((i-1)*9+2)," Sxz:",configurationStress((i-1)*9+3)
+		  "  Sxx:",configurationStresses(i,1)," Sxy:",&
+		  configurationStresses(i,2)," Sxz:",configurationStresses(i,3)
 		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Syx:",configurationStress((i-1)*9+4)," Syy:",&
-		  configurationStress((i-1)*9+5)," Syz:",configurationStress((i-1)*9+6)
+		  "  Syx:",configurationStresses(i,4)," Syy:",&
+		  configurationStresses(i,5)," Syz:",configurationStresses(i,6)
 		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Szx:",configurationStress((i-1)*9+7)," Szy:",&
-		  configurationStress((i-1)*9+8)," Szz:",configurationStress((i-1)*9+9)
+		  "  Szx:",configurationStresses(i,7)," Szy:",&
+		  configurationStresses(i,8)," Szz:",configurationStresses(i,9)
 		End If
-		If(configurationRefStress((i-1)*9+1).gt.-2.0D20)Then
+		If(configurationRefStresses(i,1).gt.-2.0D20)Then
 		  write(999,"(I4,A21)") i,&
 		  "  Reference Stresses:"
 		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Sxx:",configurationRefStress((i-1)*9+1)," Sxy:",&
-		  configurationRefStress((i-1)*9+2)," Sxz:",configurationRefStress((i-1)*9+3)
+		  "  Sxx:",configurationRefStresses(i,1)," Sxy:",&
+		  configurationRefStresses(i,2)," Sxz:",configurationRefStresses(i,3)
 		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Syx:",configurationRefStress((i-1)*9+4)," Syy:",&
-		  configurationRefStress((i-1)*9+5)," Syz:",configurationRefStress((i-1)*9+6)
+		  "  Syx:",configurationRefStresses(i,4)," Syy:",&
+		  configurationRefStresses(i,5)," Syz:",configurationRefStresses(i,6)
 		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Szx:",configurationRefStress((i-1)*9+7)," Szy:",&
-		  configurationRefStress((i-1)*9+8)," Szz:",configurationRefStress((i-1)*9+9)
+		  "  Szx:",configurationRefStresses(i,7)," Szy:",&
+		  configurationRefStresses(i,8)," Szz:",configurationRefStresses(i,9)
 		End If
 !Calculated equilibrium volume
 		If(configurationEquVolume(i).gt.-2.0D20)Then
-		    write(999,"(I4,A22,F18.10,A15,F18.10)") i,&
-		    "  Equilibrium volume: ",configurationEquVolume(i),&
-			" Input volume: ",configurationVolume(i)
+		    write(999,"(I4,A22,F18.10)") i," Input volume: ",&
+			configurationVolume(i)
+		    write(999,"(I4,A22,F18.10)") i," Equilibrium volume: ",&
+			configurationEquVolume(i)
+		    write(999,"(I4,A22,F18.10)") i," Ref Equilibrium volume: ",&
+			configurationRefEquVolume(i)
 		End If
 !Calculated equilibrium lattice parameter multiplier
 		If(configurationEquVolume(i).gt.-2.0D20)Then
@@ -168,21 +176,25 @@ contains
 		End If		
 !RSS between calculated and 
 		If(configurationRSS(i,1).gt.0.0D0)Then
-		  write(999,"(I4,A14,F18.10)") i,&
-		  "  Energy RSS: ",configurationRSS(i,1)
+		  write(999,"(I4,A20,F18.10)") i,&
+		  "  Energy RSS (1):   ",configurationRSS(i,1)
 		End If
 		If(configurationRSS(i,2).gt.0.0D0)Then
-		  write(999,"(I4,A13,F18.10)") i,&
-		  "  Stress RSS: ",configurationRSS(i,2)
+		  write(999,"(I4,A20,F18.10)") i,&
+		  "  Stress RSS (2):   ",configurationRSS(i,2)
 		End If
 		If(configurationRSS(i,3).gt.0.0D0)Then
-		  write(999,"(I4,A13,F18.10)") i,&
-		  "  Force RSS: ",configurationRSS(i,3)
+		  write(999,"(I4,A20,F18.10)") i,&
+		  "  Force RSS (3):    ",configurationRSS(i,3)
 		End If
 		If(configurationRSS(i,4).gt.0.0D0)Then
-		  write(999,"(I4,A13,F18.10)") i,&
-		  "  Eq Vol RSS: ",configurationRSS(i,4)
+		  write(999,"(I4,A20,F18.10)") i,&
+		  "  Eq Vol RSS (4):   ",configurationRSS(i,4)
 		End If
+		If(configurationRSS(i,5).gt.0.0D0)Then
+		  write(999,"(I4,A20,F18.10)") i,&
+		  "  BM RSS (5):       ",configurationRSS(i,5)
+		End If		
 	    write(999,"(A1)") " "
 	  End Do 
 	  If(trialResidualSquareSum.gt.-2.0D20)Then
@@ -237,7 +249,77 @@ contains
 !                                                                        !
 !------------------------------------------------------------------------!
 
-
+  Subroutine outputForces() 
+!Outputs configuration forces to file
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k,n
+	Integer(kind=StandardInteger) :: configAtomsCount
+!If root/master process
+    If(mpiProcessID.eq.0)Then
+!-------------------------------------
+! Output Forces to force file
+!-------------------------------------
+!Write forces to output file, if master process
+!open forces output file	
+	  open(unit=5,file=trim(trim(outputDirectory)//"/forces.dat"),action="write")
+	  !open(unit=989,file=trim(outputFileForces),status="old",position="append",action="write")	   
+!Loop through configurations
+	  Do i=1,configCount	    
+	    configAtomsCount = configAtoms(i)
+		write(5,"(A15,I4)") "Configuration: ",i
+	    Do j=1,configAtomsCount
+	      n = configAtomsStart(i) + j		  
+		  If(configurationRefForce(n,1).gt.-2.0D20)Then
+		    write(5,"(I4,E20.10,E20.10,E20.10,E20.10,E20.10,E20.10)") &
+			j,&
+			ForceZero(configurationForce(n,1),1.0D-15),&
+			ForceZero(configurationForce(n,2),1.0D-15),&
+			ForceZero(configurationForce(n,3),1.0D-15),&
+			ForceZero(configurationRefForce(n,1),1.0D-15),&
+			ForceZero(configurationRefForce(n,2),1.0D-15),&
+			ForceZero(configurationRefForce(n,3),1.0D-15)
+		  Else	
+			write(5,"(I4,E20.10,E20.10,E20.10)") &
+			j,&
+			ForceZero(configurationForce(n,1),1.0D-15),&
+			ForceZero(configurationForce(n,2),1.0D-15),&
+			ForceZero(configurationForce(n,3),1.0D-15)
+		  End If
+	    End Do
+	  End Do	 
+	  close(5)	
+!----------------------------------
+  	End If  
+  End Subroutine outputForces
+  
+  
+  Subroutine outputBM(configurationID,bmData)
+!Outputs configuration forces to file
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k,n,configurationID
+	Integer(kind=StandardInteger) :: configAtomsCount
+	Real(kind=DoubleReal), Dimension(1:50,1:3) :: bmData
+!If root/master process
+    If(mpiProcessID.eq.0)Then  
+!----------------------------------
+!open forces output file	
+	  open(unit=5,file=trim(trim(outputDirectory)//"/bm.dat"),action="write")	
+	  write(5,"(A15,I4)") "Configuration: ",configurationID
+	  Do i=1,size(bmData,1)
+	    If(bmData(i,1).gt.-2.0D20)Then
+		  write(5,"(I8,E20.10,E20.10,E20.10)") i,bmData(i,1),bmData(i,2),bmData(i,3)
+		End If
+	  End Do
+	  close(5)
+!----------------------------------
+  	End If    
+  End Subroutine outputBM
+  
+  
 
   
   

@@ -20,8 +20,10 @@ Module mpif
   Public :: MPI_sendout2D
   Public :: MPI_timer  
   Public :: MPI_sendData1DDP
+  Public :: MPI_sendData1DInt
   Public :: MPI_sendData2DInt
   Public :: MPI_sendData2DDP
+  Public :: MPI_sumData2DDP
 !Functions
   !Public :: 
   
@@ -371,7 +373,7 @@ Module mpif
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
 !-----------------------------------------	
 ! Send array from master to workers
-!-----------------------------------------   
+!----------------------------------------- 
     If(processID.eq.0)Then
 !SEND by master process	 
 	  sendArray = dataArray
@@ -388,7 +390,7 @@ Module mpif
       Call MPI_recv(recvArray,arraySize,&
 	  MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
 	  dataArray = recvArray
-	End If    
+	End If   
   End Subroutine MPI_sendData1DInt 
 !------------------------------------------------------------------------!
 ! ***MPI_sendData1DDP*** 
@@ -420,14 +422,14 @@ Module mpif
 	    processTo = i
         tag = 2000 + i
 		Call MPI_send(sendArray,arraySize,&
-		MPI_double_precision,processTo,tag,MPI_comm_world,error)
+		MPI_integer,processTo,tag,MPI_comm_world,error)
 	  End Do	
 	Else
 !RECV by worker processes
       processFrom = 0
 	  tag = 2000 + processID
       Call MPI_recv(recvArray,arraySize,&
-	  MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+	  MPI_integer,processFrom,tag,MPI_comm_world,status,error)
 	  dataArray = recvArray
 	End If    
   End Subroutine MPI_sendData1DDP
@@ -470,14 +472,14 @@ Module mpif
 	      processTo = i
           tag = 2000 + i
 		  Call MPI_send(sendArray,arraySizeH,&
-		  MPI_double_precision,processTo,tag,MPI_comm_world,error)
+		  MPI_integer,processTo,tag,MPI_comm_world,error)
 	    End Do	
 	  Else
 !RECV by worker processes
         processFrom = 0
 	    tag = 2000 + processID
         Call MPI_recv(recvArray,arraySizeH,&
-	    MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+	    MPI_integer,processFrom,tag,MPI_comm_world,status,error)
 	    dataArrayTemp = recvArray
 	  End If    
 !-----------------------------------------
@@ -545,7 +547,69 @@ Module mpif
 	  End Do
 	End Do
   End Subroutine MPI_sendData2DDP 
-
+!------------------------------------------------------------------------!
+! ***MPI_sumData2DDP*** 
+! Takes an array and sums values across mpi processes
+!------------------------------------------------------------------------!  
+  Subroutine MPI_sumData2DDP(dataArray,arraySizeH,arraySizeW) 
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i,j,k,n
+	Integer(kind=StandardInteger) :: arraySizeH,arraySizeW
+!mpi variables
+    Integer(kind=StandardInteger) :: processID,processCount
+    Integer(kind=StandardInteger) :: status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom
+	Real(kind=DoubleReal), Dimension(1:arraySizeH,1:arraySizeW) :: dataArray
+	Real(kind=DoubleReal), Dimension(1:arraySizeH) :: dataArrayTemp, sendArray, recvArray
+!Loop array columns
+	Do n=1,arraySizeW
+!-----------------------------------------
+! Make temp 1D array
+!-----------------------------------------	
+	  Do i=1,arraySizeH
+	    dataArrayTemp(i) = dataArray(i,n)
+	  End Do
+!-----------------------------------------
+! Set mpi variable values
+!-----------------------------------------
+	  Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
+      Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
+!-----------------------------------------	
+! Sum arrays from workers with master
+!-----------------------------------------   	  
+	  If(processID.eq.0)Then
+!RECV by master process
+	    Do i=1,(processCount-1)
+          processFrom = i
+	      tag = 1000 + i
+          Call MPI_recv(recvArray,arraySizeH,&
+	      MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
+		  Do j=1,arraySizeH
+	        dataArrayTemp(j) = dataArrayTemp(j) + recvArray(j)
+		  End Do
+		End Do	 
+	  Else
+!SEND by worker process	 
+	    sendArray = dataArrayTemp
+	    processTo = 0
+        tag = 1000 + processID
+		Call MPI_send(sendArray,arraySizeH,&
+		MPI_double_precision,processTo,tag,MPI_comm_world,error)
+	  End If 
+!-----------------------------------------
+! Merge 1D array with 2D array
+!-----------------------------------------		  
+      Do i=1,arraySizeH
+	    dataArray(i,n) = dataArrayTemp(i)
+	  End Do  
+	End Do
+!-----------------------------------------
+! Send out merged/summed array
+!-----------------------------------------	
+    Call MPI_sendData2DDP(dataArray,arraySizeH,arraySizeW) 
+  End Subroutine MPI_sumData2DDP 
   
   
   

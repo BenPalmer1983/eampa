@@ -1,0 +1,20 @@
+#runtype
+prp4
+#print
+yes
+#potential
+"examples/Al.lammps.eam"
+#datadir
+"data"
+#pottype
+LAMMPS
+#zblcore pair core from 0.0 to 0.5, spline 0.5 to 1.0, dens to 1.0 from 0.5 embedding spline 0.2
+0.5 0.8 1.0 0.5 0.0 0.05
+#configurations
+"examples/atomsAl.conf"
+#datadir
+"data"
+#unitvector
+1.0 0.0 0.0
+0.0 1.0 0.0
+0.0 0.0 1.0

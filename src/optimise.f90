@@ -84,16 +84,18 @@ contains
 ! Step 1 - run evaluation for input potential
 !----------------------------------------------------------------------------
 ! Choose set of eam data points for eam calculations
-	Call reReadEamPot(potentialFilePathTemp)	
+	!Call reReadEamPot(potentialFilePathTemp)	
 	Call eamForceZBLCore(eamKey,eamData) 			!If set, force hard zbl core
 	Call setPotentialDerivatives(eamKey,eamData) 	!Fill in derivatives
     eamDataSet = 1	!eamData
+	saveFileForces = "Y"        !Save forces	
 	If(calcRunType.eq.6)Then	!Optimise normal
 	  Call calcEval()
 	Else If(calcRunType.eq.7)Then	!Optimise full
 	  Call calcEvalFull()  
 	End If
 	Call calcOutput()	        !Print output to file
+	saveFileForces = "N"        !Stop saving forces
 	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 	  print *,ProgramTime(),"Input Potential RSS:",trialResidualSquareSum  !Starting RSS
 	End If 
@@ -105,8 +107,8 @@ contains
 	Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKey,eamData)	!Make expanded set
 	Call eamForceZBLCore(eamKey,eamData) 			            !If set, force hard zbl core
 	Call setPotentialDerivatives(eamKey,eamData) 	            !Fill in derivatives
-	Call storeEAMToFile(eamKey, eamData, "temp.pot")			!Store to file	
-	Call reReadEamPot("temp.pot")								!Re-read potential
+	Call storeEAMToFile(eamKey, eamData, trim(tempDirectory)//"/"//"reduced.pot")			!Store to file	
+	Call reReadEamPot(trim(tempDirectory)//"/"//"reduced.pot")								!Re-read potential
 	eamDataSet = 1	!eamDataTrial
 	If(calcRunType.eq.6)Then	!Optimise normal
 	  Call calcEval()
@@ -125,8 +127,8 @@ contains
 	Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKey,eamData)	!Make expanded set
 	Call eamForceZBLCore(eamKey,eamData) 			            !If set, force hard zbl core
 	Call setPotentialDerivatives(eamKey,eamData) 	            !Fill in derivatives
-	Call storeEAMToFile(eamKey, eamData, "temp/preOpt.pot")		!Store to file	
-	Call reReadEamPot("temp/preOpt.pot")						!Re-read potential
+	Call storeEAMToFile(eamKey, eamData, trim(tempDirectory)//"/"//"preOpt.pot")		!Store to file		
+	Call reReadEamPot(trim(tempDirectory)//"/"//"preOpt.pot")						!Re-read potential
 !Calculate RSS
     eamDataSet = 1	!eamDataTrial
 	If(calcRunType.eq.6)Then	!Optimise normal
@@ -141,8 +143,19 @@ contains
 ! Step 3 - Run SA optimisation
 !----------------------------------------------------------------------------
     Call makeReducedEAMSet(eamKey,eamData,eamKeyR,eamDataR)		!Make reduced set
-    Call runOptimisePointVary(eamKeyR,eamDataR)
-	
+    Call runOptimisePointVary(eamKeyR,eamDataR,size(eamDataR,1))
+!----------------------------------------------------------------------------
+! Step 4 - Run SA optimisation
+!----------------------------------------------------------------------------	
+	If(calcRunType.eq.6)Then	!Optimise normal
+	  Call calcEval()
+	Else If(calcRunType.eq.7)Then	!Optimise full
+	  Call calcEvalFull()  
+	End If
+	Call calcOutput()	        !Print output to file
+	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
+	  print *,ProgramTime(),"Final RSS: ",trialResidualSquareSum  !Starting RSS
+	End If 
   
   End Subroutine optimisePotential 
 !---------------------------------------------------------------------------------------------------
@@ -350,7 +363,7 @@ contains
 !---------------------------------------------------------------------------------------------------
 !
 !---------------------------------------------------------------------------------------------------
-  Subroutine runOptimisePointVary(eamKeyRInput,eamDataRInput)
+  Subroutine runOptimisePointVary(eamKeyRInput,eamDataRInput,dataPoints)
 !---------------------------------------------
 ! 
 !
@@ -358,8 +371,8 @@ contains
 !force declaration of all variables
 	Implicit None	
 !declare private variables
-	Integer(kind=StandardInteger) :: i, j, k, n, point, fileCount, startI, endI
-	Integer(kind=StandardInteger) :: potStart, potEnd, potLength
+	Integer(kind=StandardInteger) :: i, j, k, n, point, pointN, fileCount, startI, endI
+	Integer(kind=StandardInteger) :: potStart, potEnd, potLength, dataPoints
 	Integer(kind=StandardInteger) :: reducedKeyPoints, reducedDataPoints
 	Integer(kind=StandardInteger) :: expandedKeyPoints, expandedDataPoints
 	Real(kind=DoubleReal) :: bestRSS
@@ -370,7 +383,11 @@ contains
 	Integer(kind=StandardInteger), Dimension(1:100,1:5) :: eamKeyROpt,eamKeyRVary,eamKeyOptimum
     Real(kind=DoubleReal), Dimension(1:100000,1:2) :: eamDataROpt,eamDataRVary,eamDataOptimum
 	Real(kind=DoubleReal), Dimension( : ), Allocatable :: potTypeKey
+	Integer(kind=StandardInteger), Dimension(1:dataPoints) :: list
 	Logical :: varyPoint
+!mpi
+    Integer(kind=StandardInteger) :: status,error,tag
+    Integer(kind=StandardInteger) :: processTo,processFrom	
 !--------------------------------------------
 ! Step 1 - Prepare variables and data
 !--------------------------------------------
@@ -399,6 +416,27 @@ contains
 !--------------------------------------------
 ! Step 2 - Loop through and vary
 !--------------------------------------------	
+!Make a list of shuffled numbers
+    list = 0
+    If(mpiProcessID.eq.0)Then
+      list = NumberList(dataPoints,500)
+	End If
+!Send out list
+    If(mpiProcessID.eq.0)Then
+!SEND by master process	 
+      Do i=1,(mpiProcessCount-1)
+	    processTo = i
+        tag = 2000 + i
+		Call MPI_send(list,size(list,1),&
+		MPI_integer,processTo,tag,MPI_comm_world,error)
+	  End Do	
+	Else
+!RECV by worker processes
+      processFrom = 0
+	  tag = 2000 + mpiProcessID
+      Call MPI_recv(list,size(list,1),&
+	  MPI_integer,processFrom,tag,MPI_comm_world,status,error)
+	End If
 	startI = 0
 	endI = saCycles*size(eamDataRInput,1)
 	!endI = 200
@@ -415,7 +453,8 @@ contains
 !Vary point
       varyPoint = .false. 
 	  If(n.gt.startI)Then
-	    point = mod(n,reducedDataPoints)+1
+	    pointN = mod(n-1,reducedDataPoints)+1
+		point = list(pointN)
 	    varyPoint = .true.
 	  End If	  
 	  If(varyPoint.eqv..true.)Then
@@ -457,7 +496,7 @@ contains
 	    If(trialResidualSquareSum.lt.bestRSS)Then	
 		  bestRSS = trialResidualSquareSum
 		  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	        print *,ProgramTime(),"RSS: ",n,point,x,xV,trialResidualSquareSum,"****"
+	        print *,ProgramTime(),"RSS: ",n,pointN,point,x,xV,trialResidualSquareSum,"****"
 	      End If 
 !store optimum reduced
           If(mpiProcessID.eq.0)Then
@@ -485,7 +524,7 @@ contains
 		  Call MPI_sendData2DDP(eamDataOptimum,size(eamDataOptimum,1),size(eamDataOptimum,2))
 	    Else	   
 		  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	        print *,ProgramTime(),"RSS: ",n,point,x,xV,trialResidualSquareSum
+	        print *,ProgramTime(),"RSS: ",n,pointN,point,x,xV,trialResidualSquareSum
 	      End If  
 	    End If	
 	  End If		  
@@ -499,541 +538,27 @@ contains
 	  End Do
     End Do	
 	Call storeEAMToFileMaster(eamKey,eamData,"opt/optimum.pot")
+!--------------------------------------------
+! Step 4 - Check and output result
+!--------------------------------------------	
+	Call reReadEamPot("opt/optimum.pot")						!Re-read potential
+!Calculate RSS
+    eamDataSet = 1	!eamDataTrial
+	If(calcRunType.eq.6)Then	!Optimise normal
+	  Call calcEval()
+	Else If(calcRunType.eq.7)Then	!Optimise full
+	  Call calcEvalFull()  
+	End If
+	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
+	  print *,ProgramTime(),"Optimised RSS: ",trialResidualSquareSum  !Starting RSS
+	End If 
 	
-	
-	
-	
-	
-	
-
   End Subroutine runOptimisePointVary
 
 
   
   
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-    Subroutine runOptimisePointVary3(eamKeyInput,eamDataInput,eamKeyOptimised,eamDataOptimised)
-!---------------------------------------------
-! 
-!
-!---------------------------------------------
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i, j, k, point, fileCount, startI, endI
-	Integer(kind=StandardInteger) :: potStart, potEnd, potLength
-	Real(kind=DoubleReal) :: bestRSS
-	Real(kind=DoubleReal) :: x, xV
-	Real(kind=DoubleReal) :: randNumber
-	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: &
-	eamKeyInput,eamKeyOptimised,eamKeyR,eamKeyBest,eamKeyTemp
-    Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: &
-	eamDataInput,eamDataOptimised,eamDataR,eamDataBest,eamDataTemp
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: potTypeKey
-	Character(len=64) :: fileName, headerText
-	Logical :: writeFile, varyPoint
-!mpi variables
-    Integer(kind=StandardInteger) :: selectProcess,status,error,tag,processTemp
-    Integer(kind=StandardInteger) :: processTo,processFrom,processCount,bufferSize
-    Integer(kind=StandardInteger) :: processID
-	Real(kind=DoubleReal) :: send, receive, buffer	
-!----------------------------------------------------------------------------
-! Step 1 - store starting potential
-!----------------------------------------------------------------------------	
-    eamKeyR = eamKeyInput
-	eamDataR = eamDataInput
-	Call storeReducedEAM(eamKeyR,eamDataR,"temp/optReduced.tmp")
-!----------------------------------------------------------------------------
-! Step 2 - make potTypeKey
-!----------------------------------------------------------------------------	
-    Allocate(potTypeKey(1:size(eamDataInput,1)))
-	Do i=1,size(eamKeyInput,1)
-      potStart = eamKeyInput(i,4)
-      potLength = eamKeyInput(i,5)
-	  potEnd = potStart + potLength - 1
-!pot type
-	  potType = eamKeyInput(i,3) !1 PAIR, 2 DENS/SDEN, 3 EMBE/SEMB, 4 DDEN, 5 DEMB
-	  Do j=potStart,potEnd
-	    potTypeKey(j) = potType
-	  End Do
-	End Do	
-!----------------------------------------------------------------------------
-! Step 3 - vary points
-!----------------------------------------------------------------------------		
-    startI = 0
-	!endI = saCycles*size(eamDataInput,1)
-	endI = 100
-	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	  print *,ProgramTime(),"Start optimising, max steps: ",endI
-	End If
-	Do i=startI,endI
-!Synchronise processes		
-	  Call synchMpiProcesses()	
-!Load optimum reduced points
-	  Call loadReducedEAM(eamKeyR,eamDataR,"temp/optReduced.tmp")  
-	  
-!check load ok
-!Prepare potential
-	  Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKey,eamData)                !Expand 
-	  Call storeEAMToFileMaster(eamKey,eamData,"temp/tempfull.pot")	          !Save
-	  Call synchMpiProcesses()	                                              !Synch 
-	  Call reReadEamPot("temp/tempfull.pot")	                              !Reload
-	  Call synchMpiProcesses()	                                              !Synch 
-!Calculate rss
-	  eamDataSet = 1		
-      Call calcEval()	
-	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	      print *,ProgramTime(),"Test RSS: ",trialResidualSquareSum
-	  End If 
-	  
-!Vary point
-      varyPoint = .false. 
-	  If(i.gt.startI)Then
-	    point = mod(i,size(eamDataR,1))+1
-	    varyPoint = .true.
-	  End If	  
-	  If(varyPoint.eqv..true.)Then
-		x = eamDataR(point,2)
-!Vary on master, share to workers
-	    If(mpiProcessID.eq.0)Then
-	      xV = VaryPointRand(x,40.0D0,0.0001D0) 
-		  send = xV
-          Do j=1,(mpiProcessCount-1)
-            tag = 3140 + j	
-            Call MPI_send(send,1,MPI_double_precision,j,tag,MPI_comm_world,status,error)
-          End Do
-        Else
-          tag = 3140 + mpiProcessID
-	      Call MPI_recv(receive,1,MPI_double_precision,0,tag,MPI_comm_world,status,status,error)  
-		  xV = receive
-        End If  
-	    eamDataR(point,2) = xV
-	  End If
-!Prepare potential
-	  Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKey,eamData)                !Expand 
-	  Call storeEAMToFileMaster(eamKey,eamData,"temp/tempfull.pot")	          !Save
-	  Call synchMpiProcesses()	                                              !Synch 
-	  Call reReadEamPot("temp/tempfull.pot")	                              !Reload
-	  Call synchMpiProcesses()	                                              !Synch 
-!Calculate rss
-	  eamDataSet = 1		
-      Call calcEval()		  
-!If first iteration, store best
-	  If(i.eq.0)Then
-        bestRSS = trialResidualSquareSum
-		If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	      print *,ProgramTime(),"Start RSS: ",trialResidualSquareSum
-		End If 
-      Else
-	    If(trialResidualSquareSum.lt.bestRSS)Then	
-	      Call synchMpiProcesses()	
-		  Call storeReducedEAM(eamKeyR,eamDataR,"temp/optReduced.tmp")
-		  bestRSS = trialResidualSquareSum
-	      Call synchMpiProcesses()	
-		  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	        print *,ProgramTime(),"RSS: ",i,point,x,xV,trialResidualSquareSum,"****"
-	      End If 
-		  
-!Check 1
-	      eamDataSet = 1		
-          Call calcEval()
-		  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	        print *,ProgramTime(),"Check1 RSS: ",trialResidualSquareSum,"****"
-	      End If
-
-!Check 2                        
-	      Call synchMpiProcesses()	 
-	      Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKey,eamData)                !Expand 
-	      Call storeEAMToFileMaster(eamKey,eamData,"temp/tempfull.pot")	          !Save
-	      Call synchMpiProcesses()	                                              !Synch 
-	      Call reReadEamPot("temp/tempfull.pot")	                              !Reload
-	      Call synchMpiProcesses()	 
-	      eamDataSet = 1		
-          Call calcEval()	
-	      If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	        print *,ProgramTime(),"Check2 RSS: ",trialResidualSquareSum,"****"
-	      End If 
-		  
-		  
-!Check 3              
-	      Call synchMpiProcesses()	 
-	      Call loadReducedEAM(eamKeyR,eamDataR,"temp/optReduced.tmp")  		  !Synch 
-		  Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKey,eamData)                !Expand 
-	      Call storeEAMToFileMaster(eamKey,eamData,"temp/tempfull.pot")	          !Save
-	      Call synchMpiProcesses()	                                              !Synch 
-	      Call reReadEamPot("temp/tempfull.pot")	                              !Reload
-	      Call synchMpiProcesses()	 
-	      eamDataSet = 1		
-          Call calcEval()	
-	      If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	        print *,ProgramTime(),"Check3 RSS: ",trialResidualSquareSum,"****"
-	      End If 
-		  
-		  
-	    Else	   
-		  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	        print *,ProgramTime(),"RSS: ",i,point,x,xV,trialResidualSquareSum
-	      End If  
-	    End If	
-	  End If		  
-	End Do
-!----------------------------------------------------------------------------
-! Step 4 - test optimum
-!----------------------------------------------------------------------------		
-!Synchronise processes		
-	Call synchMpiProcesses()	
-!Load optimum reduced points
-	Call loadReducedEAM(eamKeyR,eamDataR,"temp/optReduced.tmp")  
-!Prepare potential
-	Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKey,eamData)                !Expand 
-	Call storeEAMToFileMaster(eamKey,eamData,"opt/optimum.pot")	            !Save
-	Call synchMpiProcesses()	                                            !Synch 
-	Call reReadEamPot("opt/optimum.pot")	                                !Reload
-	Call synchMpiProcesses()	                                            !Synch 
-!Calculate rss
-	eamDataSet = 1		
-    Call calcEval()	
-	If(mpiProcessID.eq.0)Then
-	  print *,"Optimum RSS Check: ",trialResidualSquareSum
-	End If 
-	
-	
-!Test optimum
-	!Call makeExpandedEAMSet(eamKeyOptimised,eamDataOptimised,eamKey,eamData)
-!Calculate rss
-	!eamDataSet = 1		
-    !Call calcEval()	
-	!If(mpiProcessID.eq.0)Then
-	!  print *,"Optimum RSS: ",trialResidualSquareSum
-	!End If  
-!Store temp potential	  
-	!Call storeEAMToFileMaster(eamKey,eamData,"opt/optimum.pot")
-	!Call reReadEamPot("opt/optimum.pot")	
-	!eamDataSet = 1	
-    !Call calcEval()	
-	!If(mpiProcessID.eq.0)Then
-	!  print *,"Optimum RSS Check: ",trialResidualSquareSum
-	!End If 	
-	
-	
-	!Call reReadEamPot("temp/opt.pot")	
-	!Call eamForceZBLCore(eamKey,eamData) 			!If set, force hard zbl core
-	!Call setPotentialDerivatives(eamKey,eamData) 	!Fill in derivatives
-!Calculate rss
-	!eamDataSet = 1		
-    !Call calcEval()	
-	!If(mpiProcessID.eq.0)Then
-	!  print *,"Optimum RSS: ",trialResidualSquareSum
-!Store temp potential	  
-	!  Call storeEAMToFileMaster(eamKeyBest,eamDataBest,"opt/optimum.pot")
-	!End If  
-  End Subroutine runOptimisePointVary3
-
-  
-  
-   Subroutine runOptimisePointVaryWorking2(eamKeyInput,eamDataInput,eamKeyOptimised,eamDataOptimised)
-!---------------------------------------------
-! 
-!
-!---------------------------------------------
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i, j, k, point, fileCount, startI, endI
-	Integer(kind=StandardInteger) :: potStart, potEnd, potLength
-	Real(kind=DoubleReal) :: bestRSS
-	Real(kind=DoubleReal) :: x, xV
-	Real(kind=DoubleReal) :: randNumber
-	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: &
-	eamKeyInput,eamKeyOptimised,eamKeyR,eamKeyBest,eamKeyTemp
-    Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: &
-	eamDataInput,eamDataOptimised,eamDataR,eamDataBest,eamDataTemp
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: potTypeKey
-	Character(len=64) :: fileName
-	Logical :: writeFile, varyPoint
-!mpi variables
-    Integer(kind=StandardInteger) :: selectProcess,status,error,tag,processTemp
-    Integer(kind=StandardInteger) :: processTo,processFrom,processCount,bufferSize
-    Integer(kind=StandardInteger) :: processID
-	Real(kind=DoubleReal) :: send, receive, buffer	
-	Call calcEval()
-!----------------------------------------------------------------------------
-! Step 1 - store starting potential
-!----------------------------------------------------------------------------		
-    eamKeyOptimised = eamKeyInput	
-    eamDataOptimised = eamDataInput
-!Store input potential	  
-    Call storeEAMToFileMaster(eamKeyInput,eamDataInput,"temp/startingReduced.pot")	
-	Call makeExpandedEAMSet(eamKeyInput,eamDataInput,eamKeyTemp,eamDataTemp)
-    Call storeEAMToFileMaster(eamKeyTemp,eamDataTemp,"temp/startingFull.pot")	
-!----------------------------------------------------------------------------
-! Step 2 - make potTypeKey
-!----------------------------------------------------------------------------	
-    Allocate(potTypeKey(1:size(eamDataInput,1)))
-	Do i=1,size(eamKeyInput,1)
-      potStart = eamKeyInput(i,4)
-      potLength = eamKeyInput(i,5)
-	  potEnd = potStart + potLength - 1
-!pot type
-	  potType = eamKeyInput(i,3) !1 PAIR, 2 DENS/SDEN, 3 EMBE/SEMB, 4 DDEN, 5 DEMB
-	  Do j=potStart,potEnd
-	    potTypeKey(j) = potType
-	  End Do
-	End Do	
-!----------------------------------------------------------------------------
-! Step 3 - vary points
-!----------------------------------------------------------------------------		
-    startI = 0
-	endI = saCycles*size(eamDataInput,1)
-	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	  print *,ProgramTime(),"Start optimising, max steps: ",endI
-	End If
-	Do i=startI,endI
-!Synchronise processes		
-	  Call synchMpiProcesses()	
-!Load optimum reduced points
-      eamKeyR = eamKeyOptimised	
-      eamDataR = eamDataOptimised	
-      Call synchMpiProcesses()
-!-----check optimum
-	  Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKeyTemp,eamDataTemp)
-!Store temp potential	  
-	  Call storeEAMToFileMaster(eamKeyTemp,eamDataTemp,"temp/tempfullb.pot")	  
-!Synchronise processes		  
-	  Call synchMpiProcesses()	
-!Load potential from file on to all processes	  
-	  Call reReadEamPot("temp/tempfullb.pot")	
-	  eamDataSet = 1		
-      Call calcEval()	
-	  If(mpiProcessID.eq.0)Then
-		print *,ProgramTime(),"RSS check: ",i,point,trialResidualSquareSum
-	  End If
-!-----check optimum
-	  
-!Set best rss
-	  If(i.eq.startI)Then
-!make expanded set of points
-	    Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKeyTemp,eamDataTemp)
-!Store temp potential	  
-	    Call storeEAMToFileMaster(eamKeyTemp,eamDataTemp,"temp/tempfull.pot")	
-	    Call storeEAMToFileMaster(eamKeyTemp,eamDataTemp,"opt/optimum.pot")	  
-!Synchronise processes		  
-	    Call synchMpiProcesses()	
-!Load potential from file on to all processes	  
-	    Call reReadEamPot("temp/tempfull.pot")	
-!Calculate rss
-	    eamDataSet = 1		
-        Call calcEval()
-		bestRSS = trialResidualSquareSum
-		If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	      print *,ProgramTime(),"Start RSS: ",trialResidualSquareSum
-		End If  
-	  End If
-	  
-	  
-	  
-!Select the point
-	  point = mod(i,size(eamDataR,1))+1
-!Only vary the point if NOT in ZBL forced section of function	  
-      varyPoint = .false.
-	  If(potTypeKey(point).eq.1.and.eamDataR(point,1).ge.eamZBLPairUpper)Then
-	    varyPoint = .true. 	!Check, if pair function
-	  End If
-	  If((potTypeKey(point).eq.2.or.potTypeKey(point).eq.4).and.&
-	  eamDataR(point,1).ge.eamZBLDensCutoff)Then
-	    varyPoint = .true. 	!Check, if dens function
-	  End If
-	  If((potTypeKey(point).eq.3.or.potTypeKey(point).eq.5).and.&
-	  eamDataR(point,1).ge.eamZBLEmbeCutoff)Then
-	    varyPoint = .true. 	!Check, if embe function
-	  End If
-	  If(varyPoint.eqv..true.)Then
-	    x = eamDataR(point,2)
-!Vary on master, share to workers
-	    If(mpiProcessID.eq.0)Then
-	      xV = VaryPointRand(x,40.0D0,0.001D0) 
-		  send = xV
-          Do j=1,(mpiProcessCount-1)
-            tag = 3140 + j	
-            Call MPI_send(send,1,MPI_double_precision,j,tag,MPI_comm_world,status,error)
-          End Do
-        Else
-          tag = 3140 + mpiProcessID
-	      Call MPI_recv(receive,1,MPI_double_precision,0,tag,MPI_comm_world,status,status,error)  
-		  xV = receive
-        End If  
-	    eamDataR(point,2) = xV
-!make expanded set of points
-	    !Call eamForceZBLCore(eamKey,eamData) 			!If set, force hard zbl core
-	    !Call setPotentialDerivatives(eamKey,eamData) 	!Fill in derivatives
-	    Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKeyTemp,eamDataTemp)
-!Store temp potential	  
-	    Call storeEAMToFileMaster(eamKeyTemp,eamDataTemp,"temp/tempfull.pot")	  
-!Synchronise processes		  
-	    Call synchMpiProcesses()	
-!Load potential from file on to all processes	  
-	    Call reReadEamPot("temp/tempfull.pot")	
-!Calculate rss
-	    eamDataSet = 1		
-        Call calcEval()	
-!Check if optimum
-	    If(trialResidualSquareSum.lt.bestRSS)Then	
-	      bestRSS = trialResidualSquareSum
-		  eamKeyOptimised = eamKeyR
-		  eamDataOptimised = eamDataR
-		  Call storeEAMToFile(eamKey, eamData, "temp/opt.pot")
-		  eamKeyBest = eamKey
-		  eamDataBest = eamData
-		  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	        print *,ProgramTime(),"RSS: ",i,point,x,xV,trialResidualSquareSum,"****"
-	      End If 
-	    Else	   
-		  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
-	        print *,ProgramTime(),"RSS: ",i,point,x,xV,trialResidualSquareSum
-	      End If  
-	    End If	
-	  End If	
-	End Do
-!Test optimum
-	Call reReadEamPot("temp/opt.pot")	
-	!Call eamForceZBLCore(eamKey,eamData) 			!If set, force hard zbl core
-	!Call setPotentialDerivatives(eamKey,eamData) 	!Fill in derivatives
-!Calculate rss
-	eamDataSet = 1		
-    Call calcEval()	
-	If(mpiProcessID.eq.0)Then
-	  print *,"Optimum RSS: ",trialResidualSquareSum
-!Store temp potential	  
-	  Call storeEAMToFileMaster(eamKeyBest,eamDataBest,"opt/optimum.pot")
-	End If  
-  End Subroutine runOptimisePointVaryWorking2
-  
-  
-  
-  
-  
-  
-  Subroutine runOptimisePointVaryWorking(eamKeyInput,eamDataInput,eamKeyOptimised,eamDataOptimised)
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i, j, k, point, fileCount, startI
-	Real(kind=DoubleReal) :: bestRSS
-	Real(kind=DoubleReal) :: x, xV
-	Real(kind=DoubleReal) :: randNumber
-	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: &
-	eamKeyInput,eamKeyOptimised,eamKeyR,eamKeyBest,eamKeyTemp
-    Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: &
-	eamDataInput,eamDataOptimised,eamDataR,eamDataBest,eamDataTemp
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: randomSet
-	Character(len=64) :: fileName
-	Logical :: writeFile
-!mpi variables
-    Integer(kind=StandardInteger) :: selectProcess,status,error,tag,processTemp
-    Integer(kind=StandardInteger) :: processTo,processFrom,processCount,bufferSize
-    Integer(kind=StandardInteger) :: processID
-	Real(kind=DoubleReal) :: send, receive, buffer	
-	Call calcEval()
-!----------------------------------------------------------------------------
-! Step 1 - store starting potential
-!----------------------------------------------------------------------------		
-    eamKeyOptimised = eamKeyInput	
-    eamDataOptimised = eamDataInput
-!----------------------------------------------------------------------------
-! Step 2 - vary points
-!----------------------------------------------------------------------------		
-    startI = 30
-	Do i=startI,40
-!Synchronise processes		
-	  Call synchMpiProcesses()	
-	  If(mpiProcessID.eq.0)Then
-!Load optimum reduced points
-        eamKeyR = eamKeyOptimised	
-        eamDataR = eamDataOptimised	 
-!Vary the point
-	    point = mod(i,size(eamDataR,1))+1
-	    x = eamDataR(point,2)
-	    xV = VaryPointRand(x,40.0D0,0.3D0)
-	    eamDataR(point,2) = xV
-!make expanded set of points
-	    Call makeExpandedEAMSet(eamKeyR,eamDataR,eamKeyTemp,eamDataTemp)
-!Store temp potential	  
-	    Call storeEAMToFileMaster(eamKeyTemp,eamDataTemp,"tempfull.pot")	  
-	  End If	
-!Synchronise processes		  
-	  Call synchMpiProcesses()	
-!Load potential from file on to all processes	  
-	  Call reReadEamPot("tempfull.pot")	
-!Calculate rss
-	  eamDataSet = 1		
-      Call calcEval()	
-!Check if optimum
-	  If(i.eq.startI.or.trialResidualSquareSum.lt.bestRSS)Then	
-	    bestRSS = trialResidualSquareSum
-		eamKeyOptimised = eamKeyR
-		eamDataOptimised = eamDataR
-		Call storeEAMToFile(eamKey, eamData, "opt.pot")
-		eamKeyBest = eamKey
-		eamDataBest = eamData
-		If(mpiProcessID.eq.0)Then
-	      print *,"RSS: ",i,point,trialResidualSquareSum,x,xV,"*"
-		End If  
-	  Else	    
-		If(mpiProcessID.eq.0)Then
-	      print *,"RSS: ",i,point,trialResidualSquareSum,x,xV
-		End If  
-	  End If	
-	End Do
-!Test optimum
-	Call reReadEamPot("opt.pot")	
-!Calculate rss
-	eamDataSet = 1		
-    Call calcEval()	
-	If(mpiProcessID.eq.0)Then
-	  print *,"Optimum RSS: ",trialResidualSquareSum
-!Store temp potential	  
-	  Call storeEAMToFileMaster(eamKeyBest,eamDataBest,"opt/optimum.pot")
-	End If  
-  End Subroutine runOptimisePointVaryWorking
-
-
-
   
   
 

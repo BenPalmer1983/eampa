@@ -4,14 +4,14 @@
              Ben Palmer               
 ======================================
  
-Date: 12:00 31/05/2014
+Date: 16:43 26/06/2014
  
  
-  0.1160  Reading user input file examples/inputAlOpt.in                                      
-  0.1160  Reading EAM potential from examples/sheng_al_eam.pot                                   
-Program time:     0.1400
+  0.0800  Reading user input file examples/inputAlOpt.in                                      
+  0.0800  Reading EAM potential from examples/sheng_al_eam.pot                                   
+Program time:     0.0920
 Element    1: AL
-      Program time:     0.2000
+      Program time:     0.1120
       Element count:                 1
       EAM Type:                      1
       Potentials count:              3
@@ -23,7 +23,7 @@ Element    1: AL
       Save coords file:           N
       Save neighbour list file:   N
       Save potential file:        Y
-      Calculation run type:              7
+      Calculation run type:              6
       Unit vector:                
         1.0000  0.0000  0.0000
         0.0000  1.0000  0.0000
@@ -32,616 +32,75 @@ Element    1: AL
              1  AL  AL       1       1       1       1    1001
              2  AL           1       0       2    1002    1001
              3  AL           1       0       3    2003    1001
-  0.5880  Reading from file examples/atomsAl.conf.temp                                  
-      Configurations read:       12
-      Atoms read:              2316
-  0.7320  Process Map
+  0.1720  Reading from file examples/atomsAl.conf.temp                                  
+      Configurations read:        2
+      Atoms read:               260
+  0.1960  Process Map
         Cfg  E_Proc BM_Proc EC_Proc EV_Proc 
            1    0      0       0       0    
-           2    1     -1       1      -1    
-           3    2      1      -1       1    
-           4    3     -1      -1      -1    
-           5    4     -1      -1      -1    
-           6    5     -1      -1      -1    
-           7    0     -1      -1      -1    
-           8    1     -1      -1      -1    
-           9    2     -1      -1      -1    
-          10    3     -1      -1      -1    
-          11    4     -1      -1      -1    
-          12    5     -1      -1      -1    
-  0.7320  Start building config neighbour lists
-      Total configurations prepared:       12
-  1.9240  Finish building config neighbour lists, total pairs:   267678
-  1.9280  Order EAM Potentials
+           2    1     -1      -1      -1    
+  0.1960  Start building config neighbour lists
+      Total configurations prepared:        2
+  0.2640  Finish building config neighbour lists, total pairs:    19824
+  0.2640  Order EAM Potentials
        1    1001
     1002    1001
     2003    1001
       ----------------------------------------
       Summary of Configurations
       ----------------------------------------
-      Configuration:        1    Volume:    8211.841797    Atoms:      500    NL Length:    39000          1     500             0
-      Configuration:        2    Volume:    9792.791016    Atoms:      500    NL Length:    27000        501    1000             1
-      Configuration:        3    Volume:    7738.717285    Atoms:      500    NL Length:    39000       1001    1500             2
-      Configuration:        4    Volume:    4209.785156    Atoms:      256    NL Length:    19680       1501    1756  RF         3
-      Configuration:        5    Volume:    4203.611816    Atoms:      256    NL Length:    18840       1757    2012  RF         4
-      Configuration:        6    Volume:    3439.968262    Atoms:      256    NL Length:    17664       2013    2268  RF         5
-      Configuration:        7    Volume:    4209.767090    Atoms:      256    NL Length:    17734       2269    2524  RF         0
-      Configuration:        8    Volume:    4209.767090    Atoms:      256    NL Length:    17716       2525    2780  RF         1
-      Configuration:        9    Volume:    4209.767090    Atoms:      256    NL Length:    17752       2781    3036  RF         2
-      Configuration:       10    Volume:    4209.767090    Atoms:      256    NL Length:    17752       3037    3292  RF         3
-      Configuration:       11    Volume:    4209.767090    Atoms:      256    NL Length:    17746       3293    3548  RF         4
-      Configuration:       12    Volume:    4209.767090    Atoms:      256    NL Length:    17794       3549    3804  RF         5
-  1.9640  Start calculations (runProcesses)
-Calculating configuration energy   2.2040      1
- Evaluation count:    1, RSS:     0.9296074832E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2030842229E+04
+      Configuration:        1    Volume:    4204.462891    Atoms:      256    NL Length:     9984          1     256             0
+      Configuration:        2    Volume:    4209.785156    Atoms:      256    NL Length:     9840        257     512  RF         1
+  0.2800  Start calculations (runProcesses)
 --------------------------------------------
 Calculation count:    1
 --------------------------------------------
-   1 -1680.826629 eV      500 atoms           0
+   1  -860.583217 eV      256 atoms           0
    1   -3.361653 eV per atom (no ref)
    1  Calculated Stresses:
-   1  Sxx:      8.4376641502 Sxy:      0.0000000000 Sxz:      0.0000000000
-   1  Syx:     -0.0000000000 Syy:      8.4376641502 Syz:      0.0000000000
-   1  Szx:      0.0000000000 Szy:     -0.0000000000 Szz:      8.4376641498
-   1  Equilibrium volume:    8111.6417249441 Input volume:    8211.8417968750
-   1  Equilibrium lattice parameter multiplier:       0.9959162640
-   1  Bulk Modulus/GPa:      82.5874584639 Ref BM:      76.0000000000
-   1  Eq Vol RSS:      0.0749509756
+   1  Sxx:     -0.5182531433 Sxy:     -0.0000000000 Sxz:     -0.0000000000
+   1  Syx:     -0.0000000000 Syy:     -0.5182531433 Syz:     -0.0000000000
+   1  Szx:     -0.0000000000 Szy:     -0.0000000000 Szz:     -0.5182531433
  
-   2 -1618.203932 eV      500 atoms           1
-   2   -3.236408 eV per atom (   -3.256000 eV Ref)
+   2  -858.810184 eV      256 atoms           1
+   2   -3.354727 eV per atom (   -3.360009 eV Ref)
    2  Calculated Stresses:
-   2  Sxx:      9.5814158189 Sxy:     -0.0000000000 Sxz:     -0.0000000000
-   2  Syx:     -0.0000000000 Syy:      9.5814158189 Syz:     -0.0000000000
-   2  Szx:      0.0000000000 Szy:      0.0000000000 Szz:      9.5814158189
-   2  Energy RSS:       0.0705472211
+   2  Sxx:     -0.3104589924 Sxy:      0.0000000000 Sxz:      0.0000000000
+   2  Syx:      0.0000000000 Syy:     -0.3104589924 Syz:      0.0000000000
+   2  Szx:      0.0000000000 Szy:      0.0000000000 Szz:     -0.3104589924
+   2  Reference Stresses:
+   2  Sxx:     -0.0138279000 Sxy:      0.0000000000 Sxz:      0.0000000000
+   2  Syx:      0.0000000000 Syy:     -0.0138279000 Syz:      0.0000000000
+   2  Szx:      0.0000000000 Szy:      0.0000000000 Szz:     -0.0138279000
+   2  Energy RSS (1):        27.8965486309
+   2  Stress RSS (2):        32.5888907315
+   2  Force RSS (3):       1094.6815069180
  
-   3 -1676.378915 eV      500 atoms           2
-   3   -3.352758 eV per atom (   -3.344000 eV Ref)
-   3  Calculated Stresses:
-   3  Sxx:     -4.3073724267 Sxy:     -0.0000000230 Sxz:      0.0000000146
-   3  Syx:     -0.0000000230 Syy:     -4.3073724267 Syz:      0.0000000146
-   3  Szx:     -0.0000000050 Szy:     -0.0000000050 Szz:     -4.3073723473
-   3  Equilibrium volume:    8104.7116503716 Input volume:    7738.7172851563
-   3  Equilibrium lattice parameter multiplier:       1.0155221276
-   3  Bulk Modulus/GPa:      82.5796836548 Ref BM:      80.0000000000
-   3  Energy RSS:       0.0140960485
-   3  Eq Vol RSS:      1.0000000000
+RSS all configurations:     0.1155166946E+04
  
-   4  -858.810178 eV      256 atoms           3
-   4   -3.354727 eV per atom (   -3.360009 eV Ref)
-   4  Calculated Stresses:
-   4  Sxx:      4.1093795869 Sxy:      0.0000000367 Sxz:      0.0000000324
-   4  Syx:      0.0000000367 Syy:      4.1093795869 Syz:      0.0000000324
-   4  Szx:      0.0000000323 Szy:      0.0000000323 Szz:      4.1093795997
-   4  Reference Stresses:
-   4  Sxx:     -0.0138279004 Sxy:      0.0000000000 Sxz:      0.0000000000
-   4  Syx:      0.0000000000 Syy:     -0.0138279004 Syz:      0.0000000000
-   4  Szx:      0.0000000000 Szy:      0.0000000000 Szz:     -0.0138279004
-   4  Energy RSS:       0.0051269744
-   4  Force RSS:       0.0063993833
- 
-   5  -817.664285 eV      256 atoms           4
-   5   -3.194001 eV per atom (   -3.358942 eV Ref)
-   5  Calculated Stresses:
-   5  Sxx:     -7.8122614669 Sxy:     -2.2933530245 Sxz:      2.0541644840
-   5  Syx:     -8.2456170670 Syy:    -36.5145031880 Syz:      0.5789168740
-   5  Szx:      4.2333093940 Szy:      0.2519656309 Szz:    -19.0411135939
-   5  Reference Stresses:
-   5  Sxx:      0.6071025729 Sxy:     -0.3445200920 Sxz:      0.5041291118
-   5  Syx:     -0.3445200920 Syy:     -0.4757378101 Syz:      0.0089734001
-   5  Szx:      0.5041291118 Szy:      0.0089734001 Szz:      0.3479034901
-   5  Energy RSS:       5.0000000000
-   5  Force RSS:       1.0000000000
- 
-   6  -808.608876 eV      256 atoms           5
-   6   -3.158628 eV per atom (   -3.164018 eV Ref)
-   6  Calculated Stresses:
-   6  Sxx:     -1.5704075061 Sxy:     -0.0000008061 Sxz:     -0.0000008259
-   6  Syx:     -0.0000008061 Syy:     -1.5704075061 Syz:     -0.0000008259
-   6  Szx:     -0.0000008106 Szy:     -0.0000008106 Szz:     -1.5704075057
-   6  Reference Stresses:
-   6  Sxx:     24.9451942444 Sxy:      0.0000000000 Sxz:      0.0000000000
-   6  Syx:      0.0000000000 Syy:     24.9451942444 Syz:      0.0000000000
-   6  Szx:      0.0000000000 Szy:      0.0000000000 Szz:     24.9451942444
-   6  Energy RSS:       0.0053379179
-   6  Force RSS:       0.2784649156
- 
-   7  -754.375776 eV      256 atoms           0
-   7   -2.946780 eV per atom (   -2.910878 eV Ref)
-   7  Calculated Stresses:
-   7  Sxx:     -4.4599176938 Sxy:     -0.3529398366 Sxz:      1.6584077144
-   7  Syx:      0.2339746708 Syy:     -5.3708913135 Syz:      0.7041545147
-   7  Szx:      0.7376330219 Szy:      0.1701108916 Szz:     -6.1930677717
-   7  Reference Stresses:
-   7  Sxx:     12.7810764313 Sxy:     -0.7668586969 Sxz:     -0.5272246003
-   7  Syx:     -0.7668586969 Syy:     12.2309036255 Syz:      0.7825989723
-   7  Szx:     -0.5272246003 Szy:      0.7825989723 Szz:     12.3691825867
-   7  Energy RSS:       0.2368953042
-   7  Force RSS:       0.1080581405
- 
-   8  -743.706981 eV      256 atoms           1
-   8   -2.905105 eV per atom (   -2.866678 eV Ref)
-   8  Calculated Stresses:
-   8  Sxx:     -6.0566228266 Sxy:     -1.0066458145 Sxz:     -0.0479100403
-   8  Syx:     -0.7181473603 Syy:     -4.9896965465 Syz:     -0.1936329761
-   8  Szx:      0.3430841427 Szy:     -0.1436991164 Szz:     -6.2076850595
-   8  Reference Stresses:
-   8  Sxx:     13.7301988602 Sxy:     -0.1909424067 Sxz:      0.6374062896
-   8  Syx:     -0.1909424067 Syy:     14.0222015381 Syz:     -0.2193336934
-   8  Szx:      0.6374062896 Szy:     -0.2193336934 Szz:     12.8265323639
-   8  Energy RSS:       0.2713848426
-   8  Force RSS:       0.0995677225
- 
-   9  -746.618639 eV      256 atoms           2
-   9   -2.916479 eV per atom (   -2.879996 eV Ref)
-   9  Calculated Stresses:
-   9  Sxx:     -5.1822523651 Sxy:      0.1663146676 Sxz:     -0.6055547813
-   9  Syx:      0.9770188224 Syy:     -5.7103660802 Syz:      0.5649963548
-   9  Szx:     -1.3475859651 Szy:      0.2847088241 Szz:     -6.2297551937
-   9  Reference Stresses:
-   9  Sxx:     12.1282243729 Sxy:      0.1596090049 Sxz:     -0.4727956951
-   9  Syx:      0.1596090049 Syy:     13.8780393600 Syz:      0.5398756266
-   9  Szx:     -0.4727956951 Szy:      0.5398756266 Szz:     13.2975625992
-   9  Energy RSS:       0.2446251523
-   9  Force RSS:       0.0946191136
- 
-  10  -752.559639 eV      256 atoms           3
-  10   -2.939686 eV per atom (   -2.909541 eV Ref)
-  10  Calculated Stresses:
-  10  Sxx:     -4.5377539430 Sxy:      0.2493244954 Sxz:     -1.1507548444
-  10  Syx:      0.7042341049 Syy:     -6.5806560746 Syz:      0.6622825308
-  10  Szx:      0.5051338870 Szy:      1.1903691452 Szz:     -6.0727764144
-  10  Reference Stresses:
-  10  Sxx:     12.7525377274 Sxy:      0.5467895269 Sxz:     -0.2887671888
-  10  Syx:      0.5467895269 Syy:     12.7216463089 Syz:      0.9426493049
-  10  Szx:     -0.2887671888 Szy:      0.9426493049 Szz:     12.3800678253
-  10  Energy RSS:       0.1670079045
-  10  Force RSS:       0.0230716709
- 
-  11  -744.877461 eV      256 atoms           4
-  11   -2.909678 eV per atom (   -2.876143 eV Ref)
-  11  Calculated Stresses:
-  11  Sxx:     -5.3710655174 Sxy:     -0.0220330446 Sxz:     -2.5530191536
-  11  Syx:      0.0358557214 Syy:     -6.0941619545 Syz:      0.8160429694
-  11  Szx:     -2.0849780535 Szy:      1.6756730484 Szz:     -6.1843401588
-  11  Reference Stresses:
-  11  Sxx:     13.2847642899 Sxy:     -0.6919822097 Sxz:      0.7687711120
-  11  Syx:     -0.6919822097 Syy:     13.3275718689 Syz:      0.0164758004
-  11  Szx:      0.7687711120 Szy:      0.0164758004 Szz:     13.3386049271
-  11  Energy RSS:       0.2066840780
-  11  Force RSS:       0.0579798942
- 
-  12  -760.128015 eV      256 atoms           5
-  12   -2.969250 eV per atom (   -2.934348 eV Ref)
-  12  Calculated Stresses:
-  12  Sxx:     -7.2024824144 Sxy:      4.2639960767 Sxz:     -0.4161272366
-  12  Syx:      0.7659471359 Syy:     -4.8627815000 Syz:      1.9768545487
-  12  Szx:      0.7634966454 Szy:     -0.9781804785 Szz:     -5.9078611340
-  12  Reference Stresses:
-  12  Sxx:     11.5929088593 Sxy:      0.4595561922 Sxz:      0.0467794016
-  12  Syx:      0.4595561922 Syy:     12.6669225693 Syz:      0.5609115958
-  12  Szx:      0.0467794016 Szy:      0.5609115958 Szz:     11.6691093445
-  12  Energy RSS:       0.2238792743
-  12  Force RSS:       0.1073782981
- 
-RSS all configurations:     0.9296074832E+01
- 
-Calculating configuration energy  12.6120      2
- Evaluation count:    2, RSS:     0.9206987049E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082516874E+04
 --------------------------------------------
 Calculation count:    2
 --------------------------------------------
-   1 -1681.249788 eV      500 atoms           0
-   1   -3.362500 eV per atom (no ref)
+   1  -849.467076 eV      256 atoms           0
+   1   -3.318231 eV per atom (no ref)
    1  Calculated Stresses:
-   1  Sxx:      8.4744735973 Sxy:      0.0000000000 Sxz:      0.0000000000
-   1  Syx:     -0.0000000000 Syy:      8.4744735973 Syz:     -0.0000000000
-   1  Szx:     -0.0000000000 Szy:      0.0000000000 Szz:      8.4744735973
-   1  Equilibrium volume:    8221.0186390877 Input volume:    8211.8417968750
-   1  Equilibrium lattice parameter multiplier:       1.0003726556
-   1  Bulk Modulus/GPa:     109.5716410587 Ref BM:      76.0000000000
-   1  Eq Vol RSS:      0.0005034511
+   1  Sxx:     -0.8220398135 Sxy:     -0.0000000000 Sxz:      0.0000000000
+   1  Syx:     -0.0000000000 Syy:     -0.8220398135 Syz:     -0.0000000000
+   1  Szx:      0.0000000000 Szy:     -0.0000000000 Szz:     -0.8220398135
  
-   2 -1618.777870 eV      500 atoms           1
-   2   -3.237556 eV per atom (   -3.256000 eV Ref)
+   2  -848.780710 eV      256 atoms           1
+   2   -3.315550 eV per atom (   -3.360009 eV Ref)
    2  Calculated Stresses:
-   2  Sxx:      9.9647032428 Sxy:      0.0000000000 Sxz:      0.0000000000
-   2  Syx:      0.0000000000 Syy:      9.9647032428 Syz:      0.0000000000
-   2  Szx:      0.0000000000 Szy:     -0.0000000000 Szz:      9.9647032428
-   2  Energy RSS:       0.0628701502
+   2  Sxx:     -0.6821511336 Sxy:      0.0000000002 Sxz:      0.0000000002
+   2  Syx:      0.0000000002 Syy:     -0.6821511336 Syz:      0.0000000002
+   2  Szx:      0.0000000002 Szy:      0.0000000002 Szz:     -0.6821511336
+   2  Reference Stresses:
+   2  Sxx:     -0.0138279000 Sxy:      0.0000000000 Sxz:      0.0000000000
+   2  Syx:      0.0000000000 Syy:     -0.0138279000 Syz:      0.0000000000
+   2  Szx:      0.0000000000 Szy:      0.0000000000 Szz:     -0.0138279000
+   2  Energy RSS (1):      1976.6338828863
+   2  Stress RSS (2):       165.4281276342
+   2  Force RSS (3):        327.8119072609
  
-   3 -1675.133714 eV      500 atoms           2
-   3   -3.350267 eV per atom (   -3.344000 eV Ref)
-   3  Calculated Stresses:
-   3  Sxx:     -2.8150010502 Sxy:     -0.0000005660 Sxz:     -0.0000005296
-   3  Syx:     -0.0000005660 Syy:     -2.8150010502 Syz:     -0.0000005296
-   3  Szx:     -0.0000005485 Szy:     -0.0000005485 Szz:     -2.8150009728
-   3  Equilibrium volume:    8147.7990829945 Input volume:    7738.7172851563
-   3  Equilibrium lattice parameter multiplier:       1.0173184840
-   3  Bulk Modulus/GPa:    -543.3308823610 Ref BM:      80.0000000000
-   3  Energy RSS:       0.0072591337
-   3  Eq Vol RSS:      1.0000000000
+RSS all configurations:     0.2469873918E+04
  
-   4  -858.993147 eV      256 atoms           3
-   4   -3.355442 eV per atom (   -3.360009 eV Ref)
-   4  Calculated Stresses:
-   4  Sxx:      4.2142921121 Sxy:     -0.0000000022 Sxz:     -0.0000000074
-   4  Syx:     -0.0000000022 Syy:      4.2142921121 Syz:     -0.0000000074
-   4  Szx:     -0.0000000075 Szy:     -0.0000000075 Szz:      4.2142920691
-   4  Reference Stresses:
-   4  Sxx:     -0.0138279004 Sxy:      0.0000000000 Sxz:      0.0000000000
-   4  Syx:      0.0000000000 Syy:     -0.0138279004 Syz:      0.0000000000
-   4  Szx:      0.0000000000 Szy:      0.0000000000 Szz:     -0.0138279004
-   4  Energy RSS:       0.0038545786
-   4  Force RSS:       0.0142443107
- 
-   5  -817.781068 eV      256 atoms           4
-   5   -3.194457 eV per atom (   -3.358942 eV Ref)
-   5  Calculated Stresses:
-   5  Sxx:     -8.0444728659 Sxy:     -2.0666524311 Sxz:      1.8665417712
-   5  Syx:     -8.4986658486 Syy:    -38.0671285339 Syz:      0.3540738438
-   5  Szx:      3.7000638091 Szy:      0.2028003411 Szz:    -19.6618441734
-   5  Reference Stresses:
-   5  Sxx:      0.6071025729 Sxy:     -0.3445200920 Sxz:      0.5041291118
-   5  Syx:     -0.3445200920 Syy:     -0.4757378101 Syz:      0.0089734001
-   5  Szx:      0.5041291118 Szy:      0.0089734001 Szz:      0.3479034901
-   5  Energy RSS:       5.0000000000
-   5  Force RSS:       1.0000000000
- 
-   6  -807.844015 eV      256 atoms           5
-   6   -3.155641 eV per atom (   -3.164018 eV Ref)
-   6  Calculated Stresses:
-   6  Sxx:     -1.0008883571 Sxy:     -0.0000009131 Sxz:     -0.0000009100
-   6  Syx:     -0.0000009131 Syy:     -1.0008883571 Syz:     -0.0000009100
-   6  Szx:     -0.0000009124 Szy:     -0.0000009124 Szz:     -1.0008883562
-   6  Reference Stresses:
-   6  Sxx:     24.9451942444 Sxy:      0.0000000000 Sxz:      0.0000000000
-   6  Syx:      0.0000000000 Syy:     24.9451942444 Syz:      0.0000000000
-   6  Szx:      0.0000000000 Szy:      0.0000000000 Szz:     24.9451942444
-   6  Energy RSS:       0.0129687037
-   6  Force RSS:       0.2365184046
- 
-   7  -754.500091 eV      256 atoms           0
-   7   -2.947266 eV per atom (   -2.910878 eV Ref)
-   7  Calculated Stresses:
-   7  Sxx:     -4.5458738025 Sxy:     -0.3591998711 Sxz:      1.7560259279
-   7  Syx:      0.2399848016 Syy:     -5.5897236266 Syz:      0.6679972071
-   7  Szx:      0.6841664270 Szy:      0.2149901050 Szz:     -6.4528335190
-   7  Reference Stresses:
-   7  Sxx:     12.7810764313 Sxy:     -0.7668586969 Sxz:     -0.5272246003
-   7  Syx:     -0.7668586969 Syy:     12.2309036255 Syz:      0.7825989723
-   7  Szx:     -0.5272246003 Szy:      0.7825989723 Szz:     12.3691825867
-   7  Energy RSS:       0.2446986820
-   7  Force RSS:       0.1000161170
- 
-   8  -743.912593 eV      256 atoms           1
-   8   -2.905909 eV per atom (   -2.866678 eV Ref)
-   8  Calculated Stresses:
-   8  Sxx:     -5.9435105945 Sxy:     -1.0239180397 Sxz:     -0.0278299257
-   8  Syx:     -0.7311523158 Syy:     -5.1018569051 Syz:     -0.0827150985
-   8  Szx:      0.3689985083 Szy:     -0.1616182237 Szz:     -6.2509941476
-   8  Reference Stresses:
-   8  Sxx:     13.7301988602 Sxy:     -0.1909424067 Sxz:      0.6374062896
-   8  Syx:     -0.1909424067 Syy:     14.0222015381 Syz:     -0.2193336934
-   8  Szx:      0.6374062896 Szy:     -0.2193336934 Szz:     12.8265323639
-   8  Energy RSS:       0.2844190770
-   8  Force RSS:       0.0867914355
- 
-   9  -746.734080 eV      256 atoms           2
-   9   -2.916930 eV per atom (   -2.879996 eV Ref)
-   9  Calculated Stresses:
-   9  Sxx:     -5.2605449783 Sxy:      0.1638681779 Sxz:     -0.6858369876
-   9  Syx:      0.9702647259 Syy:     -5.7204902124 Syz:      0.6377117005
-   9  Szx:     -1.3482398158 Szy:      0.3352540509 Szz:     -6.3412697241
-   9  Reference Stresses:
-   9  Sxx:     12.1282243729 Sxy:      0.1596090049 Sxz:     -0.4727956951
-   9  Syx:      0.1596090049 Syy:     13.8780393600 Syz:      0.5398756266
-   9  Szx:     -0.4727956951 Szy:      0.5398756266 Szz:     13.2975625992
-   9  Energy RSS:       0.2521023690
-   9  Force RSS:       0.0934534682
- 
-  10  -752.732719 eV      256 atoms           3
-  10   -2.940362 eV per atom (   -2.909541 eV Ref)
-  10  Calculated Stresses:
-  10  Sxx:     -4.5963007893 Sxy:      0.1964728015 Sxz:     -1.0915756823
-  10  Syx:      0.7287093488 Syy:     -6.7240914306 Syz:      0.7129906190
-  10  Szx:      0.5546858437 Szy:      1.2538187755 Szz:     -6.1520754281
-  10  Reference Stresses:
-  10  Sxx:     12.7525377274 Sxy:      0.5467895269 Sxz:     -0.2887671888
-  10  Syx:      0.5467895269 Syy:     12.7216463089 Syz:      0.9426493049
-  10  Szx:     -0.2887671888 Szy:      0.9426493049 Szz:     12.3800678253
-  10  Energy RSS:       0.1755530424
-  10  Force RSS:       0.0234154248
- 
-  11  -745.052432 eV      256 atoms           4
-  11   -2.910361 eV per atom (   -2.876143 eV Ref)
-  11  Calculated Stresses:
-  11  Sxx:     -5.5141210659 Sxy:     -0.0546218076 Sxz:     -2.6511110106
-  11  Syx:      0.0620936596 Syy:     -6.1800514259 Syz:      0.7920435711
-  11  Szx:     -2.1171304886 Szy:      1.7270984696 Szz:     -6.3673776397
-  11  Reference Stresses:
-  11  Sxx:     13.2847642899 Sxy:     -0.6919822097 Sxz:      0.7687711120
-  11  Syx:     -0.6919822097 Syy:     13.3275718689 Syz:      0.0164758004
-  11  Szx:      0.7687711120 Szy:      0.0164758004 Szz:     13.3386049271
-  11  Energy RSS:       0.2163901482
-  11  Force RSS:       0.0570093198
- 
-  12  -760.305386 eV      256 atoms           5
-  12   -2.969943 eV per atom (   -2.934348 eV Ref)
-  12  Calculated Stresses:
-  12  Sxx:     -7.3154764296 Sxy:      4.4003376038 Sxz:     -0.3862936941
-  12  Syx:      0.7607517656 Syy:     -4.9595526918 Syz:      1.9741440165
-  12  Szx:      0.7221293781 Szy:     -1.0789039520 Szz:     -5.9777470539
-  12  Reference Stresses:
-  12  Sxx:     11.5929088593 Sxy:      0.4595561922 Sxz:      0.0467794016
-  12  Syx:      0.4595561922 Syy:     12.6669225693 Syz:      0.5609115958
-  12  Szx:      0.0467794016 Szy:      0.5609115958 Szz:     11.6691093445
-  12  Energy RSS:       0.2341495574
-  12  Force RSS:       0.1007696747
- 
-RSS all configurations:     0.9206987049E+01
- 
-Calculating configuration energy  23.3480      3
- Evaluation count:    3, RSS:     0.9206987049E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082516874E+04
- Evaluation count:    4, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:    5, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:    6, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:    7, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:    8, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:    9, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:   10, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:   11, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:   12, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:   13, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:   14, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:   15, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:   16, RSS:     0.9207066242E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082521314E+04
- Evaluation count:   17, RSS:     0.9207056664E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2082509951E+04
- Evaluation count:   18, RSS:     0.9191136107E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2067354434E+04
- Evaluation count:   19, RSS:     0.9187113942E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2066788307E+04
- Evaluation count:   20, RSS:     0.9187032981E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2066855708E+04
- Evaluation count:   21, RSS:     0.9186914417E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2066860362E+04
- Evaluation count:   22, RSS:     0.9206449655E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2066425655E+04
- Evaluation count:   23, RSS:     0.9192342599E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2067185376E+04
- Evaluation count:   24, RSS:     0.9186940134E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2066850516E+04
- Evaluation count:   25, RSS:     0.9133803021E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2056073348E+04
- Evaluation count:   26, RSS:     0.9315776374E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2069287523E+04
- Evaluation count:   27, RSS:     0.9131592637E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2071348644E+04
- Evaluation count:   28, RSS:     0.9071027280E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2059307776E+04
- Evaluation count:   29, RSS:     0.9071077007E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2059286779E+04
- Evaluation count:   30, RSS:     0.9071646641E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2059355420E+04
- Evaluation count:   31, RSS:     0.9070749290E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2059265821E+04
- Evaluation count:   32, RSS:     0.9065767859E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2060745717E+04
- Evaluation count:   33, RSS:     0.9052885253E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2056239135E+04
- Evaluation count:   34, RSS:     0.9052953066E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2056234129E+04
- Evaluation count:   35, RSS:     0.9044499838E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2055415211E+04
- Evaluation count:   36, RSS:     0.9043883266E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2055577392E+04
- Evaluation count:   37, RSS:     0.9043839983E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2055581228E+04
- Evaluation count:   38, RSS:     0.9044488652E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2055645502E+04
- Evaluation count:   39, RSS:     0.9042356072E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2056309929E+04
- Evaluation count:   40, RSS:     0.9018776114E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2051787686E+04
- Evaluation count:   41, RSS:     0.9024443854E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052006443E+04
- Evaluation count:   42, RSS:     0.9018888573E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2051788993E+04
- Evaluation count:   43, RSS:     0.9018843491E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2051771912E+04
- Evaluation count:   44, RSS:     0.9018775666E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2051787715E+04
- Evaluation count:   45, RSS:     0.9023716475E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052192414E+04
- Evaluation count:   46, RSS:     0.9018757669E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2051787288E+04
- Evaluation count:   47, RSS:     0.9015586592E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052020917E+04
- Evaluation count:   48, RSS:     0.9019256277E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052114990E+04
- Evaluation count:   49, RSS:     0.9015586586E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019850E+04
- Evaluation count:   50, RSS:     0.9015586948E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052020459E+04
- Evaluation count:   51, RSS:     0.9015645799E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052020490E+04
- Evaluation count:   52, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   53, RSS:     0.9015575602E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019530E+04
- Evaluation count:   54, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   55, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   56, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   57, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   58, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   59, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   60, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   61, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   62, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   63, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   64, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   65, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   66, RSS:     0.9015575570E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019518E+04
- Evaluation count:   67, RSS:     0.9015576344E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052020598E+04
- Evaluation count:   68, RSS:     0.9015575571E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019523E+04
- Evaluation count:   69, RSS:     0.9015573534E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052018543E+04
- Evaluation count:   70, RSS:     0.9015571573E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2052019690E+04
- Evaluation count:   71, RSS:     0.8954912692E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078625150E+04
- Evaluation count:   72, RSS:     0.8954892218E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078623190E+04
- Evaluation count:   73, RSS:     0.8955717127E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078849725E+04
- Evaluation count:   74, RSS:     0.8954872238E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078586915E+04
- Evaluation count:   75, RSS:     0.8962913197E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2083304821E+04
- Evaluation count:   76, RSS:     0.8958936827E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2079630485E+04
- Evaluation count:   77, RSS:     0.8954094232E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078832056E+04
- Evaluation count:   78, RSS:     0.8954729653E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2076443163E+04
- Evaluation count:   79, RSS:     0.8954056363E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078868220E+04
- Evaluation count:   80, RSS:     0.8954057476E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078868433E+04
- Evaluation count:   81, RSS:     0.8954056757E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078868560E+04
- Evaluation count:   82, RSS:     0.8954100970E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078738691E+04
- Evaluation count:   83, RSS:     0.8954185248E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2079045259E+04
- Evaluation count:   84, RSS:     0.8953358050E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2079072719E+04
- Evaluation count:   85, RSS:     0.8953256288E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2079039001E+04
- Evaluation count:   86, RSS:     0.8953264045E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2079036799E+04
- Evaluation count:   87, RSS:     0.8953254675E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2079039290E+04
- Evaluation count:   88, RSS:     0.8953258703E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2079040847E+04
- Evaluation count:   89, RSS:     0.8953432789E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2079195127E+04
- Evaluation count:   90, RSS:     0.8950624662E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078031020E+04
- Evaluation count:   91, RSS:     0.8950882910E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2077643176E+04
- Evaluation count:   92, RSS:     0.8950643937E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078032255E+04
- Evaluation count:   93, RSS:     0.8950286832E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078177693E+04
- Evaluation count:   94, RSS:     0.8951071903E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078151815E+04
- Evaluation count:   95, RSS:     0.8950277756E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078193886E+04
- Evaluation count:   96, RSS:     0.8950154502E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078205966E+04
- Evaluation count:   97, RSS:     0.8950119672E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078203518E+04
- Evaluation count:   98, RSS:     0.8950009978E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078198077E+04
- Evaluation count:   99, RSS:     0.8950210837E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078470300E+04
- Evaluation count:  100, RSS:     0.8949697051E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078132392E+04
- Evaluation count:  101, RSS:     0.8949696509E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078132319E+04
- Evaluation count:  102, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  103, RSS:     0.8949692552E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131963E+04
- Evaluation count:  104, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  105, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  106, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  107, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  108, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  109, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  110, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  111, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  112, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  113, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  114, RSS:     0.8949692520E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078131966E+04
- Evaluation count:  115, RSS:     0.8950003113E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078367762E+04
- Evaluation count:  116, RSS:     0.8949744541E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078209974E+04
- Evaluation count:  117, RSS:     0.8949704888E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2078145276E+04
- Evaluation count:  118, RSS:     0.8915475008E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2085525201E+04
- Evaluation count:  119, RSS:     0.8918636607E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2085582853E+04
- Evaluation count:  120, RSS:     0.8916199497E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2085550046E+04
- Evaluation count:  121, RSS:     0.8910048099E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2172753920E+04
- Evaluation count:  122, RSS:     0.8661094946E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162267869E+04
- Evaluation count:  123, RSS:     0.9245013587E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2096024347E+04
- Evaluation count:  124, RSS:     0.9021143633E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.1974024459E+04
- Evaluation count:  125, RSS:     0.8661343914E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2163115607E+04
- Evaluation count:  126, RSS:     0.8661038279E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162313062E+04
- Evaluation count:  127, RSS:     0.8660954540E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162302363E+04
- Evaluation count:  128, RSS:     0.8662062885E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162801538E+04
- Evaluation count:  129, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  130, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  131, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  132, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  133, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  134, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  135, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  136, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  137, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  138, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  139, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  140, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  141, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  142, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  143, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  144, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  145, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  146, RSS:     0.8660954093E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162301812E+04
- Evaluation count:  147, RSS:     0.8660958654E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2162307410E+04
- Evaluation count:  148, RSS:     0.8636071177E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2136385467E+04
- Evaluation count:  149, RSS:     0.8636332908E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2136470733E+04
- Evaluation count:  150, RSS:     0.8640821650E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2133447000E+04
- Evaluation count:  151, RSS:     0.8631613031E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2137459308E+04
- Evaluation count:  152, RSS:     0.8617553431E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2137150285E+04
- Evaluation count:  153, RSS:     0.8602926986E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2135874818E+04
- Evaluation count:  154, RSS:     0.8603622733E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2135870844E+04
- Evaluation count:  155, RSS:     0.8603839339E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2135905698E+04
- Evaluation count:  156, RSS:     0.8597497413E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2136214946E+04
- Evaluation count:  157, RSS:     0.8595765812E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2136520873E+04
- Evaluation count:  158, RSS:     0.8595343095E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2136633431E+04
- Evaluation count:  159, RSS:     0.8601917377E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2133203007E+04
- Evaluation count:  160, RSS:     0.8595315100E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2136629884E+04
- Evaluation count:  161, RSS:     0.8595287908E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2136623301E+04
- Evaluation count:  162, RSS:     0.8598748261E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2134935340E+04
- Evaluation count:  163, RSS:     0.8587059365E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2131411378E+04
- Evaluation count:  164, RSS:     0.8584799302E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2131463995E+04
- Evaluation count:  165, RSS:     0.8584663301E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2131458000E+04
- Evaluation count:  166, RSS:     0.8584703090E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2131470561E+04
- Evaluation count:  167, RSS:     0.8586410506E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2131203352E+04
- Evaluation count:  168, RSS:     0.8586421884E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2131731356E+04
- Evaluation count:  169, RSS:     0.8585504372E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2136148159E+04
- Evaluation count:  170, RSS:     0.8554908431E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126907570E+04
- Evaluation count:  171, RSS:     0.8704768157E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2127395296E+04
- Evaluation count:  172, RSS:     0.8553021200E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126899600E+04
- Evaluation count:  173, RSS:     0.8553019083E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126900046E+04
- Evaluation count:  174, RSS:     0.8553228150E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126898304E+04
- Evaluation count:  175, RSS:     0.8553035129E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126894136E+04
- Evaluation count:  176, RSS:     0.8559026345E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2127007179E+04
- Evaluation count:  177, RSS:     0.8553749170E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126891317E+04
- Evaluation count:  178, RSS:     0.8553582700E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126894208E+04
- Evaluation count:  179, RSS:     0.8553065472E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126905386E+04
- Evaluation count:  180, RSS:     0.8552990878E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885616E+04
- Evaluation count:  181, RSS:     0.8552985910E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885725E+04
- Evaluation count:  182, RSS:     0.8552986736E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885623E+04
- Evaluation count:  183, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  184, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  185, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  186, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  187, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  188, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  189, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  190, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  191, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  192, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  193, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  194, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  195, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  196, RSS:     0.8552985901E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126885726E+04
- Evaluation count:  197, RSS:     0.8552986264E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126886173E+04
- Evaluation count:  198, RSS:     0.8552996472E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126898094E+04
- Evaluation count:  199, RSS:     0.8552891826E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126804780E+04
- Evaluation count:  200, RSS:     0.8552981333E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126815030E+04
- Evaluation count:  201, RSS:     0.8555012820E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2125957193E+04
- Evaluation count:  202, RSS:     0.8552884693E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2126802700E+04
- Evaluation count:  203, RSS:     0.8547092179E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2124066073E+04
- Evaluation count:  204, RSS:     0.8546218775E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122625148E+04
- Evaluation count:  205, RSS:     0.8545882425E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122538028E+04
- Evaluation count:  206, RSS:     0.8544519588E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122600561E+04
- Evaluation count:  207, RSS:     0.8544530750E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122590638E+04
- Evaluation count:  208, RSS:     0.8544018833E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122237062E+04
- Evaluation count:  209, RSS:     0.8544048130E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122223271E+04
- Evaluation count:  210, RSS:     0.8543812298E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122167586E+04
- Evaluation count:  211, RSS:     0.8543807699E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122165905E+04
- Evaluation count:  212, RSS:     0.8543885012E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2121872313E+04
- Evaluation count:  213, RSS:     0.8543636149E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2121861628E+04
- Evaluation count:  214, RSS:     0.8544315588E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2121859778E+04
- Evaluation count:  215, RSS:     0.8543541908E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2121862469E+04
- Evaluation count:  216, RSS:     0.8541962269E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122070549E+04
- Evaluation count:  217, RSS:     0.8541958636E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122070332E+04
- Evaluation count:  218, RSS:     0.8542060263E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122110463E+04
- Evaluation count:  219, RSS:     0.8542630528E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122453065E+04
- Evaluation count:  220, RSS:     0.8541968135E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122073798E+04
- Evaluation count:  221, RSS:     0.8559424192E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122123310E+04
- Evaluation count:  222, RSS:     0.8547007907E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122056064E+04
- Evaluation count:  223, RSS:     0.8541960917E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122069680E+04
- Evaluation count:  224, RSS:     0.8542061076E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122065208E+04
- Evaluation count:  225, RSS:     0.8541957053E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122069844E+04
- Evaluation count:  226, RSS:     0.8537948661E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122029063E+04
- Evaluation count:  227, RSS:     0.8539463909E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122013895E+04
- Evaluation count:  228, RSS:     0.8534363411E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122185447E+04
- Evaluation count:  229, RSS:     0.8535014273E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122002479E+04
- Evaluation count:  230, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  231, RSS:     0.8534607223E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122212075E+04
- Evaluation count:  232, RSS:     0.8534328267E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122203240E+04
- Evaluation count:  233, RSS:     0.8534325765E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202800E+04
- Evaluation count:  234, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  235, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  236, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  237, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  238, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  239, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  240, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  241, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  242, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  243, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  244, RSS:     0.8534325761E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122202806E+04
- Evaluation count:  245, RSS:     0.8534329122E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122205659E+04
- Evaluation count:  246, RSS:     0.8534340029E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122217346E+04
- Evaluation count:  247, RSS:     0.8532743361E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2122007548E+04
- Evaluation count:  248, RSS:     0.8524140594E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2116896219E+04
- Evaluation count:  249, RSS:     0.8545884110E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2117709052E+04
- Evaluation count:  250, RSS:     0.8524069623E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2116728873E+04
- Evaluation count:  251, RSS:     0.9123632356E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2044883642E+04
- Evaluation count:  252, RSS:     0.8525120698E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2116862302E+04
- Evaluation count:  253, RSS:     0.8517520483E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2118787859E+04
- Evaluation count:  254, RSS:     0.8316444935E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2424483829E+04
- Evaluation count:  255, RSS:     0.8363001933E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2456430002E+04
- Evaluation count:  256, RSS:     0.8317498558E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2423986728E+04
- Evaluation count:  257, RSS:     0.8323692124E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2429241299E+04
- Evaluation count:  258, RSS:     0.8314822756E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2423821922E+04
- Evaluation count:  259, RSS:     0.8314822756E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2423821922E+04
- Evaluation count:  260, RSS:     0.8314822756E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2423821922E+04
- Evaluation count:  261, RSS:     0.8314822756E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2423821922E+04
- Evaluation count:  262, RSS:     0.8314822756E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2423821922E+04
- Evaluation count:  263, RSS:     0.8314822756E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2423821922E+04
- Evaluation count:  264, RSS:     0.8314822756E+01, Energy RSS:     0.0000000000E+00, Force RSS:     0.2423821922E+04

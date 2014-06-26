@@ -14,6 +14,7 @@ Module pwbatch
   Use constants
   Use mpif
   Use general
+  Use units
   Use strings		!string functions
   Use maths
   Use initialise
@@ -290,13 +291,29 @@ Contains
 	write(1021,"(A)") 'module load apps/intel/v2013.0.079'
 	write(1021,"(A)") 'module load apps/QE/v5.0.2'
 	
+!Blue Bear 1200s
+    open(unit=1022,file=trim("output/batch/bbBatch1200s.sh"))
+	write(1022,"(A)") '#!/bin/bash'
+	write(1023,"(A)") '#MOAB -l "nodes=2:ppn=8,walltime=00:10:00"'
+	write(1022,"(A)") '#MOAB -j oe'
+	write(1022,"(A)") 'cd "$HOME/pwscf/altest"'
+	write(1022,"(A)") 'module load apps/intel/v2013.0.079'
+	write(1022,"(A)") 'module load apps/QE/v5.0.2'	
 	
+!Blue Bear 1800s
+    open(unit=1023,file=trim("output/batch/bbBatch1800s.sh"))
+	write(1023,"(A)") '#!/bin/bash'
+	write(1023,"(A)") '#MOAB -l "nodes=2:ppn=8,walltime=00:10:00"'
+	write(1023,"(A)") '#MOAB -j oe'
+	write(1023,"(A)") 'cd "$HOME/pwscf/altest"'
+	write(1023,"(A)") 'module load apps/intel/v2013.0.079'
+	write(1023,"(A)") 'module load apps/QE/v5.0.2'	
 
 
 
 
 !----------------------------------------------------------	
-! Make 1201 to 1223		Homogeneous strain
+! Make 1101 to 1102		Homogeneous strain
 !----------------------------------------------------------	
 	
     pwbUnitVectorWorking = pwbUnitVector
@@ -336,7 +353,9 @@ Contains
       write(1021,"(A)") "mpirun pw.x < "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".in > "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".out"
-	
+	  write(1022,"(A)") "mpirun pw.x < "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".in > "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".out"
 	
 
 !mpirun pw.x < atom.in > atom.out
@@ -362,9 +381,13 @@ Contains
       pwbUnitVectorWorking = matmul(strainArray,pwbUnitVectorWorking)
 	  Call writePWscfFile("output/batch/pwscfbatch"//&
 	  TrimSpaces(intToString(1300+i))//".in")
+!Write to batch files
+      write(1021,"(A)") "mpirun pw.x < "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1300+i))//".in > "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1300+i))//".out"
 	End Do
 !----------------------------------------------------------	
-! Make 1401 to 1410		Orthorhombic strain
+! Make 1401 to 1410		Monoclinic strain
 !----------------------------------------------------------	
 	Do i=1,10 
 	  mStrain(i) = 0.0D0+i*0.01D0
@@ -381,6 +404,10 @@ Contains
       pwbUnitVectorWorking = matmul(strainArray,pwbUnitVectorWorking)
 	  Call writePWscfFile("output/batch/pwscfbatch"//&
 	  TrimSpaces(intToString(1400+i))//".in")
+!Write to batch files
+      write(1021,"(A)") "mpirun pw.x < "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1400+i))//".in > "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1400+i))//".out"
 	End Do
 !----------------------------------------------------------	
 ! Make 1501 to 1544		Specific interstitials and vacancies
@@ -428,6 +455,13 @@ Contains
 !Make file
 	  Call writePWscfFile("output/batch/pwscfbatch"//&
 	  TrimSpaces(intToString(1800+i))//".in")
+!Write to batch files
+      write(1021,"(A)") "mpirun pw.x < "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1800+i))//".in > "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1800+i))//".out"
+      write(1023,"(A)") "mpirun pw.x < "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1800+i))//".in > "//&
+	  "pwscfbatch"//TrimSpaces(intToString(1800+i))//".out"
 	End Do
 	
 	
@@ -436,6 +470,8 @@ Contains
 	
 !Close files
     Close(1021)
+    Close(1022)
+    Close(1023)
 	
 	
 	End If
@@ -472,6 +508,8 @@ Contains
 	cosAB = 1.0D0*(pwbUnitVectorWorking(1,1)*pwbUnitVectorWorking(2,1)+&
 	        pwbUnitVectorWorking(1,2)*pwbUnitVectorWorking(2,2)+&
 	        pwbUnitVectorWorking(1,3)*pwbUnitVectorWorking(2,3))/(1.0D0*a*c)
+!Convert from Angstrom to Bohr
+    a = UnitConvert(a,"ANGS","BOHR")
   
 !Open output file	  
 	outputFilePath = trim(currentWorkingDirectory)//"/"//trim(outputFileName)

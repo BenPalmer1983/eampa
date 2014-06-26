@@ -50,12 +50,16 @@ Module maths
   Public :: VaryPoint
   Public :: VaryPoints
   Public :: VaryPointRand
+  Public :: RandomInteger
+  Public :: NumberList
 ! Laplace Transforms  
   Public :: GaverStehfestCoeffs
 ! Decay Equations    
   Public :: CalcIsotopeAmount  
 ! Rounding functions
   Public :: Ceil    
+  Public :: Rounding
+  Public :: ForceZero
 ! Physics type functions
   Public :: Zbl
   Public :: ZblFull
@@ -121,6 +125,7 @@ Contains
 !
 ! Rounding functions
 ! - Ceil 
+! - Rounding
 !
 ! Physics type functions
 ! - Zbl
@@ -2421,9 +2426,50 @@ Contains
 	End If   
   End Function VaryPointRand  
   
-
+  Function RandomInteger(lower,upper) RESULT (randInt)
+!force declaration of all variables
+	Implicit None
+!declare variables
+    Integer(kind=StandardInteger) :: i  
+	Integer(kind=StandardInteger) :: lower, upper, randInt, diff, tempInt
+	Real(kind=DoubleReal) :: randDouble, fractionInterval
+!Make random integer
+    If(lower.gt.upper)Then
+	  tempInt = lower
+	  lower = upper
+	  upper = tempInt
+	End If
+    diff = (upper - lower) + 1
+	Call RANDOM_NUMBER(randDouble)
+	randInt = lower+floor(1.0D0*diff*randDouble)	
+  End Function RandomInteger  
   
-
+  Function NumberList(listSize,shuffles) RESULT (list)
+!Array filled with numbers 1 to n, possibly shuffled
+!force declaration of all variables
+	Implicit None
+!declare variables
+    Integer(kind=StandardInteger) :: i
+    Integer(kind=StandardInteger) :: listSize, shuffles, rowA, rowB, shuffleCount
+    Integer(kind=StandardInteger), Dimension(1:listSize) :: list
+!make list
+	Do i=1,listSize
+	  list(i) = i
+	End Do
+!shuffle	
+    If(shuffles.gt.0)Then
+	  shuffleCount = 0
+	  Do While(shuffleCount.lt.shuffles)
+	    rowA = RandomInteger(1,listSize)
+	    rowB = RandomInteger(1,listSize)
+	    If(rowA.ne.rowB)Then
+	      Call swapMatrixRows1DInt(list,rowA,rowB,listSize) 
+          shuffleCount = shuffleCount + 1
+	    End If
+	  End Do	
+    End If
+  End Function NumberList  
+  
     
 !------------------------------------------------------------------------!
 ! Laplace Transform Functions
@@ -2990,6 +3036,29 @@ Contains
   End Function Ceil 
   
   
+  Function Rounding (input, precisionVal) RESULT (output)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Integer(kind=StandardInteger) :: precisionVal
+	Real(kind=DoubleReal) :: input, output
+    output = ANINT(input*10**precisionVal)/(10**precisionVal)	
+  End Function Rounding 
+  
+  
+  Function ForceZero (input, threshold) RESULT (output)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Real(kind=DoubleReal) :: input, output, threshold
+	If(abs(input).le.abs(threshold))Then
+      output = 0.0D0
+    Else
+      output = input
+    End If	
+  End Function ForceZero 
+  
+  
     
   
 !------------------------------------------------------------------------!
@@ -3318,6 +3387,23 @@ Contains
 	  End Do
     End If
   End Subroutine swapMatrixRows2DA
+  
+  Subroutine swapMatrixRows1DInt(matrix,rowA,rowB,matH) 
+!Swap rows of square dp matrix
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+	Integer(kind=StandardInteger) :: i, rowA, rowB, matH, tempA, tempB
+	Integer(kind=StandardInteger), Dimension(1:matH) :: matrix
+!Only do if rows are in the matrix
+    If(rowA.ge.1.and.rowA.le.matH.and.rowB.ge.1.and.rowB.le.matH)Then
+!Swap rows
+      tempA = matrix(rowA)
+      tempB = matrix(rowB)
+	  matrix(rowB) = tempA
+	  matrix(rowA) = tempB
+    End If
+  End Subroutine swapMatrixRows1DInt
   
   
   

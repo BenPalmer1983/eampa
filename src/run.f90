@@ -103,7 +103,7 @@ contains
 	  eamDataSet = 1 	 
 	  Call calcConfigEnergies()	!Calculate energies	  
 	  Call calcOutput()	        !Print output to file
-	  Call calcOutputForces()
+	  Call outputForces()
 	End If
 !BMOD    3     Calculate bulk modulus of all input configurations	
 !ECON    4     Calculate elastic constants of all input configurations	
@@ -117,7 +117,7 @@ contains
 	  Call setPotentialDerivatives(eamKey,eamData) 	  
 	  Call calcEval()  
 	  Call calcOutput()	        !Print output to file
-	  Call calcOutputForces()
+	  Call outputForces()
 	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 		print *,ProgramTime(),"RSS: ",trialResidualSquareSum
 	  End If
@@ -154,7 +154,7 @@ contains
 	  Call setPotentialDerivatives(eamKey,eamData) 	  
 	  Call calcEvalFull()  
 	  Call calcOutput()	        !Print output to file
-	  Call calcOutputForces()
+	  Call outputForces()
 	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 		print *,ProgramTime(),"RSS: ",trialResidualSquareSum
 	  End If

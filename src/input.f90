@@ -25,25 +25,25 @@ Module input
   Integer(kind=StandardInteger) :: eamType
   Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKey
   Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamData
-  Real(kind=SingleReal), Dimension( : , : ), Allocatable :: unitVector, globalUnitVector
+  Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: unitVector, globalUnitVector
   Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: configHeaderI
-  Real(kind=SingleReal), Dimension( : , : ), Allocatable :: configHeaderR
+  Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configHeaderR
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: configCoordsI
-  Real(kind=SingleReal), Dimension( : , : ), Allocatable :: configCoordsR
-  Real(kind=SingleReal), Dimension( : , : ), Allocatable :: configForcesR
+  Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configCoordsR
+  Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: configForcesR
   Integer(kind=StandardInteger), Parameter :: headerWidth = 14 
   Integer(kind=StandardInteger) :: numberPotentials
   Integer(kind=StandardInteger) :: pairCount, densCount, dendCount, embeCount, embdCount
 !user input variables  
-  Character(len=1) :: saveFileCoords
-  Character(len=1) :: saveFileNeighbourList
-  Character(len=1) :: saveFilePot
+  Character(len=1) :: saveFileCoords,saveFileNeighbourList,saveFilePot
+  Character(len=1) :: saveFileForces, saveFileBM
   Character(len=255) :: eamPreparedFile
+  Character(len=255) :: dlpolyFileDir
   Character(len=255) :: pwbOptConfFile
   Integer(kind=StandardInteger) :: potType
   Integer(kind=StandardInteger) :: calcRunType
   Integer(kind=StandardInteger) :: optionReadConf, optionReadEAM
-  Integer(kind=StandardInteger) :: optionRunProcesses, optionRunPrep
+  Integer(kind=StandardInteger) :: optionRunProcesses, optionRunPrep, optionRunDLPrep
   Integer(kind=StandardInteger) :: optionRunPrepEAM, optionRunPWBatch  
   Integer(kind=StandardInteger) :: configCount
   Integer(kind=StandardInteger) :: eamInterpType
@@ -84,7 +84,7 @@ Module input
 !Variables - all run types       
   Public :: calcRunType 
   Public :: optionReadConf, optionReadEAM, optionRunProcesses 
-  Public :: optionRunPrep, optionRunPrepEAM, optionRunPWBatch
+  Public :: optionRunPrep, optionRunDLPrep, optionRunPrepEAM, optionRunPWBatch
   Public :: inputFileName
 !Variables - Run calculation + Pot Prep
   Public :: potentialFilePath, potentialFilePathTemp
@@ -100,9 +100,16 @@ Module input
   
 !prep eam potential only
   Public :: eamPreparedFile
+     
+!prep dlpoly potential only
+  Public :: dlpolyFileDir
        	
 !pwscf batch only		
   Public :: pwbOptConfFile
+  
+!save other data files
+  Public :: saveFileCoords,saveFileNeighbourList,saveFilePot
+  Public :: saveFileForces,saveFileBM
 		
 !Misc		
   Public :: headerWidth             
@@ -116,10 +123,7 @@ Module input
   Public :: embdCount           	  
   Public :: elementCount           	  
   Public :: eamKey               	   
-  Public :: eamData               	   
-  Public :: saveFileCoords              
-  Public :: saveFileNeighbourList      
-  Public :: saveFilePot        
+  Public :: eamData            
   Public :: configCount     
   Public :: eamInterpType           
   Public :: calcForcesOnOff      
@@ -375,21 +379,22 @@ contains
 	eamZBLEmbeZero = -2.1D20
 	eamZBLEmbeCutoff = -2.1D20
 !Default unit vectors
-	unitVector(1,1) = 1			!x1
-	unitVector(2,1) = 0			!x2
-	unitVector(3,1) = 0			!x3
-	unitVector(1,2) = 0			!y1
-	unitVector(2,2) = 1			!y2
-	unitVector(3,2) = 0			!y3
-	unitVector(1,3) = 0			!z1
-	unitVector(2,3) = 0			!z2
-	unitVector(3,3) = 1			!z3
+	unitVector(1,1) = 1.0D0			!x1
+	unitVector(2,1) = 0.0D0			!x2
+	unitVector(3,1) = 0.0D0			!x3
+	unitVector(1,2) = 0.0D0			!y1
+	unitVector(2,2) = 1.0D0			!y2
+	unitVector(3,2) = 0.0D0			!y3
+	unitVector(1,3) = 0.0D0			!z1
+	unitVector(2,3) = 0.0D0			!z2
+	unitVector(3,3) = 1.0D0			!z3
 !Run type and run type options
 	calcRunType = 1
 	optionReadConf = 1
 	optionReadEAM = 1
 	optionRunProcesses = 1
 	optionRunPrep = 1
+	optionRunDLPrep = 1
 	optionRunPrepEAM = 1
 	optionRunPWBatch = 1
 !Potential type
@@ -399,7 +404,7 @@ contains
 	calcBMCalcOnOff = 0
 	calcECCalcOnOff = 0
 	calcEVCalcOnOff = 0
-	dftInRadiusCutoff = 6.5
+	dftInRadiusCutoff = 6.5D0
 	Do i=1,size(dftInReplaceSym,1)
 	  Do j=1,size(dftInReplaceSym,2)
 	    dftInReplaceSym(i,j) = "   "
@@ -411,6 +416,11 @@ contains
 	eamTrialPointsV = 1001
 	eamTrialPointsP = 1001
 	eamTrialPointsF = 1001
+!Save files
+    saveFileForces = "N"
+    saveFileForces = "N"
+    saveFileForces = "N"
+	saveFileBM = "N"
 !Optimisation weighting
 	eamEnergyOptWeight = 100
 	eamStressOptWeight = 10
@@ -423,6 +433,7 @@ contains
 	saTIncs = 3
 	pwscfFilesList = "__empty__"
 	eamPreparedFile = "prepared_eam.pot"
+	dlpolyFileDir = "output/dlpoly"
 !End set defaults
 !Count rows in file
 	fileRowCount = 0
@@ -488,6 +499,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
 		  optionRunPrepEAM = 0
 		  optionRunPWBatch = 0
@@ -499,6 +511,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
 		  optionRunPrepEAM = 0
 		  optionRunPWBatch = 0
@@ -510,6 +523,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
 		  optionRunPrepEAM = 0
 		  optionRunPWBatch = 0
@@ -520,6 +534,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
 		  optionRunPrepEAM = 0
 		  optionRunPWBatch = 0
@@ -530,6 +545,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
 		  optionRunPrepEAM = 0
 		  optionRunPWBatch = 0
@@ -540,6 +556,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
 		  optionRunPrepEAM = 0
 		  optionRunPWBatch = 0
@@ -550,6 +567,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
 		  optionRunPrepEAM = 0
 		  optionRunPWBatch = 0
@@ -561,6 +579,7 @@ contains
 		  optionReadConf = 0
 		  optionReadEAM = 1
 		  optionRunPrep = 0
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 0
 		  optionRunPrepEAM = 1
 		  optionRunPWBatch = 0
@@ -571,6 +590,7 @@ contains
 		  optionReadConf = 0
 		  optionReadEAM = 1
 		  optionRunPrep = 0
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 0
 		  optionRunPrepEAM = 1
 		  optionRunPWBatch = 0
@@ -581,8 +601,20 @@ contains
 		  optionReadConf = 0
 		  optionReadEAM = 1
 		  optionRunPrep = 0
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 0
 		  optionRunPrepEAM = 1
+		  optionRunPWBatch = 0
+	    End If
+		if(StrToUpper(fileRow(1:4)).eq."PRP4")then		!PREP EAM File, DLPOLY eam and conf file
+		  calcRunType = 18
+!Set module/subroutine options
+		  optionReadConf = 1
+		  optionReadEAM = 1
+		  optionRunPrep = 1
+		  optionRunDLPrep = 1
+		  optionRunProcesses = 0
+		  optionRunPrepEAM = 0
 		  optionRunPWBatch = 0
 	    End If
 		If(StrToUpper(fileRow(1:4)).eq."PWB1")then		!PWscf Batch Files 1 - input files
@@ -591,6 +623,7 @@ contains
 		  optionReadConf = 0
 		  optionReadEAM = 0
 		  optionRunPrep = 0
+		  optionRunDLPrep = 0
 		  optionRunProcesses = 0
 		  optionRunPrepEAM = 0
 		  optionRunPWBatch = 1
@@ -654,6 +687,17 @@ contains
 	    Read(1,*,IOSTAT=ios) buffera
 		saveFilePot = StrToUpper(buffera(1:1))
 	  endif
+	  if(StrToUpper(fileRow(1:11)).eq."#SAVEFORCES")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera
+		saveFileForces = StrToUpper(buffera(1:1))
+	  endif
+	  if(StrToUpper(fileRow(1:11)).eq."#SAVEBM")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera
+		saveFileBM = StrToUpper(buffera(1:1))
+	  endif	  
+	  
 	  
 
 	  
@@ -959,7 +1003,6 @@ contains
 		    Read(bufferC,*) nr	    !number of points at which V(r) and F(p) are evaluated
 		    Read(bufferD,*) dr	
 		    Read(bufferE,*) cutoff		    
-			!print *,rowCount,nrho,drho,nr,dr,cutoff
 			potentialLinesR = Ceil(1.0D0*(nrho/5))
 			potentialLinesRho = Ceil((1.0D0*nrho)/5.0D0)
 		  End If
@@ -2281,13 +2324,13 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 !Initialise arrays
 	Do i=1,atomCount
 	  configCoordsI(i) = 0
-	  configCoordsR(i,1) = 0.0E0
-	  configCoordsR(i,2) = 0.0E0
-	  configCoordsR(i,3) = 0.0E0
-	  configForcesR(i,1) = 0.0E0
-	  configForcesR(i,2) = 0.0E0
-	  configForcesR(i,3) = 0.0E0
-	  configForcesR(i,4) = -1.0E0
+	  configCoordsR(i,1) = 0.0D0
+	  configCoordsR(i,2) = 0.0D0
+	  configCoordsR(i,3) = 0.0D0
+	  configForcesR(i,1) = 0.0D0
+	  configForcesR(i,2) = 0.0D0
+	  configForcesR(i,3) = 0.0D0
+	  configForcesR(i,4) = -1.0D0
 	End Do	
 !Defaults	
 	readForces = 0
@@ -2315,15 +2358,15 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 !References - Equilibrium volume	  
 	  configHeaderR(i,27) = -2.1E20
 !References - Equilibrium volume	  
-	  configHeaderR(i,28) = -2.1E20		!SXX
-	  configHeaderR(i,29) = -2.1E20		!SXY
-	  configHeaderR(i,30) = -2.1E20		!SXZ
-	  configHeaderR(i,31) = -2.1E20		!SYZ
-	  configHeaderR(i,32) = -2.1E20		!SYY
-	  configHeaderR(i,33) = -2.1E20		!SYZ
-	  configHeaderR(i,34) = -2.1E20		!SZX
-	  configHeaderR(i,35) = -2.1E20		!SZY
-	  configHeaderR(i,36) = -2.1E20		!SZZ
+	  configHeaderR(i,28) = -2.1D20		!SXX
+	  configHeaderR(i,29) = -2.1D20		!SXY
+	  configHeaderR(i,30) = -2.1D20		!SXZ
+	  configHeaderR(i,31) = -2.1D20		!SYZ
+	  configHeaderR(i,32) = -2.1D20		!SYY
+	  configHeaderR(i,33) = -2.1D20		!SYZ
+	  configHeaderR(i,34) = -2.1D20		!SZX
+	  configHeaderR(i,35) = -2.1D20		!SZY
+	  configHeaderR(i,36) = -2.1D20		!SZZ
 	End Do
 !Load Data
     configurationCount = 0
@@ -2579,7 +2622,6 @@ if(StrToUpper(buffera(1:3)).eq."#CW")then     !Configuration weighting energy st
 		    Read(bufferb,*) configCoordsR(atomCount,1)
 		    Read(bufferc,*) configCoordsR(atomCount,2)
 		    Read(bufferd,*) configCoordsR(atomCount,3)
-		    !print *,buffere,bufferf,bufferg
 		    Read(buffere,*) configForcesR(atomCount,1)
 	        Read(bufferf,*) configForcesR(atomCount,2)
 	        Read(bufferg,*) configForcesR(atomCount,3)

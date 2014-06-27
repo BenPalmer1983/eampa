@@ -22,6 +22,7 @@ Module general
 !Public subroutines
   Public :: swapArrayRows1D, swapArrayRows2D
   Public :: extractArrayColumnDP, extractArrayColumnInt
+  Public :: makeDir
 !Public functions
   Public :: dpToString, intToString
   Public :: GetClockTime
@@ -136,6 +137,15 @@ Contains
     End If
   End Subroutine swapArrayRows2D
  
+  
+  Subroutine makeDir(path) 
+!Swap rows of square dp matrix
+!force declaration of all variables
+	Implicit None	
+!declare private variables
+    Character(len=128) :: path
+  End Subroutine makeDir
+  
   
   
     

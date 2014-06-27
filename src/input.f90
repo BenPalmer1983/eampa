@@ -40,6 +40,7 @@ Module input
   Character(len=255) :: eamPreparedFile
   Character(len=255) :: dlpolyFileDir
   Character(len=255) :: pwbOptConfFile
+  Character(len=255) :: pwbOutputDir
   Integer(kind=StandardInteger) :: potType
   Integer(kind=StandardInteger) :: calcRunType
   Integer(kind=StandardInteger) :: optionReadConf, optionReadEAM
@@ -106,6 +107,7 @@ Module input
        	
 !pwscf batch only		
   Public :: pwbOptConfFile
+  Public :: pwbOutputDir
   
 !save other data files
   Public :: saveFileCoords,saveFileNeighbourList,saveFilePot
@@ -434,6 +436,9 @@ contains
 	pwscfFilesList = "__empty__"
 	eamPreparedFile = "prepared_eam.pot"
 	dlpolyFileDir = "output/dlpoly"
+!pwbatch
+    pwbOutputDir = "pwb"	
+	
 !End set defaults
 !Count rows in file
 	fileRowCount = 0
@@ -909,11 +914,19 @@ contains
 		eamPreparedFile = trim(buffera)
 		forcePrepEAM = 1
 	  End If
+!-----------------------------
+! Make PWscf Batch Files Only Options
+!-----------------------------	  
 	  If(StrToUpper(fileRow(1:11)).eq."#PWBOPTCONF")then
 !read next line
 	    Read(1,*,IOSTAT=ios) buffera		
 		pwbOptConfFile = trim(buffera)
 	  End If	
+	  If(StrToUpper(fileRow(1:9)).eq."#BATCHDIR")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		pwbOutputDir = trim(buffera)
+	  End If	  
     End Do
 !-----------------------------
 ! Force some options, depending on input

@@ -50,13 +50,20 @@ Contains
 	Implicit None	
 !declare private variables
 	Integer(kind=StandardInteger) :: i	
+!Options	
+	!PRP1 
+	
+	
     If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 	  print *,ProgramTime(),"Prepare potential file"
 	End If
 	Call eamForceZBLCore(eamKey,eamData) 
 	Call setPotentialDerivatives(eamKey,eamData) 
-	Call storeEAMToFile(eamKey, eamData, trim(eamPreparedFile)) 
+	Call outputEAMPrepData(eamKey, eamData, trim(eamPreparedFile)) 
+	Call outputEAMPrepDataDlpoly(eamKey, eamData, trim(eamPreparedFile)//".dlpoly") 
 	Call outputPrepareEAM()	        !Print output to file
+	!Call outputPrepareDlpolyEAM()	
+	!Call outputPrepareLammpsEAM()	
 	  
 	If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 	  print *,ProgramTime(),"Saved to ",trim(eamPreparedFile)

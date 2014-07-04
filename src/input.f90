@@ -39,13 +39,12 @@ Module input
   Character(len=1) :: saveFileForces, saveFileBM
   Character(len=255) :: eamPreparedFile
   Character(len=255) :: dlpolyFileDir
-  Character(len=255) :: pwbOptConfFile
-  Character(len=255) :: pwbOutputDir
   Integer(kind=StandardInteger) :: potType
   Integer(kind=StandardInteger) :: calcRunType
   Integer(kind=StandardInteger) :: optionReadConf, optionReadEAM
   Integer(kind=StandardInteger) :: optionRunProcesses, optionRunPrep, optionRunDLPrep
-  Integer(kind=StandardInteger) :: optionRunPrepEAM, optionRunPWBatch  
+  Integer(kind=StandardInteger) :: optionRunPrepEAM, optionRunPWBatch, optionRunDGEN 
+  Integer(kind=StandardInteger) :: optionRunPrepPotfit
   Integer(kind=StandardInteger) :: configCount
   Integer(kind=StandardInteger) :: eamInterpType
   Integer(kind=StandardInteger) :: calcForcesOnOff
@@ -78,7 +77,18 @@ Module input
   Real(kind=DoubleReal) :: eamZBLEmbeZero, eamZBLEmbeCutoff
 !output
   Integer(kind=StandardInteger) :: printToTerminal
-
+!pwb only options  
+  Character(len=255) :: pwbOptConfFile
+  Character(len=255) :: pwbOutputDir
+  Character(len=16) :: pwbWallTime
+  Character(len=16) :: pwbNodes
+  Character(len=16) :: pwbPPN
+  Character(len=16) :: pwbMoabQueue
+  Character(len=16) :: pwbOpenMPThreads
+  Character(len=16) :: pwbProcPerNuma
+  Character(len=16) :: pwbPbsAccount
+!Prep Potfit
+  Character(len=1) :: prepPotfitOption  
   
 !Privacy of functions/subroutines/variables
   Private
@@ -86,6 +96,7 @@ Module input
   Public :: calcRunType 
   Public :: optionReadConf, optionReadEAM, optionRunProcesses 
   Public :: optionRunPrep, optionRunDLPrep, optionRunPrepEAM, optionRunPWBatch
+  Public :: optionRunDGEN, optionRunPrepPotfit
   Public :: inputFileName
 !Variables - Run calculation + Pot Prep
   Public :: potentialFilePath, potentialFilePathTemp
@@ -108,6 +119,16 @@ Module input
 !pwscf batch only		
   Public :: pwbOptConfFile
   Public :: pwbOutputDir
+  Public :: pwbWallTime
+  Public :: pwbNodes
+  Public :: pwbPPN
+  Public :: pwbMoabQueue
+  Public :: pwbOpenMPThreads
+  Public :: pwbProcPerNuma
+  Public :: pwbPbsAccount
+  
+!Prep Potfit
+  Public :: prepPotfitOption  
   
 !save other data files
   Public :: saveFileCoords,saveFileNeighbourList,saveFilePot
@@ -169,9 +190,11 @@ contains
   Subroutine runInput()	
 	!Internal subroutine variables
 	Integer(kind=StandardInteger) :: i, j, k
+!Run mandatory input subroutines
 	Call readUserInput()             !Read input from command line i.e. input file name/location
 	Call readIsotopeData()           !Read in isotope data from data/isotopes.dat
 	Call readInputFile()		     !Read input file
+!Run optional subroutines		
 	If(optionReadEAM.eq.1)Then
 	  Call readEamPotPrep()            !Do for all run options
 	End If  
@@ -391,14 +414,16 @@ contains
 	unitVector(2,3) = 0.0D0			!z2
 	unitVector(3,3) = 1.0D0			!z3
 !Run type and run type options
-	calcRunType = 1
-	optionReadConf = 1
-	optionReadEAM = 1
-	optionRunProcesses = 1
-	optionRunPrep = 1
-	optionRunDLPrep = 1
-	optionRunPrepEAM = 1
-	optionRunPWBatch = 1
+	calcRunType = 0
+	optionReadConf = 0
+	optionReadEAM = 0
+	optionRunProcesses = 0
+	optionRunPrep = 0
+	optionRunDLPrep = 0
+	optionRunPrepEAM = 0
+	optionRunPWBatch = 0
+	optionRunDGEN = 0
+	optionRunPrepPotfit = 0
 !Potential type
 	potType = 1
 	eamInterpType = 1
@@ -492,6 +517,11 @@ contains
 		End If
 	  End If
 !-----------------------------
+! Modules
+!-----------------------------	 
+
+
+!-----------------------------
 ! Run type
 !-----------------------------	  
 	  If(StrToUpper(fileRow(1:8)).eq."#RUNTYPE")then
@@ -504,10 +534,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
-		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
-		  optionRunPrepEAM = 0
-		  optionRunPWBatch = 0
 	    End If
 		if(StrToUpper(fileRow(1:4)).eq."BMOD")then		!BULKMODULUS
 		  calcRunType = 3
@@ -516,10 +543,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
-		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
-		  optionRunPrepEAM = 0
-		  optionRunPWBatch = 0
 	    End If
 		if(StrToUpper(fileRow(1:4)).eq."ECON")then		!ELASTICCONSTANTS
 		  calcRunType = 4
@@ -528,10 +552,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
-		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
-		  optionRunPrepEAM = 0
-		  optionRunPWBatch = 0
 	    End If
 		if(StrToUpper(fileRow(1:4)).eq."EVAL")then		!EVALUATE
 		  calcRunType = 5
@@ -539,10 +560,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
-		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
-		  optionRunPrepEAM = 0
-		  optionRunPWBatch = 0
 	    End If
 		if(StrToUpper(fileRow(1:4)).eq."OPTI")then		!OPTIMISE
 		  calcRunType = 6
@@ -550,10 +568,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
-		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
-		  optionRunPrepEAM = 0
-		  optionRunPWBatch = 0
 	    End If
 		if(StrToUpper(fileRow(1:4)).eq."OPTF")then		!OPTIMISE Full Eval
 		  calcRunType = 7
@@ -561,10 +576,7 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
-		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
-		  optionRunPrepEAM = 0
-		  optionRunPWBatch = 0
 	    End If
 		if(StrToUpper(fileRow(1:4)).eq."EVAF")then		!EVALUATE
 		  calcRunType = 8
@@ -572,66 +584,45 @@ contains
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
-		  optionRunDLPrep = 0
 		  optionRunProcesses = 1
-		  optionRunPrepEAM = 0
-		  optionRunPWBatch = 0
 	    End If
 !Potential only, no calculations
 		if(StrToUpper(fileRow(1:4)).eq."PRP1")then		!PREP EAM File - read in, and output a formatted eam file
-		  calcRunType = 15
 !Set module/subroutine options
-		  optionReadConf = 0
 		  optionReadEAM = 1
-		  optionRunPrep = 0
-		  optionRunDLPrep = 0
-		  optionRunProcesses = 0
 		  optionRunPrepEAM = 1
-		  optionRunPWBatch = 0
 	    End If
-		if(StrToUpper(fileRow(1:4)).eq."PRP2")then		!PREP EAM File - read in, and output a formatted eam file
-		  calcRunType = 16
+		if(StrToUpper(fileRow(1:4)).eq."PRP2")then		!PREP EAM File 
 !Set module/subroutine options
-		  optionReadConf = 0
 		  optionReadEAM = 1
-		  optionRunPrep = 0
-		  optionRunDLPrep = 0
-		  optionRunProcesses = 0
 		  optionRunPrepEAM = 1
-		  optionRunPWBatch = 0
 	    End If
-		if(StrToUpper(fileRow(1:4)).eq."PRP3")then		!PREP EAM File - read in, and output a formatted eam file
-		  calcRunType = 17
+		if(StrToUpper(fileRow(1:4)).eq."PRP3")then		!PREP EAM File 
 !Set module/subroutine options
-		  optionReadConf = 0
 		  optionReadEAM = 1
-		  optionRunPrep = 0
-		  optionRunDLPrep = 0
-		  optionRunProcesses = 0
 		  optionRunPrepEAM = 1
-		  optionRunPWBatch = 0
 	    End If
-		if(StrToUpper(fileRow(1:4)).eq."PRP4")then		!PREP EAM File, DLPOLY eam and conf file
-		  calcRunType = 18
+		If(StrToUpper(fileRow(1:4)).eq."PRP4")then		!PREP EAM File, DLPOLY eam and conf file
 !Set module/subroutine options
 		  optionReadConf = 1
 		  optionReadEAM = 1
 		  optionRunPrep = 1
 		  optionRunDLPrep = 1
-		  optionRunProcesses = 0
-		  optionRunPrepEAM = 0
-		  optionRunPWBatch = 0
 	    End If
-		If(StrToUpper(fileRow(1:4)).eq."PWB1")then		!PWscf Batch Files 1 - input files
-		  calcRunType = 31
+		If(StrToUpper(fileRow(1:4)).eq."PRP5")then		!PREP Potfit Input Files
 !Set module/subroutine options
-		  optionReadConf = 0
-		  optionReadEAM = 0
-		  optionRunPrep = 0
-		  optionRunDLPrep = 0
-		  optionRunProcesses = 0
-		  optionRunPrepEAM = 0
+		  optionReadConf = 1
+		  optionReadEAM = 1
+		  optionRunPrep = 1	
+          optionRunPrepPotfit = 1
+		End If
+		If(StrToUpper(fileRow(1:4)).eq."PWB1")then		!PWscf Batch Files 1 - input files
+!Set module/subroutine options
 		  optionRunPWBatch = 1
+		End If
+		If(StrToUpper(fileRow(1:7)).eq."DGEN")then		!Data generation
+!Set module/subroutine options
+		  optionRunDGEN = 1
 		End If
 		if(StrToUpper(fileRow(1:4)).eq."TEST")then		!Test
 		  calcRunType = 99
@@ -912,7 +903,8 @@ contains
 !read next line
 	    Read(1,*,IOSTAT=ios) buffera		
 		eamPreparedFile = trim(buffera)
-		forcePrepEAM = 1
+		!forcePrepEAM = 1
+		optionRunPrepEAM = 1
 	  End If
 !-----------------------------
 ! Make PWscf Batch Files Only Options
@@ -927,13 +919,69 @@ contains
 	    Read(1,*,IOSTAT=ios) buffera		
 		pwbOutputDir = trim(buffera)
 	  End If	  
+	  If(StrToUpper(fileRow(1:12)).eq."#PWBWALLTIME")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		pwbWallTime = trim(buffera)
+	  End If  
+	  If(StrToUpper(fileRow(1:9)).eq."#PWBNODES")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		pwbNodes = trim(buffera)
+	  End If  
+	  If(StrToUpper(fileRow(1:7)).eq."#PWBPPN")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		pwbPPN = trim(buffera)
+	  End If 
+	  If(StrToUpper(fileRow(1:13)).eq."#PWBMOABQUEUE")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		pwbMoabQueue = trim(buffera)
+	  End If 
+	  If(StrToUpper(fileRow(1:17)).eq."#PWBOPENMPTHREADS")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		pwbOpenMPThreads = trim(buffera)
+	  End If  
+	  If(StrToUpper(fileRow(1:15)).eq."#PWBPROCPERNUMA")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		pwbProcPerNuma = trim(buffera)
+	  End If 
+	  If(StrToUpper(fileRow(1:14)).eq."#PWBPBSACCOUNT")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera		
+		pwbPbsAccount = trim(buffera)
+	  End If 		
+!-----------------------------
+! EAM Prepare Potfit Files
+!-----------------------------	
+	  If(StrToUpper(fileRow(1:11)).eq."#PREPPOTFIT")then
+!read next line
+	    Read(1,*,IOSTAT=ios) buffera	
+        buffera	= trim(strToUpper(buffera))	
+		prepPotfitOption = buffera(1:1)
+	  End If   
+	  
+	  
+	  
+  !Public :: pwbOptConfFile
+  !Public :: pwbOutputDir
+  !Public :: pwbWallTime
+  !Public :: pwbNodes
+  !Public :: pwbPPN
+  !Public :: pwbMoabQueue
+  !Public :: pwbOpenMPThreads
+  !Public :: pwbPbsAccount
+	  
     End Do
 !-----------------------------
 ! Force some options, depending on input
 !-----------------------------
-	If(forcePrepEAM.eq.1)Then
-	  optionRunPrepEAM = 1
-	End If
+	!If(forcePrepEAM.eq.1)Then
+	!  optionRunPrepEAM = 1
+	!End If
 !Fill in any other variables	
 	globalUnitVector = unitVector
 !close file	

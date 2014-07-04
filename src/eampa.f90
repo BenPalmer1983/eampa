@@ -16,6 +16,7 @@ Program eampa
   Use calc			    ! calc
   Use prepeam			! calc
   Use prepdl     		! prep dlpoly files
+  Use preppotfit     	! prep potfit files
   Use run			    ! calc
   Use pwbatch			! calc
   Use output			! output
@@ -48,6 +49,11 @@ Program eampa
 !prepare dlpoly files
   If(optionRunDLPrep.eq.1)Then 
     Call runPrepdl()
+  End If
+  
+!prepare potfit files 
+  If(prepPotfitOption(1:1).eq."Y".or.optionRunPrepPotfit.eq.1)Then
+    Call runPrepPotfit()
   End If
 
 !start calculations

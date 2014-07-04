@@ -143,7 +143,8 @@ Contains
 !force declaration of all variables
 	Implicit None	
 !declare private variables
-    Character(len=128) :: path
+    Character(len=255) :: path
+	Call system("mkdir -p "//trim(path))
   End Subroutine makeDir
   
   

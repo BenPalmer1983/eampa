@@ -1,0 +1,25 @@
+# Potfit File created by EAMPA
+ntypes                     1
+# Input Files
+config          conf.dat
+startpot        start.pot
+tempfile        temp.pot
+flagfile        STOP
+# Final pot
+endpot          opt.pot
+plotfile        TestEAM.plot
+write_pair      1
+# Options
+plotpointfile   TestSampled.plot
+write_lammps    1
+# Output style
+imdpotsteps     1000 
+extend          2
+output_prefix   pf_testEAM
+# Minimization Options
+opt             1 
+anneal_temp     100.0
+eng_weight      100.0 
+stress_weight   20.0
+seed	         123
+d_eps           0.001

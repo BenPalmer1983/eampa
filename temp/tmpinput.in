@@ -1,49 +1,24 @@
 #PRINT                                                          
 yes                                                             
 #RUNTYPE                                                        
-opti                                                            
-#POTENTIAL                                                      
-"examples/sheng_al_eam.pot"                                     
-#CONFIGURATIONS                                                 
-"examples/atomsAl.conf"                                         
-#DATADIR                                                        
-"data"                                                          
-#SAVECOORDS                                                     
-no                                                              
-#SAVENEIGHBOURLIST                                              
-no                                                              
-#SAVEPOT                                                        
-yes                                                             
-#WEIGHTING ENERGY STRESS FORCE EVOL BM ECS 100 20 1 20 20 20    
-10000 1 1 1 1 1                                                 
-#UNITVECTOR                                                     
-1.0 0.0 0.0                                                     
-0.0 1.0 0.0                                                     
-0.0 0.0 1.0                                                     
-#EAMINTERP                                                      
-THREEPOINT                                                      
-#EAMREDUCEDPOINTS                                               
-20 20 10                                                        
-#SACYCLES TSTART TEND TINCS                                     
-10 2 0 2                                                        
-#SATEMP  TEMPERATURE  SPREAD AMOUNT                             
-40.0D0 0.05D0                                                   
-#CALCFORCES                                                     
-yes                                                             
-#CALCSTRESS                                                     
-yes                                                             
-#CALCALLBM                                                      
-No                                                              
-#CALCALLEC                                                      
-No                                                              
-#DFTIN-RC                                                       
-6.5                                                             
-#DFTIN-REPLACESYM                                               
+pwb1                                                            
+#BATCHDIR                                                       
+"aluminium"                                                     
+#PWBOPTCONF                                                     
+"examples/atomsAlPwb.conf"                                      
+#PWBWALLTIME                                                    
+00:10:00                                                        
+#PWBNODES                                                       
+2                                                               
+#PWBPPN                                                         
+16                                                              
+#PWBPPN                                                         
+16                                                              
+#PWBMOABQUEUE                                                   
+"bbtest"                                                        
+#PWBOPENMPTHREADS                                               
 1                                                               
-N Al                                                            
-#DFTIN-OPTENERGY                                                
--10112.77814219 Ry 256                                          
-#DFTIN-COHENERGY                                                
--3.36 eV                                                        
-#DFT-PWSCFFILES                                                 
-"examples/pwscf/Al.1101.out"                                    
+#PWBPROCPERNUMA                                                 
+8                                                               
+#PWBPBSACCOUNT                                                  
+e298                                                            

@@ -49,6 +49,11 @@ yes
 No
 #calcAllEC
 No
+#
+!---------------------- Potfit files
+#PREPPOTFIT
+yes
+!---------------------- DFT Files to add to config
 #dftin-rc
 6.5
 #dftin-replacesym

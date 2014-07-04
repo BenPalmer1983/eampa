@@ -269,47 +269,71 @@ Contains
 	Implicit None	
 !declare private variables
 	Integer(kind=StandardInteger) :: i, j, k, n
+	Integer(kind=StandardInteger) :: nodes, ppn, processes, numa, ompThreads
 	Real(kind=DoubleReal), Dimension(1:23) :: hStrain
 	Real(kind=DoubleReal), Dimension(1:10) :: oStrain
 	Real(kind=DoubleReal), Dimension(1:10) :: mStrain
 	Real(kind=DoubleReal), Dimension(1:3,1:3) :: strainArray
 	Real(kind=DoubleReal) :: x, xV, y, yV, z, zV, T
+	Character(len=255) :: pwbOutDir, mpiRun, apRun
 
     If(mpiProcessID.eq.0)Then
+	
+!Prepare variables
+    Read(pwbNodes,*) nodes
+    Read(pwbPPN,*) ppn
+	Read(pwbOpenMPThreads,*) ompThreads
+	Read(pwbProcPerNuma,*) numa
+	processes = nodes * ppn
+   
 	
 !----------------------------------------------------------	
 ! Init batch script files
 !----------------------------------------------------------	
-
-!Blue Bear All
-    open(unit=1021,file=trim("output/batch/bbBatchAll.sh"))
+    pwbOutDir = trim(outputDirectory)//"/batch/"//trim(pwbOutputDir)
+	Call makeDir(pwbOutDir)
+!open files for writing
+    open(unit=1021,file=trim(pwbOutDir)//"/"//trim("bbBatch.sh"))	
+    open(unit=1022,file=trim(pwbOutDir)//"/"//trim("bbBatch.pbs"))	
+    open(unit=1023,file=trim(pwbOutDir)//"/"//trim("all.conf"))
+	
+!Blue Bear MSUB
 	write(1021,"(A)") '#!/bin/bash'
-	write(1021,"(A)") '#MOAB -l walltime=00:10:00'
+	write(1021,"(A)") '#MOAB -l "nodes='//trim(pwbNodes)//':ppn='//&
+	trim(pwbPPN)//',walltime='//trim(pwbWallTime)//'"'
 	write(1021,"(A)") '#MOAB -j oe'
-	write(1021,"(A)") '#MOAB -q bbtest'
+	write(1021,"(A)") '#MOAB -q '//trim(pwbMoabQueue)
+	write(1021,"(A)") 'OMP_NUM_THREADS='//pwbOpenMPThreads
+	write(1021,"(A)") 'export OMP_NUM_THREADS'
 	write(1021,"(A)") 'cd "$HOME/pwscf/test\"'
 	write(1021,"(A)") 'module load apps/intel/v2013.0.079'
 	write(1021,"(A)") 'module load apps/QE/v5.0.2'
 	
-!Blue Bear 1200s
-    open(unit=1022,file=trim("output/batch/bbBatch1200s.sh"))
-	write(1022,"(A)") '#!/bin/bash'
-	write(1023,"(A)") '#MOAB -l "nodes=2:ppn=8,walltime=00:10:00"'
-	write(1022,"(A)") '#MOAB -j oe'
-	write(1022,"(A)") 'cd "$HOME/pwscf/altest"'
-	write(1022,"(A)") 'module load apps/intel/v2013.0.079'
-	write(1022,"(A)") 'module load apps/QE/v5.0.2'	
+!Blue Bear PBS
+	write(1022,"(A)") '#!/bin/bash --login'
+	write(1022,"(A)") '#PBS -N pwscf_job'
+	write(1022,"(A)") '#PBS -l mppwidth='//trim(pwbNodes)
+	write(1022,"(A)") '#PBS -l mppnppn='//trim(pwbPPN)
+	write(1022,"(A)") '#PBS -l walltime='//trim(pwbWallTime)
+	write(1022,"(A)") '#PBS -A '//trim(pwbPbsAccount)
+	write(1022,"(A)") 'OMP_NUM_THREADS='//pwbOpenMPThreads
+	write(1022,"(A)") 'export OMP_NUM_THREADS'
+	write(1022,"(A)") 'export PATH=$HOME/bin:$PATH'
+	write(1022,"(A)") 'export PBS_O_WORKDIR=$(readlink -f $PBS_O_WORKDIR)'
+	write(1022,"(A)") 'module load acml'
+	write(1022,"(A)") 'cd $PBS_O_WORKDIR'
 	
-!Blue Bear 1800s
-    open(unit=1023,file=trim("output/batch/bbBatch1800s.sh"))
-	write(1023,"(A)") '#!/bin/bash'
-	write(1023,"(A)") '#MOAB -l "nodes=2:ppn=8,walltime=00:10:00"'
-	write(1023,"(A)") '#MOAB -j oe'
-	write(1023,"(A)") 'cd "$HOME/pwscf/altest"'
-	write(1023,"(A)") 'module load apps/intel/v2013.0.079'
-	write(1023,"(A)") 'module load apps/QE/v5.0.2'	
-
-
+!Config file
+	write(1023,"(A)") '! Configuration file'
+	close(1023)
+	
+!Run commands
+	mpiRun = 'mpirun '
+	apRun = 'aprun -n '//&
+	trim(intToString(processes))//&
+	' -N '//trim(intToString(ppn))//' -d '//&
+	trim(pwbOpenMPThreads)//' -S '//&
+	trim(intToString(numa ))
 
 
 !----------------------------------------------------------	
@@ -317,8 +341,15 @@ Contains
 !----------------------------------------------------------	
 	
     pwbUnitVectorWorking = pwbUnitVector
-	Call writePWscfFile("output/batch/pwscfbatch"//&
+	Call writePWscfFile(trim(pwbOutDir)//"/"//"pwscfbatch"//&
 	TrimSpaces(intToString(1101))//".in")
+	
+	write(1021,"(A)") mpiRun//" pw.x < "//&
+	"pwscfbatch"//TrimSpaces(intToString(1101))//".in > "//&
+	"pwscfbatch"//TrimSpaces(intToString(1101))//".out"
+	write(1022,"(A)") apRun//" pw.x < "//&
+	"pwscfbatch"//TrimSpaces(intToString(1101))//".in > "//&
+	"pwscfbatch"//TrimSpaces(intToString(1101))//".out"
 	
 
 !----------------------------------------------------------	
@@ -347,13 +378,15 @@ Contains
 !Make working vector
       pwbUnitVectorWorking = matmul(strainArray,pwbUnitVectorWorking)
 !Write pwscf input file
-	  Call writePWscfFile("output/batch/pwscfbatch"//&
+	  Call writePWscfFile(trim(pwbOutDir)//"/"//"pwscfbatch"//&
 	  TrimSpaces(intToString(1200+i))//".in")
 !Write to batch files
-      write(1021,"(A)") "mpirun pw.x < "//&
+
+
+      write(1021,"(A)") mpiRun//" pw.x < "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".in > "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".out"
-	  write(1022,"(A)") "mpirun pw.x < "//&
+	  write(1022,"(A)") apRun//" pw.x < "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".in > "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1200+i))//".out"
 	
@@ -379,7 +412,7 @@ Contains
 	                     (1-oStrain(i)*oStrain(i))
 !Make working vector
       pwbUnitVectorWorking = matmul(strainArray,pwbUnitVectorWorking)
-	  Call writePWscfFile("output/batch/pwscfbatch"//&
+	  Call writePWscfFile(trim(pwbOutDir)//"/"//"pwscfbatch"//&
 	  TrimSpaces(intToString(1300+i))//".in")
 !Write to batch files
       write(1021,"(A)") "mpirun pw.x < "//&
@@ -402,7 +435,7 @@ Contains
 	  strainArray(3,3) = (1.0D0+mStrain(i))**(-2.0D0)
 !Make working vector
       pwbUnitVectorWorking = matmul(strainArray,pwbUnitVectorWorking)
-	  Call writePWscfFile("output/batch/pwscfbatch"//&
+	  Call writePWscfFile(trim(pwbOutDir)//"/"//"pwscfbatch"//&
 	  TrimSpaces(intToString(1400+i))//".in")
 !Write to batch files
       write(1021,"(A)") "mpirun pw.x < "//&
@@ -453,13 +486,13 @@ Contains
         pwbAtomCoordsWorking(n,3) = zV
 	  End Do
 !Make file
-	  Call writePWscfFile("output/batch/pwscfbatch"//&
+	  Call writePWscfFile(trim(pwbOutDir)//"/"//"pwscfbatch"//&
 	  TrimSpaces(intToString(1800+i))//".in")
 !Write to batch files
       write(1021,"(A)") "mpirun pw.x < "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1800+i))//".in > "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1800+i))//".out"
-      write(1023,"(A)") "mpirun pw.x < "//&
+      write(1022,"(A)") "mpirun pw.x < "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1800+i))//".in > "//&
 	  "pwscfbatch"//TrimSpaces(intToString(1800+i))//".out"
 	End Do
@@ -512,7 +545,7 @@ Contains
     a = UnitConvert(a,"ANGS","BOHR")
   
 !Open output file	  
-	outputFilePath = trim(currentWorkingDirectory)//"/"//trim(outputFileName)
+	outputFilePath = trim(outputFileName)
 	open(unit=103,file=trim(outputFilePath))
 !---------------------------
 ! Control

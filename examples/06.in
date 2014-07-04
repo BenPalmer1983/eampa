@@ -1,0 +1,36 @@
+!---------------------- Verbose options
+#print
+yes
+!---------------------- Run type
+#runtype
+prp5
+!---------------------- data directory
+#datadir
+"data"
+!---------------------- Potential details
+#potential
+"examples/sheng_al_eam.pot"
+#zblcore pair core from 0.0 to 0.5, spline 0.5 to 1.0, dens to 1.0 from 0.5 embedding spline 0.2
+0.5 0.8 1.0 0.5 0.0 0.05
+#eamPrepFile
+"output/eamfile_al_zbl.pot"  
+!---------------------- Configuration details
+#unitvector
+1.0 0.0 0.0
+0.0 1.0 0.0
+0.0 0.0 1.0
+#configurations
+"examples/atomsAl.conf"
+!---------------------- DFT Files to add to config
+#dftin-rc
+6.5
+#dftin-replacesym
+1
+N Al
+#dftin-optenergy
+-10112.77814219 Ry 256
+#dftin-cohenergy
+-3.36 eV
+#dft-pwscffiles 
+"examples/pwscf/Al.1101.out"
+"examples/pwscf/Al.1101.out"

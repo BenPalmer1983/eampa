@@ -1,0 +1,11 @@
+# Potfit File created by EAMPA
+ntypes                     1
+# Input Files
+config      conf.dat
+startpot    start.pot
+tempfile    temp.pot
+flagfile    STOP
+# Final pot
+endpot      opt.pot
+plotfile    TestEAM.plot
+write_pair  1

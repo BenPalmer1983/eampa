@@ -4,13 +4,26 @@ yes
 !---------------------- Run type
 #runtype
 pwb1
-!---------------------- Configuration details
+!---------------------- PW Batch Configuration details
 #pwbOptConf
 "examples/atomsAlPwb.conf"
 #batchdir
 "aluminium"
-
-
-
+#pwbWallTime
+00:10:00
+#pwbNodes
+2
+#pwbPPN
+16
+#pwbPPN
+16
+#pwbMoabQueue
+"bbtest"
+#pwbOpenMPThreads
+1
+#pwbProcPerNuma
+8
+#pwbPbsAccount
+e298
 
 !

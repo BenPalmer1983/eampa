@@ -133,6 +133,8 @@ contains
 	  write(999,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
 	  "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)	
 	  write(999,"(A1)") " "
+	  write(999,"(A15,I4)") "MPI Processes: ",mpiProcessCount
+	  write(999,"(A1)") " "
 	  write(999,"(A1)") " "
 !close output file
 	  close(999)

@@ -1,0 +1,13 @@
+!---------------------- Verbose options
+#print
+yes
+!---------------------- Run type
+#runtype
+prp1
+!---------------------- Potential details
+#potential
+"examples/sheng_al_eam.pot"
+#zblcore pair core from 0.0 to 0.5, spline 0.5 to 1.0, dens to 1.0 from 0.5 embedding spline 0.2
+0.5 0.8 1.0 0.5 0.0 0.05
+#eamPrepFile
+"output/eamfile_al_zbl.pot"  

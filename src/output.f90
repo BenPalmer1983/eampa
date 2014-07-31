@@ -84,8 +84,8 @@ contains
 ! Output Forces to force file
 !-------------------------------------
 !open output file	
-	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	 
+	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+	  status="old",position="append",action="write")	 
 !Write to file	  
 	  write(999,"(A44)") "--------------------------------------------"
 	  write(999,"(A19,I4)") "Calculation count: ",globalCounter(1)
@@ -238,8 +238,8 @@ contains
 ! Output Forces to force file
 !-------------------------------------
 !open output file	
-	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	 
+	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+	  status="old",position="append",action="write")	 
 !Write to file	  
 	  write(999,"(A59)") "EAM potential functions read in and output in EAMPA format."
 	  write(999,"(A64)") trim(eamPreparedFile)
@@ -357,6 +357,7 @@ contains
 	  Else
 	    processFlag = -1
 	  End If	
+	  PRINT *,fileName
 !Store reduced potential to file
 	If(mpiProcessID.eq.0)Then
 	  open(unit=24,file=trim(fileName))

@@ -1,0 +1,57 @@
+!---------------------- Verbose options
+#print
+yes
+!---------------------- Run type
+#runtype
+opti
+!---------------------- data directory
+#datadir
+"data"
+!---------------------- Potential details
+#potential
+"sheng_al_eam.pot"
+#zblcore pair core from 0.0 to 0.5, spline 0.5 to 1.0, dens to 1.0 from 0.5 embedding spline 0.2
+0.5 0.8 1.0 0.5 0.0 0.05
+#eamPrepFile
+"eamfile_al_zbl.pot"  
+!---------------------- Configuration details
+#unitvector
+1.0 0.0 0.0
+0.0 1.0 0.0
+0.0 0.0 1.0
+#configurations
+"atomsAl.conf"
+!---------------------- DFT Files to add to config
+#dftin-rc
+6.5
+#dftin-replacesym
+1
+N Al
+#dftin-optenergy
+-10112.77814219 Ry 256
+#dftin-cohenergy
+-3.36 eV
+#dft-pwscffiles 
+"Al.1101.out"
+"Al.1101.out"
+!---------------------- Calculation options
+#savecoords
+yes
+#SAVENEIGHBOURLIST
+yes
+#SAVEFORCES
+Yes
+#savebm
+yes
+#eaminterp
+FOURPOINT
+!---------------------- RSS calculation options
+#weighting energy stress force evol bm ecs 100 20 1 20 20 20
+1000 5 1 1 1 1
+!---------------------- Optimizing options
+#eamreducedpoints 
+20 20 10
+#saCycles Tstart Tend Tincs
+5 2 0 2
+#saTemp  Temperature  Spread amount
+40.0D0 0.05D0

@@ -130,14 +130,6 @@ contains
     globalCounter(1) = globalCounter(1) + 1
 !Start Time
     startTime = ProgramTime()
-    If(mpiProcessID.eq.0.and.printOut.eqv..true.)Then
-!open output file	
-	  !outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	  !open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
-!write to output file
-	  !write(999,"(A33,F8.4,A3,I4)") "Calculating configuration energy ",&
-	  !ProgramTime(),"   ",globalCounter(1)
-	End If
 !zero out arrays
 	configurationEnergy = 0.0D0
 	configurationForce = 0.0D0
@@ -510,9 +502,9 @@ Subroutine calcBulkModulii()
 !-------------------------------------
 ! Output Forces to force file
 !-------------------------------------
-!open output file	
-	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	 
+!open output file
+	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+	  status="old",position="append",action="write")
 !Write to file	  
 	  !write(999,"(A19,I4,A7,E20.10,A14,E20.10,A13,E20.10)") "Evaluation count: ",&
 	  !globalCounter(1),", RSS: ",trialResidualSquareSum,&

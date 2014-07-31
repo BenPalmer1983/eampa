@@ -42,6 +42,9 @@ Module maths
   Public :: MatrixInterpolation
 ! Matrix Functions  
   Public :: InvertSquareMatrix
+! Unit Vector Functions  
+  Public :: ColToSquare
+  Public :: SquareToCol
 ! Vector Functions
   Public :: CrossProduct  
   Public :: DotProduct  
@@ -52,6 +55,7 @@ Module maths
   Public :: VaryPointRand
   Public :: RandomInteger
   Public :: NumberList
+  Public :: RandomFloat
 ! Laplace Transforms  
   Public :: GaverStehfestCoeffs
 ! Decay Equations    
@@ -2082,6 +2086,55 @@ Contains
   
   
 !------------------------------------------------------------------------!
+! Unit Vector Functions  
+!------------------------------------------------------------------------!   
+
+  Function ColToSquare(columnMatrix) RESULT (squareMatrix)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Real(kind=DoubleReal), Dimension(1:6) :: columnMatrix
+	Real(kind=DoubleReal), Dimension(1:3,1:3) :: squareMatrix
+	
+	Real(kind=DoubleReal) :: a, b, c, BC, AC, AB, cosBC, &
+	                         cosAC, cosAB, sinBC, sinAC, sinAB
+!Input variables
+	a = columnMatrix(1)
+	b = a * columnMatrix(2)
+	c = a * columnMatrix(3)
+	cosBC = columnMatrix(4)
+	cosAC = columnMatrix(5)
+	cosAB = columnMatrix(6)
+	BC = acos(cosBC)
+	AC = acos(cosAC)
+	AB = acos(cosAB)
+	sinBC = sin(BC)
+	sinAC = sin(AC)
+	sinAB = sin(AB)
+!Fill square matrix
+	squareMatrix(1,1) = 1.0D0 * a
+	squareMatrix(1,2) = 0.0D0
+	squareMatrix(1,3) = 0.0D0
+	squareMatrix(2,1) = 1.0D0*b*cosAB
+	squareMatrix(2,2) = 1.0D0*b*sinAB
+	squareMatrix(2,3) = 0.0D0
+	squareMatrix(3,1) = 1.0D0*c*cosAC
+	squareMatrix(3,2) = 1.0D0*c*(cosBC-cosAC*cosAB)/sinAB
+	squareMatrix(3,3) = 1.0D0*((1.0D0+2.0D0*cosBC*cosAC*cosAB-&
+	                    cosBC**2-cosAC**2-cosAB**2)**0.5)/sinAB	
+  End Function ColToSquare
+  
+
+  Function SquareToCol(squareMatrix) RESULT (columnMatrix)
+!force declaration of all variables
+	Implicit None
+!declare variables
+	Real(kind=DoubleReal), Dimension(1:6) :: columnMatrix
+	Real(kind=DoubleReal), Dimension(1:3,1:3) :: squareMatrix
+  
+  End Function SquareToCol
+  
+!------------------------------------------------------------------------!
 ! Vector Functions
 !------------------------------------------------------------------------!   
 
@@ -2469,6 +2522,52 @@ Contains
 	  End Do	
     End If
   End Function NumberList  
+  
+  
+  Function RandomFloat(lower,upper,distType,sigma) RESULT (output)
+!force declaration of all variables
+	Implicit None
+!declare variables   
+    Real(kind=DoubleReal) :: lower, upper
+	Character(len=1) :: distType 	!F flat, G Gaussian type, M Maxwell type
+    Integer(kind=StandardInteger) :: i
+    Real(kind=DoubleReal), Dimension(:,:), Allocatable :: distributionPoints
+    Real(kind=DoubleReal) :: yOne
+    Real(kind=DoubleReal) :: sigma, mu
+    Real(kind=DoubleReal) :: distX, distY, distXInterval
+    Real(kind=DoubleReal) :: randNumber, output
+	Real(kind=DoubleReal), Dimension(:), Allocatable :: yArray 
+!Flat distribution	
+    If(distType.eq."F")Then
+!Generate random number
+      Call RANDOM_NUMBER(randNumber)
+      output = lower + (upper-lower) * randNumber
+    End If
+!Gaussian type distribution
+    If(distType.eq."G")Then
+	  Allocate(distributionPoints(1:21,1:2))
+	  mu = 0.0D0
+!Set data points	
+	  distXInterval = 1.0D0/(21-1)
+	  yOne = exp(-1*((1.0D0-mu)**2)/(2*sigma**2))
+!Make array
+      distributionPoints(1,1) = 0.0D0
+      distributionPoints(1,2) = 1.0D0
+      distributionPoints(21,1) = 1.0D0
+      distributionPoints(21,2) = 0.0D0
+      Do i=2,20
+	    distX = (i-1)*1.0D0*distXInterval
+	    distributionPoints(i,1) = distX
+	    distributionPoints(i,2) = (exp(-1*((distX-mu)**2)/(2*sigma**2))-yOne)/(1-yOne)
+	  End Do
+!Generate random number
+      Call RANDOM_NUMBER(randNumber)
+	  yArray = PointInterpolationArr(distributionPoints,randNumber,3)
+	  output = yArray(1)
+      output = lower + (upper-lower) * output
+    End If
+  
+  End Function RandomFloat  
   
     
 !------------------------------------------------------------------------!

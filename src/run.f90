@@ -70,8 +70,8 @@ contains
 !Write to output file
 	If(mpiProcessID.eq.0)Then
 !open output file	
-	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")		
+	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+	  status="old",position="append",action="write")	
 !write to output file
 	  write(999,"(F8.4,A2,A33)") ProgramTime(),"  ",&
 	  "Start calculations (runProcesses)"
@@ -127,10 +127,10 @@ contains
 	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 		print *,ProgramTime(),"Optimise potential"
 	  End If
-	  Call storeEAMToFile(eamKey, eamData, "opt/inputVanilla.pot") 
+	  Call storeEAMToFile(eamKey, eamData, trim(outputDirectory)//"/"//"vanilla.pot") 
 	  Call eamForceZBLCore(eamKey,eamData) 
 	  Call setPotentialDerivatives(eamKey,eamData) 
-	  Call storeEAMToFile(eamKey, eamData, "opt/inputPrepared.pot") 
+	  Call storeEAMToFile(eamKey, eamData, trim(outputDirectory)//"/"//"inputPrepared.pot") 
 	  Call optimisePotential()	  
 	End If
 !OPTI    7     Optimise the input potential	full evaluation
@@ -138,10 +138,10 @@ contains
 	  If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 		print *,ProgramTime(),"Optimise potential"
 	  End If
-	  Call storeEAMToFile(eamKey, eamData, "opt/inputVanilla.pot") 
+	  Call storeEAMToFile(eamKey, eamData, trim(outputDirectory)//"/"//"vanilla.pot") 
 	  Call eamForceZBLCore(eamKey,eamData) 
 	  Call setPotentialDerivatives(eamKey,eamData) 
-	  Call storeEAMToFile(eamKey, eamData, "opt/inputPrepared.pot") 
+	  Call storeEAMToFile(eamKey, eamData, trim(outputDirectory)//"/"//"inputPrepared.pot") 
 	  Call optimisePotential()	  
 	End If
 !EVAF    8     Evaluate bulk properties of all input configurations	

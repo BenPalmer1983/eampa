@@ -50,17 +50,22 @@ Contains
 	Implicit None	
 !declare private variables
 	Integer(kind=StandardInteger) :: i	
+	Character(len=128) :: outPath, potPath, potPathDlpoly
 !Options	
 	!PRP1 
 	
+	outPath = trim(outputDirectory)
+	potPath = trim(outPath)//"/"//trim(eamPreparedFile)
+	potPathDlpoly = trim(potPath)//".dlpoly"
 	
     If(printToTerminal.eq.1.and.mpiProcessID.eq.0)Then
 	  print *,ProgramTime(),"Prepare potential file"
 	End If
+	print *,trim(outputDirectory)
 	Call eamForceZBLCore(eamKey,eamData) 
 	Call setPotentialDerivatives(eamKey,eamData) 
-	Call outputEAMPrepData(eamKey, eamData, trim(eamPreparedFile)) 
-	Call outputEAMPrepDataDlpoly(eamKey, eamData, trim(eamPreparedFile)//".dlpoly") 
+	Call outputEAMPrepData(eamKey, eamData, trim(potPath)) 
+	Call outputEAMPrepDataDlpoly(eamKey, eamData, trim(potPathDlpoly))
 	Call outputPrepareEAM()	        !Print output to file
 	!Call outputPrepareDlpolyEAM()	
 	!Call outputPrepareLammpsEAM()	

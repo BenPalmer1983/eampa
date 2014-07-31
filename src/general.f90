@@ -22,7 +22,7 @@ Module general
 !Public subroutines
   Public :: swapArrayRows1D, swapArrayRows2D
   Public :: extractArrayColumnDP, extractArrayColumnInt
-  Public :: makeDir
+  Public :: makeDir, randFileName, tempFileName
 !Public functions
   Public :: dpToString, intToString
   Public :: GetClockTime
@@ -148,7 +148,44 @@ Contains
   End Subroutine makeDir
   
   
+  Subroutine randFileName(fileName) 
+    Integer(kind=StandardInteger) :: i, characterNum
+	Character(len=8) :: fileName
+	Real(kind=DoubleReal) :: randNumber
+	Character(len=52), Parameter :: alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+	fileName = "tmp     "
+    Do i=4,8	
+	  Call RANDOM_NUMBER(randNumber)
+	  characterNum = Ceiling(52.0E0*randNumber+1.0E0)
+	  If(characterNum.lt.1)Then
+	    characterNum = 1
+	  End If
+	  If(characterNum.gt.52)Then
+	    characterNum = 52
+	  End If
+	  fileName(i:i) = alpha(characterNum:characterNum)
+	End Do
+  End Subroutine randFileName
   
+    
+  Subroutine tempFileName(fileName) 
+    Integer(kind=StandardInteger) :: i, characterNum
+	Character(len=8) :: fileName
+	Real(kind=DoubleReal) :: randNumber
+	Character(len=52), Parameter :: alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+	fileName = "tmp     "
+    Do i=4,8	
+	  Call RANDOM_NUMBER(randNumber)
+	  characterNum = Ceiling(52.0E0*randNumber+1.0E0)
+	  If(characterNum.lt.1)Then
+	    characterNum = 1
+	  End If
+	  If(characterNum.gt.52)Then
+	    characterNum = 52
+	  End If
+	  fileName(i:i) = alpha(characterNum:characterNum)
+	End Do
+  End Subroutine tempFileName
     
 !------------------------------------------------------------------------!
 !                                                                        !

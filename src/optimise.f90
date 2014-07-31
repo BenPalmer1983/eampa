@@ -537,11 +537,11 @@ contains
 	    eamData(i,j) = eamDataOptimum(i,j)
 	  End Do
     End Do	
-	Call storeEAMToFileMaster(eamKey,eamData,"opt/optimum.pot")
+	Call storeEAMToFileMaster(eamKey,eamData,trim(outputDirectory)//"/optimum.pot")
 !--------------------------------------------
 ! Step 4 - Check and output result
 !--------------------------------------------	
-	Call reReadEamPot("opt/optimum.pot")						!Re-read potential
+	Call reReadEamPot(trim(outputDirectory)//"/optimum.pot")						!Re-read potential
 !Calculate RSS
     eamDataSet = 1	!eamDataTrial
 	If(calcRunType.eq.6)Then	!Optimise normal

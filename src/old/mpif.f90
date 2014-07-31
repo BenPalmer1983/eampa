@@ -19,17 +19,11 @@ Module mpif
   Public :: MPI_sendout
   Public :: MPI_sendout2D
   Public :: MPI_timer  
-!Send data from Master to Workers - fixed arrays
   Public :: MPI_sendData1DDP
   Public :: MPI_sendData1DInt
   Public :: MPI_sendData2DInt
   Public :: MPI_sendData2DDP
-!Sum data from master and workers
   Public :: MPI_sumData2DDP
-  Public :: MPI_sumData1DDP
-!Send data from Master to Workers - allocatable arrays
-  Public :: MPI_sendData1DInt_A  
-  Public :: MPI_sendData2DDP_A  
 !Functions
   !Public :: 
   
@@ -617,163 +611,8 @@ Module mpif
     Call MPI_sendData2DDP(dataArray,arraySizeH,arraySizeW) 
   End Subroutine MPI_sumData2DDP 
   
-!------------------------------------------------------------------------!
-! ***MPI_sumData1DDP*** 
-! Takes an array and sums values across mpi processes
-!------------------------------------------------------------------------!  
-  Subroutine MPI_sumData1DDP(dataArray,arraySize) 
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i,j,k,n
-	Integer(kind=StandardInteger) :: arraySize
-!mpi variables
-    Integer(kind=StandardInteger) :: processID,processCount
-    Integer(kind=StandardInteger) :: status,error,tag
-    Integer(kind=StandardInteger) :: processTo,processFrom
-	Real(kind=DoubleReal), Dimension(1:arraySize) :: dataArray
-	Real(kind=DoubleReal), Dimension(1:arraySize) :: sendArray, recvArray  
-!-----------------------------------------
-! Set mpi variable values
-!-----------------------------------------
-	  Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
-      Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
-!-----------------------------------------	
-! Sum arrays from workers with master
-!-----------------------------------------   	  
-	  If(processID.eq.0)Then
-!RECV by master process
-	    Do i=1,(processCount-1)
-          processFrom = i
-	      tag = 1000 + i
-          Call MPI_recv(recvArray,arraySize,&
-	      MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
-		  Do j=1,arraySize
-	        dataArray(j) = dataArray(j) + recvArray(j)
-		  End Do
-		End Do	 
-	  Else
-!SEND by worker process	 
-	    sendArray = dataArray
-	    processTo = 0
-        tag = 1000 + processID
-		Call MPI_send(sendArray,arraySize,&
-		MPI_double_precision,processTo,tag,MPI_comm_world,error)
-	  End If   
-!-----------------------------------------
-! Send out merged/summed array
-!-----------------------------------------	
-      Call MPI_sendData1DDP(dataArray,arraySize)   
-  End Subroutine MPI_sumData1DDP 
   
   
-!-------------------------------------------
-! Allocated memory data distribution
-! Mpi plays up with allocated 
-!-------------------------------------------
-
-!------------------------------------------------------------------------!
-! ***MPI_sendData1DInt_A*** 
-! Takes an array and distributes (Allocated arrays)
-!------------------------------------------------------------------------!  
-  Subroutine MPI_sendData1DInt_A(inArray,fixedArraySize) 
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i
-	Integer(kind=StandardInteger) :: fixedArraySize
-	Integer(kind=StandardInteger) , Dimension(:), Allocatable :: inArray
-    Integer(kind=StandardInteger) , Dimension(1:fixedArraySize) :: dataArray
-!mpi variables
-    Integer(kind=StandardInteger) :: processID,processCount
-    Integer(kind=StandardInteger) :: status,error,tag	
-!-----------------------------------------
-! Set mpi variable values
-!-----------------------------------------
-	Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
-    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
-!Prepare data array
-	Do i=1,size(inArray)
-	  dataArray(i) = inArray(i)
-	End Do
-!Send from master process to workers
-    Call MPI_sendData1DInt(dataArray,fixedArraySize)
-!Transfer back to Allocatable array
-	Do i=1,size(inArray)
-	  inArray(i) = dataArray(i)
-	End Do  
   
-  End Subroutine MPI_sendData1DInt_A 
-  
-  
-  Subroutine MPI_sendData2DDP_A(inArray,arraySizeH,arraySizeW) 
-!force declaration of all variables
-
-!---not yet working
-
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i,j
-	Integer(kind=StandardInteger) :: arraySizeH,arraySizeW	
-	Real(kind=DoubleReal), Dimension(:,:), Allocatable :: inArray
-    Real(kind=DoubleReal), Dimension(1:arraySizeH,1:arraySizeW) :: dataArray
-	Integer(kind=StandardInteger), Dimension(1:2) :: arrayDim, sendArray, recvArray
-!mpi variables
-    Integer(kind=StandardInteger) :: processID,processCount
-    Integer(kind=StandardInteger) :: status,error,tag	
-    Integer(kind=StandardInteger) :: processTo,processFrom
-!-----------------------------------------
-! Set mpi variable values
-!-----------------------------------------
-	Call MPI_comm_rank(MPI_COMM_WORLD,processID,error)
-    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)	
-!Allocate arrays on all processes - Assume already allocated on master, redeclare on other processes
-    If(processID.eq.0)Then
-!SEND by master process	 
-      arrayDim(1) = arraySizeH
-      arrayDim(2) = arraySizeW
-	  sendArray = arrayDim
-      Do i=1,(processCount-1)
-	    processTo = i
-        tag = 2000 + i
-		Call MPI_send(sendArray,2,&
-		MPI_double_precision,processTo,tag,MPI_comm_world,error)
-	  End Do	
-	Else
-!RECV by worker processes
-      processFrom = 0
-	  tag = 2000 + processID
-      Call MPI_recv(recvArray,2,&
-	  MPI_double_precision,processFrom,tag,MPI_comm_world,status,error)
-	  arrayDim = recvArray
-!Allocate array
-      If(Allocated(inArray))Then
-	    Deallocate(inArray)
-      End If
-	  Allocate(inArray(1:arrayDim(1),1:arrayDim(2)))
-	End If
-
-
-
-    If(processID.ne.0)Then	
-	
-	End If
-!Prepare data array
-	Do i=1,size(inArray,1)
-	  Do j=1,size(inArray,2)	
-	    dataArray(i,j) = inArray(i,j)
-	  End Do	
-	End Do
-!Send from master process to workers
-    Call MPI_sendData2DDP(dataArray,arraySizeH,arraySizeW)
-!Transfer back to Allocatable array
-	Do i=1,size(inArray,1)
-	  Do j=1,size(inArray,2)	
-	    inArray(i,j) = dataArray(i,j)
-	  End Do	
-	End Do 
-  
-  
-  End Subroutine MPI_sendData2DDP_A 
 
 End Module mpif

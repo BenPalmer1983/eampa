@@ -5,10 +5,8 @@ Module input
   Use constants
   Use mpif
   Use strings		!string functions
-  Use general		
   Use maths
   Use units
-  Use loadData
   Use initialise
 
 
@@ -21,7 +19,6 @@ Module input
   Character(len=255)  :: potentialFilePath
   Character(len=255)  :: potentialFilePathTemp
   Character(len=255)  :: configurationsFilePath
-  Character(len=255)  :: configurationsFilePathTemp
   Character(len=2), Dimension( : ), Allocatable :: elements
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: elementsCharge
   Integer(kind=StandardInteger) :: elementCount
@@ -63,10 +60,10 @@ Module input
   Integer(kind=StandardInteger) :: saCycles, saTStart, saTEnd, saTIncs
   Real(kind=DoubleReal) :: saTemp, saSpreadFactor
 !Isotope/Element Arrays
-  Character(len=2), Dimension(0:118) :: elementSymbol
-  Character(len=2), Dimension(1:3180) :: isotopesChar
-  Integer, Dimension(1:3180,1:2) :: isotopesInt
-  Real, Dimension(1:3180,1:2) :: isotopesReal
+  Character(len=2), Dimension( : ), Allocatable :: isotopesChar
+  Integer, Dimension( : , : ), Allocatable :: isotopesInt
+  Real, Dimension( : , : ), Allocatable :: isotopesReal
+  Character(len=2), Dimension( : ), Allocatable :: elementSymbol
   Integer(kind=StandardInteger), Dimension( : ), Allocatable :: elementAtomicMass
 !Optimisation eam reduced points size
   Integer(kind=StandardInteger) :: eamReducedPointsV, eamReducedPointsP, eamReducedPointsF
@@ -82,10 +79,6 @@ Module input
   Integer(kind=StandardInteger) :: printToTerminal
 !pwb only options  
   Character(len=255) :: pwbOptConfFile
-  Integer(kind=StandardInteger) :: pwbStart
-  Integer(kind=StandardInteger) :: pwbEnd
-  Character(len=1) :: pwbRandVarianceType
-  Real(kind=DoubleReal) :: pwbSigma, pwbMaxVariance
   Character(len=255) :: pwbOutputDir
   Character(len=16) :: pwbWallTime
   Character(len=16) :: pwbNodes
@@ -94,6 +87,8 @@ Module input
   Character(len=16) :: pwbOpenMPThreads
   Character(len=16) :: pwbProcPerNuma
   Character(len=16) :: pwbPbsAccount
+  Integer(kind=StandardInteger) :: pwbStart
+  Integer(kind=StandardInteger) :: pwbEnd
 !Prep Potfit
   Character(len=1) :: prepPotfitOption  
   
@@ -112,7 +107,7 @@ Module input
   Public :: eamZBLPairLower, eamZBLPairUpper, eamZBLDensZero, eamZBLDensCutoff,&
             eamZBLEmbeZero, eamZBLEmbeCutoff
 !Variables - Run calculation only
-  Public :: configurationsFilePath,	configurationsFilePathTemp             	
+  Public :: configurationsFilePath	             	
   Public :: unitVector, globalUnitVector   
   Public :: configHeaderI, configHeaderR    
   Public :: configCoordsI, configCoordsR, configForcesR  
@@ -126,8 +121,6 @@ Module input
 !pwscf batch only		
   Public :: pwbOptConfFile
   Public :: pwbOutputDir
-  Public :: pwbStart, pwbEnd
-  Public :: pwbRandVarianceType, pwbSigma, pwbMaxVariance
   Public :: pwbWallTime
   Public :: pwbNodes
   Public :: pwbPPN
@@ -135,6 +128,7 @@ Module input
   Public :: pwbOpenMPThreads
   Public :: pwbProcPerNuma
   Public :: pwbPbsAccount
+  Public :: pwbStart, pwbEnd
   
 !Prep Potfit
   Public :: prepPotfitOption  
@@ -239,7 +233,209 @@ contains
   Subroutine readIsotopeData()
 !force declaration of all variables
 	Implicit None	
-    Call loadIsotopeData(isotopesChar,isotopesInt,isotopesReal,elementSymbol)
+!declare variables
+	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
+	Integer(kind=StandardInteger) :: ios, i, j, k, isotopeCounter, fileRows
+	Integer(kind=StandardInteger) :: maxZ
+	Character(len=25) :: buffera, bufferb, bufferc, bufferd, buffere, bufferf,tempA
+	Character(len=255) :: bufferLong
+	Character(len=255) :: dataFilesDir,dataFilesFile,tempB, fileRow
+!set default variables	
+	dataFilesDir = "data"
+!open output file
+	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"			!change
+	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
+!make file name/path	
+    dataFilesFile = Trim(dataDirectory)//"/"//"isotopes.dat"
+!count isotopes
+	isotopeCounter = 0
+	fileRows = 0
+	Open(UNIT=1,FILE=dataFilesFile) 
+    do i=1,maxFileRows 
+	  !Read in line
+	  Read(1,*,IOSTAT=ios) buffera, bufferb
+	  !Read(1,*,IOSTAT=ios) fileRow
+	  !break out
+	  if (ios /= 0) then
+	    EXIT 
+	  end if
+	  !Read(fileRow,*) buffera
+	  !Read(fileRow,*) bufferb
+	  !Read(i,*) tempA
+	  !tempB = "isotopeData["//trim(tempA)//"] = "//trim(fileRow)	  
+	  !print *,tempB
+	  fileRows = fileRows + 1
+	  if(buffera(1:6).eq."Atomic".and.bufferb(1:6).eq."Number")then
+		isotopeCounter = isotopeCounter + 1
+	  endif	  
+    enddo
+	CLOSE(1) !close file
+!Allocate Arrays
+    Allocate(isotopesChar(1:isotopeCounter))
+    Allocate(isotopesInt(1:isotopeCounter,1:10))
+    Allocate(isotopesReal(1:isotopeCounter,1:10))
+!Read in data
+	isotopeCounter = 0
+	Open(UNIT=1,FILE=dataFilesFile) 
+	maxZ = 0
+    do i=1,fileRows 
+	  !Read in line
+	  Read(1,*,IOSTAT=ios) buffera, bufferb
+	  !break out
+	  if (ios /= 0) then
+	    EXIT 
+	  end if
+	  if(buffera(1:6).eq."Atomic".and.bufferb(1:6).eq."Number")then
+		isotopeCounter = isotopeCounter + 1
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd
+		read(bufferd,*) isotopesInt(isotopeCounter,1) 		
+		if(isotopesInt(isotopeCounter,1).gt.maxZ)then
+		  maxZ = isotopesInt(isotopeCounter,1)
+		endif
+	  endif	  
+	  if(buffera(1:6).eq."Atomic".and.bufferb(1:6).eq."Symbol")then
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd
+		isotopesChar(isotopeCounter) = StrToUpper(bufferd(1:2))		
+	  endif	 
+	  if(buffera(1:4).eq."Mass".and.bufferb(1:6).eq."Number")then
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd
+		read(bufferd,*) isotopesInt(isotopeCounter,2) 		
+	  endif	  
+	  if(buffera(1:8).eq."Relative".and.bufferb(1:6).eq."Atomic")then
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd, buffere
+		buffere = NumericOnly(buffere)
+		if(buffere(1:5).eq."     ")then
+		  isotopesReal(isotopeCounter,1) = 1.0 * isotopesInt(isotopeCounter,2)
+		else
+		  read(buffere,*) isotopesReal(isotopeCounter,1) 		
+		endif
+	  endif	  
+	  if(buffera(1:8).eq."Isotopic".and.bufferb(1:11).eq."Composition")then
+		!Re-read file line
+		BACKSPACE(1)
+		Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc, bufferd
+		bufferd = NumericOnly(bufferd)
+		if(bufferd(1:5).eq."     ")then
+		  isotopesReal(isotopeCounter,2) = 0.0
+		else
+		  read(bufferd,*) isotopesReal(isotopeCounter,2) 		
+		endif
+	  endif	
+    enddo
+	CLOSE(1) !close file	
+!make element array
+    Allocate(elementSymbol(0:maxZ))	
+	!Allocate(elementAtomicMass(0:maxZ))
+!store Z and element symbol
+    elementSymbol(0) = "NN" !Neutron
+    Do i=1,size(isotopesInt,1)
+	  elementSymbol(isotopesInt(i,1)) = isotopesChar(i)
+	  !elementAtomicMass
+	End Do
+!close output file
+    close(999) 
+	
+	Do i=0,maxZ
+	  If(i.lt.10)Then
+	    print "(A14,I1,A5,A2,A1)",'elementSymbol(',i,') = "',elementSymbol(i),'"'
+	  Else
+	    If(i.lt.100)Then
+		  print "(A14,I2,A5,A2,A1)",'elementSymbol(',i,') = "',elementSymbol(i),'"'
+	    Else 
+		  print "(A14,I3,A5,A2,A1)",'elementSymbol(',i,') = "',elementSymbol(i),'"'
+		End If
+      End If
+	End Do
+	
+	Do i=1,isotopeCounter
+	  If(i.lt.10)Then
+	    print "(A13,I1,A5,A2,A1)",'isotopesChar(',i,') = "',isotopesChar(i),'"'
+	  Else
+	    If(i.lt.100)Then
+		  print "(A13,I2,A5,A2,A1)",'isotopesChar(',i,') = "',isotopesChar(i),'"'
+	    Else 
+		  If(i.lt.1000)Then
+		    print "(A13,I3,A5,A2,A1)",'isotopesChar(',i,') = "',isotopesChar(i),'"'
+	      Else 
+		    print "(A13,I4,A5,A2,A1)",'isotopesChar(',i,') = "',isotopesChar(i),'"'
+		  End If
+		End If
+      End If
+	End Do
+		
+	Do i=1,isotopeCounter
+	  If(i.lt.10)Then
+	    print "(A12,I1,A7,I4)",'isotopesInt(',i,',1) = ',isotopesInt(i,1)
+	  Else
+	    If(i.lt.100)Then
+		  print "(A12,I2,A7,I4)",'isotopesInt(',i,',1) = ',isotopesInt(i,1)
+	    Else 
+		  If(i.lt.1000)Then
+		    print "(A12,I3,A7,I4)",'isotopesInt(',i,',1) = ',isotopesInt(i,1)
+	      Else 
+		    print "(A12,I4,A7,I4)",'isotopesInt(',i,',1) = ',isotopesInt(i,1)
+		  End If
+		End If
+      End If
+	End Do
+		
+	Do i=1,isotopeCounter
+	  If(i.lt.10)Then
+	    print "(A12,I1,A7,I4)",'isotopesInt(',i,',2) = ',isotopesInt(i,2)
+	  Else
+	    If(i.lt.100)Then
+		  print "(A12,I2,A7,I4)",'isotopesInt(',i,',2) = ',isotopesInt(i,2)
+	    Else 
+		  If(i.lt.1000)Then
+		    print "(A12,I3,A7,I4)",'isotopesInt(',i,',2) = ',isotopesInt(i,2)
+	      Else 
+		    print "(A12,I4,A7,I4)",'isotopesInt(',i,',2) = ',isotopesInt(i,2)
+		  End If
+		End If
+      End If
+	End Do
+	
+	Do i=1,isotopeCounter
+	  If(i.lt.10)Then
+	    print "(A13,I1,A7,E14.8)",'isotopesReal(',i,',1) = ',isotopesReal(i,1)
+	  Else
+	    If(i.lt.100)Then
+		  print "(A13,I2,A7,E14.8)",'isotopesReal(',i,',1) = ',isotopesReal(i,1)
+	    Else 
+		  If(i.lt.1000)Then
+		    print "(A13,I3,A7,E14.8)",'isotopesReal(',i,',1) = ',isotopesReal(i,1)
+	      Else 
+		    print "(A13,I4,A7,E14.8)",'isotopesReal(',i,',1) = ',isotopesReal(i,1)
+		  End If
+		End If
+      End If
+	End Do
+	
+	Do i=1,isotopeCounter
+	  If(i.lt.10)Then
+	    print "(A13,I1,A7,E14.8)",'isotopesReal(',i,',2) = ',isotopesReal(i,2)
+	  Else
+	    If(i.lt.100)Then
+		  print "(A13,I2,A7,E14.8)",'isotopesReal(',i,',2) = ',isotopesReal(i,2)
+	    Else 
+		  If(i.lt.1000)Then
+		    print "(A13,I3,A7,E14.8)",'isotopesReal(',i,',2) = ',isotopesReal(i,2)
+	      Else 
+		    print "(A13,I4,A7,E14.8)",'isotopesReal(',i,',2) = ',isotopesReal(i,2)
+		  End If
+		End If
+      End If
+	End Do
+	
+	
 	
   End Subroutine readIsotopeData  
 !================================================================================================================================================  
@@ -264,12 +460,10 @@ contains
 	Character(len=255) :: bufferLongA
 	Integer(kind=StandardInteger) :: bufferIA, pwscfFileCount
 	Integer(kind=StandardInteger) :: forcePrepEAM
-	Real(kind=DoubleReal) :: bufferDA
+	Real(kind=DoubleReal) :: bufferDA	
 !open output file	
-    If(mpiProcessID.eq.0)Then
-	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
-	  status="old",position="append",action="write")
-	End If
+	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
 !write to output file
     If(mpiProcessID.eq.0)Then
 	  write(999,"(F8.4,A2,A24,A60)") ProgramTime(),"  ",&
@@ -806,15 +1000,6 @@ contains
 	    Read(1,*,IOSTAT=ios) buffera		
 		pwbOutputDir = trim(buffera)
 	  End If	  
-	  If(StrToUpper(fileRow(1:18)).eq."#PWBRANDOMVARIANCE")then
-!read next line
-	    Read(1,*,IOSTAT=ios) buffera, bufferb, bufferc				
-		buffera = trim(buffera)
-		pwbRandVarianceType = buffera(1:1)
-		Read(bufferb,*) pwbSigma
-		Read(bufferc,*) pwbMaxVariance
-	  End If	  	  
-	  
 	  If(StrToUpper(fileRow(1:12)).eq."#PWBWALLTIME")then
 !read next line
 	    Read(1,*,IOSTAT=ios) buffera		
@@ -895,10 +1080,8 @@ contains
 	globalUnitVector = unitVector
 !close file	
 	CLOSE(1) 	  
-!close output file	
-    If(mpiProcessID.eq.0)Then
-	  close(999)
-	End If    
+!close output file
+    close(999)	   
   End Subroutine readInputFile
 !================================================================================================================================================  
 !================================================================================================================================================
@@ -1245,11 +1428,9 @@ contains
 	Character(len=32) :: buffera, bufferb, bufferc, bufferd
 	Character(len=255) :: bufferLongA
 	Character(len=255) :: fileRowData
-!open output file
-    If(mpiProcessID.eq.0)Then
-	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
-	  status="old",position="append",action="write")
-	End If
+!open output file	
+	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
 !open output potfile
     if(saveFilePot.eq."Y".and.mpiProcessID.eq.0)then
 	  outputFile = trim(currentWorkingDirectory)//"/"//"output.pot"
@@ -1599,10 +1780,8 @@ Open(UNIT=1,FILE=potentialFilePathTemp)
 		End If
       enddo
 	End If
-!close output file	
-    If(mpiProcessID.eq.0)Then
-	  close(999)
-	End If 
+!close output file
+    close(999)	
 !-----------------------------
 ! Deallocate arrays
 !-----------------------------
@@ -1653,7 +1832,7 @@ Open(UNIT=1,FILE=potentialFilePathTemp)
 	enddo	
 !Count file rows
 	fileRows = 0
-  	Open(UNIT=1,FILE=trim(inputEamFile))
+  	Open(UNIT=1,FILE=trim(inputEamFile)) 
     do i=1,maxFileRows 
 !count file rows
 	  fileRows = fileRows + 1
@@ -1931,12 +2110,10 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 !declare private variables
 	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
 	Integer(kind=StandardInteger) :: ios, i, j, k, fileRows
+    Character(len=255)  :: configurationsFilePathTemp
     Character(len=255)  :: fileRow
-	Character(len=8) :: fileName
-	Call tempFileName(fileName)
 !temp config file
-    configurationsFilePathTemp = trim(tempDirectory)//"/"//fileName//".temp"
-	Call fileToClean(trim(configurationsFilePathTemp))
+    configurationsFilePathTemp = trim(configurationsFilePath)//".temp"
 !make temp config file
     Open(unit=301,file=trim(configurationsFilePathTemp))
 	Open(UNIT=1,FILE=configurationsFilePath)   	
@@ -1951,21 +2128,6 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	close(1)
 !close output file
 	close(301)		
-!open output file
-    If(mpiProcessID.eq.0)Then
-	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
-	  status="old",position="append",action="write")
-	End If
-!write to output file
-    If(mpiProcessID.eq.0)Then
-	  write(999,"(F8.4,A2,A30)") ProgramTime(),"  ",&
-	  "Copy config file to temp file:"
-	  write(999,"(F8.4,A2,A8,A5)") ProgramTime(),"  ",fileName,".temp"
-	End If  
-!close output file	
-    If(mpiProcessID.eq.0)Then
-	  close(999)
-	End If 	
   End Subroutine copyConfigFile
 !================================================================================================================================================  
 !================================================================================================================================================	
@@ -2013,7 +2175,10 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	Real(kind=DoubleReal), Dimension(1:3,1:3) :: crystalAxes	!Unit vector
 	Character(len=3), Dimension( : ), Allocatable :: atomType
 	Real(kind=SingleReal), Dimension( : , : ), Allocatable :: atomCoords
-	Real(kind=SingleReal), Dimension( : , : ), Allocatable :: atomForcess	
+	Real(kind=SingleReal), Dimension( : , : ), Allocatable :: atomForcess
+	Character(len=255) :: configurationsFilePathTemp
+!set temp config file name
+    configurationsFilePathTemp = trim(configurationsFilePath)//".temp"
 !set variables
     readType = 0    	
 !Check file type
@@ -2255,15 +2420,14 @@ Open(UNIT=1,FILE=trim(inputEamFile))
 	Character(len=128) :: bufferf, bufferg, bufferh, bufferi, bufferj
 	Character(len=255) :: bufferLongA
 	Character(len=255) :: fileRowBuffer    
+	Character(len=255) :: configurationsFilePathTemp
 !Use the temp file as the configuration input file
-    configurationsFilePath = trim(configurationsFilePathTemp)
-!open output file
+    configurationsFilePath = trim(configurationsFilePath)//".temp"	
+!open output file	
     If(mpiProcessID.eq.0)Then
-	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
-	  status="old",position="append",action="write")
-	End If
+	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
 !write to output file
-    If(mpiProcessID.eq.0)Then
 	  write(999,"(F8.4,A2,A18,A60)") ProgramTime(),"  ",&
 	  "Reading from file ",configurationsFilePath
 	End If
@@ -2636,10 +2800,8 @@ if(StrToUpper(buffera(1:3)).eq."#CW")then     !Configuration weighting energy st
 !write to output file
 	  write(999,"(A6,A21,I8)") "      ","Configurations read: ",configurationCount
 	  write(999,"(A6,A21,I8)") "      ","Atoms read:          ",atomCount
-!close output file	
-      If(mpiProcessID.eq.0)Then
-	    close(999)
-	  End If 	
+!close output file
+      close(999)	
 	End If  	
   End Subroutine readConfiguration
 !================================================================================================================================================  

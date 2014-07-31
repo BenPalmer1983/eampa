@@ -1,0 +1,11 @@
+!---------------------- Verbose options
+#print
+yes
+!---------------------- Run type
+#runtype
+prp1
+!---------------------- Potential details
+#potential
+"sheng_al_eam.pot"
+#eamPrepFile
+"eamfile_al.pot"  

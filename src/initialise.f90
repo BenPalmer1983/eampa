@@ -4,6 +4,7 @@ Module initialise
   Use mpi
   Use kinds
   Use constants
+  Use general
   Use strings		!string functions
   Use maths
 
@@ -16,9 +17,10 @@ Module initialise
   Character(len=255) :: outputFile
   Character(len=255) :: outputFileEnergies
   Character(len=255) :: outputFileForces
-!Ini Variables
+  Character(len=512), Dimension(1:100) :: fileCleanupList
   Character(len=255) :: outputDirectory
   Character(len=255) :: tempDirectory
+  !Character(len=255) :: dataDirectory
 !MPI Global Variables
   Integer(kind=StandardInteger) :: mpiProcessCount, mpiProcessID  
 
@@ -31,15 +33,17 @@ Module initialise
   Public :: outputFileEnergies    	!Variable
   Public :: outputFileForces    	!Variable
   Public :: currentWorkingDirectory	!Variable
-!Ini Variables
+  Public :: fileCleanupList
   Public :: outputDirectory
   Public :: tempDirectory
+  !Public :: dataDirectory
 !MPI Variables  
   Public :: mpiProcessCount
   Public :: mpiProcessID
 
 !Subroutines
   Public :: runInitialise		    !Subroutine
+  Public :: fileToClean
   
 !Functions
   Public :: ProgramTime             !Function
@@ -57,9 +61,14 @@ contains
 !Run all the input subroutines
   Subroutine runInitialise()
 !Internal subroutine variables
-    Integer(kind=StandardInteger) :: error  
+    Integer(kind=StandardInteger) :: error
+!Set random seed		
+	Call SetRandomSeedArray()      	
 !get the working directory
 	Call getcwd(currentWorkingDirectory)	
+!Set output and temp/scratch directories
+    outputDirectory = Trim(currentWorkingDirectory)//"/output"
+    tempDirectory = Trim(currentWorkingDirectory)//"/temp"
 !MPI variables (public)
 	Call MPI_Init(error)
     Call MPI_Comm_size( MPI_COMM_WORLD ,mpiProcessCount,error)
@@ -67,49 +76,38 @@ contains
 !store start time
 	Call cpu_time(programStartTime)
 !Call init subroutines
-    Call readInitFile()
+    Call initVars()
+	Call makeDirectories()
     Call initDataFiles()
-	Call SetRandomSeedArray()      !Set random seed		
   End Subroutine runInitialise	
 	
-!Read INIT file
-  Subroutine readInitFile()	
-!declare private variables
-	Integer(kind=StandardInteger), Parameter :: maxFileRows = 1E8 
-    Integer(kind=StandardInteger) :: i, ios, rowCount  
-	Character(len=128) :: fileRow
-	Character(len=128) :: bufferA, bufferB, bufferC
-!Open ini file and read	
-	Open(unit=10,file="eampa.ini")
-	rowCount = 0
-	Do i=1,maxFileRows 
-      rowCount = rowCount + 1
-	  Read(1,"(A128)",IOSTAT=ios) fileRow
-	  If (ios /= 0) Then
-	    EXIT 
-	  End If
-	End Do  
-	Close(10)
-!Set defaults
-    outputDirectory = Trim(currentWorkingDirectory)//"/output"
-    tempDirectory = Trim(currentWorkingDirectory)//"/temp"
-!Open ini file and reread	
-	Open(unit=10,file="eampa.ini")
-	Do i=1,rowCount 	
-	  Read(1,"(A128)",IOSTAT=ios) fileRow
-	  If(StrToUpper(fileRow(1:10)).eq."#OUTPUTDIR")Then
-	    Read(fileRow,*) bufferA, bufferB
-		If(StrToUpper(bufferB(1:7)).ne."DEFAULT")Then
-		  outputDirectory = bufferB
-		End If
-	  End If
+!Read initVars
+  Subroutine initVars()	
+!declare private variables	
+	Integer(kind=StandardInteger) :: i,j
+	Character(len=512) :: blankLine
+	
+	Do j=1,512
+	  blankLine(j:j) = " "
 	End Do
-	Close(10)
 	
-
+	Do i=1,100
+	  fileCleanupList(i) = blankLine
+	End Do  
 	
-  End Subroutine readInitFile	
-
+  End Subroutine initVars	
+	
+  	
+!Make required directories
+  Subroutine makeDirectories()	
+!Internal subroutine variables
+	Integer(kind=StandardInteger) :: i
+!output directory
+    Call makeDir(outputDirectory)    
+	Call makeDir(tempDirectory)
+	
+  End Subroutine makeDirectories  
+  
 
 !Run all the input subroutines
   Subroutine initDataFiles()	
@@ -120,7 +118,7 @@ contains
 	Call idate(theDate)   ! theDate(1)=day, (2)=month, (3)=year
     Call itime(theTime)   ! theDate(1)=hour, (2)=minute, (3)=second
 !save output file name
-	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
+	outputFile = trim(outputDirectory)//"/"//"output.dat"
 !Create output file
     If(mpiProcessID.eq.0)Then
 	  open(unit=999,file=trim(outputFile))
@@ -140,7 +138,7 @@ contains
 	  close(999)
 	End If
 !save output file name
-	outputFileForces = trim(currentWorkingDirectory)//"/"//"outputForces.dat"
+	outputFileForces = trim(outputDirectory)//"/"//"outputForces.dat"
 !Create output file
     If(mpiProcessID.eq.0)Then
 	  open(unit=989,file=trim(outputFileForces))
@@ -179,6 +177,25 @@ contains
   
   
     
+	
+!Other subroutines	
+!Run all the input subroutines
+  Subroutine fileToClean(fileName)	
+!Internal subroutine variables
+	Integer(kind=StandardInteger) :: i
+	Character(*) :: fileName
+	Character(len=512) :: testLine
+!Add to list
+	Do i=1,100
+	  testLine = fileCleanupList(i)
+	  If(testLine(1:2).eq."  ")Then
+	    fileCleanupList(i) = trim(adjustl(fileName))
+		Exit
+	  End If
+	End Do  
+	
+	
+  End Subroutine fileToClean
   
 !------------------------------------------------------------------------!
 !                                                                        !

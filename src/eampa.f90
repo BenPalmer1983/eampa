@@ -20,19 +20,18 @@ Program eampa
   Use run			    ! calc
   Use pwbatch			! calc
   Use output			! output
+  Use clean
   
 !Include MPI header
   Include 'mpif.h'
   
 !Variables
   Integer(kind=StandardInteger) :: error  
-  
-
 
 
 !run initialisation module
   Call runInitialise()
-
+  
 !read input files, potential and configurations
   Call runInput()  
 
@@ -70,8 +69,8 @@ Program eampa
   Call MPI_Finalize(error)
 
   
-  
-  
+!Clean up  
+  Call runClean()
   
   
   

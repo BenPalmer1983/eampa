@@ -406,8 +406,8 @@ contains
 !-----------------------------------------------
 ! open output file	
 !-----------------------------------------------  
-	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")
+	open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+	status="old",position="append",action="write")
 !write to output file
     If(mpiProcessID.eq.0)Then
 	  write(999,"(F8.4,A2,A11)") ProgramTime(),"  ","Process Map"
@@ -473,8 +473,8 @@ contains
 	Real(kind=DoubleReal), Dimension(1:3,1:3) :: configUnitVector
 	Real(kind=DoubleReal), Dimension(1:3,1:3) :: workingUnitVector
 !open files
-	outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
+	open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+	status="old",position="append",action="write")
 	If(mpiProcessID.eq.0.and.saveFileCoords.eq."Y")Then
 	  outputFile = trim(currentWorkingDirectory)//"/output/"//"coords.dat"
 	  open(unit=10,file=trim(outputFile))	
@@ -675,7 +675,6 @@ contains
       neighbourListKeyTemp(i,2) = configLength	  
 	  configStart = configStart + configLength
 	enddo
-	Print *,neighbourListCount
 !end loop through configurations   
 !Move from temp arrays - Allocate arrays
 	Allocate(neighbourListKey(1:size(configHeaderI)/headerWidth,1:3))
@@ -978,8 +977,8 @@ contains
 !If master process
 	If(mpiProcessID.eq.0)Then
 !open output file	
-	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
+	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+	  status="old",position="append",action="write")	
 !save summary of configurations to output file
       write(999,"(A6,A40)") "      ","----------------------------------------"
       write(999,"(A6,A25)") "      ","Summary of Configurations"
@@ -1017,8 +1016,8 @@ contains
 !write if master process
     If(mpiProcessID.eq.0)Then	
 !open output file	
-	  outputFile = trim(currentWorkingDirectory)//"/"//"output.dat"
-	  open(unit=999,file=trim(outputFile),status="old",position="append",action="write")	
+	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+	  status="old",position="append",action="write")	
 !write to output file
 	  write(999,"(F8.4,A2,A20)") ProgramTime(),"  ","Order EAM Potentials"	
     End If

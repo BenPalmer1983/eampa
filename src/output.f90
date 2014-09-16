@@ -1,614 +1,194 @@
 Module output
 
+!--------------------------------------------------------------!
+! General subroutines and functions                        
+! Ben Palmer, University of Birmingham   
+!--------------------------------------------------------------!
+
+! Read user input file 
+
+!----------------------------------------
+! Updated: 12th Aug 2014
+!----------------------------------------
+
 ! Setup Modules
   Use kinds
+  Use msubs
   Use constants
-  Use mpif
-  Use general
-  Use strings		!string functions
   Use maths
+  Use general
+  Use units
+  Use globals
   Use initialise
-  Use input
-  Use prep
-
-
-!force declaration of all variables
+  Use loadData  
+! Force declaration of all variables
   Implicit None
-!Include MPI header
-  Include 'mpif.h'  
+!Privacy of variables/functions/subroutines
+  Private    
+!Public Subroutines
+  Public :: saveEamFile
+  Public :: outputForcesFile
+  Public :: outputEvaluate
+  Public :: outputTimeTaken
   
-!declare global variables  
-
-!Privacy of functions/subroutines/variables
-  Private
-!Variables  
-!Subroutines  
-  Public :: calcOutput
-  Public :: outputPrepareEAM	
-  Public :: outputEAMPrepData  
-  Public :: outputEAMPrepDataDlpoly
-  	!Call outputPrepareDlpolyEAM()	
-	!Call outputPrepareLammpsEAM()	
-  Public :: outputForces
-  Public :: outputBM
-!Functions
-  
-  
-!------------------------------------------------------------------------!
-!                                                                        !
-! MODULE SUBROUTINES                                                     !
-!                                                                        !
-!                                                                        !
-!------------------------------------------------------------------------!
-  
-contains 
-
-!------------------------------------------------------------------------!
-!                                                                        !
-! OUTPUT TO TERMINAL                                                     !
-!                                                                        !
-!                                                                        !
-!------------------------------------------------------------------------!
+Contains
 
 
-
-
-
-
-
-!------------------------------------------------------------------------!
-!                                                                        !
-! OUTPUT TO OUTPUT.DAT                                                   !
-!                                                                        !
-!                                                                        !
-!------------------------------------------------------------------------!
-  
-  
-  
-  
-!------------------------------------------------------------------------!
-! ***calcOutput*** 
-! Calculates the energy (and forces, if required) of all the configurations
-! splitting the work over the MPI processes
-!------------------------------------------------------------------------!  
-  Subroutine calcOutput () 
-!Outputs configuration calculation details
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i, j, k 
-	Integer(kind=StandardInteger) :: configCounter, atomCounter, ecComponentCounter
-!Write energies to output file, if master process
-    If(mpiProcessID.eq.0)Then
-!-------------------------------------
-! Output Forces to force file
-!-------------------------------------
-!open output file	
-	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
-	  status="old",position="append",action="write")	 
-!Write to file	  
-	  write(999,"(A44)") "--------------------------------------------"
-	  write(999,"(A19,I4)") "Calculation count: ",globalCounter(1)
-	  write(999,"(A44)") "--------------------------------------------"
-	  Do i=1,configCount
-!Configuration Energy
-	    write(999,"(I4,A1,F12.6,A4,I8,A10,I8)") i," ",&
-	      (1.0*configurationEnergy(i))," eV ",&
-	    configAtoms(i)," atoms     ",configAtomsMap(i,3)
-		If(configAtomsMap(i,5).gt.0)Then
-	      write(999,"(I4,F12.6,A14,F12.6,A8)") i,&
-		  (configurationEnergy(i)/configAtoms(i))," eV per atom (",&
-		  configurationRefEnergy(i)," eV Ref)"
-		Else
-		  write(999,"(I4,F12.6,A21)") i,&
-		  (configurationEnergy(i)/configAtoms(i))," eV per atom (no ref)"
-		End If
-!Calculated stress
-		If(configurationStresses(i,1).gt.-2.0D20)Then
-		  write(999,"(I4,A22)") i,&
-		  "  Calculated Stresses:"
-		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Sxx:",configurationStresses(i,1)," Sxy:",&
-		  configurationStresses(i,2)," Sxz:",configurationStresses(i,3)
-		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Syx:",configurationStresses(i,4)," Syy:",&
-		  configurationStresses(i,5)," Syz:",configurationStresses(i,6)
-		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Szx:",configurationStresses(i,7)," Szy:",&
-		  configurationStresses(i,8)," Szz:",configurationStresses(i,9)
-		End If
-		If(configurationRefStresses(i,1).gt.-2.0D20)Then
-		  write(999,"(I4,A21)") i,&
-		  "  Reference Stresses:"
-		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Sxx:",configurationRefStresses(i,1)," Sxy:",&
-		  configurationRefStresses(i,2)," Sxz:",configurationRefStresses(i,3)
-		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Syx:",configurationRefStresses(i,4)," Syy:",&
-		  configurationRefStresses(i,5)," Syz:",configurationRefStresses(i,6)
-		  write(999,"(I4,A6,F18.10,A5,F18.10,A5,F18.10)") i,&
-		  "  Szx:",configurationRefStresses(i,7)," Szy:",&
-		  configurationRefStresses(i,8)," Szz:",configurationRefStresses(i,9)
-		End If
-!Calculated equilibrium volume
-		If(configurationEquVolume(i).gt.-2.0D20)Then
-		    write(999,"(I4,A22,F18.10)") i," Input volume: ",&
-			configurationVolume(i)
-		    write(999,"(I4,A22,F18.10)") i," Equilibrium volume: ",&
-			configurationEquVolume(i)
-		    write(999,"(I4,A22,F18.10)") i," Ref Equilibrium volume: ",&
-			configurationRefEquVolume(i)
-		End If
-!Calculated equilibrium lattice parameter multiplier
-		If(configurationEquVolume(i).gt.-2.0D20)Then
-		    write(999,"(I4,A44,F18.10)") i,&
-		    "  Equilibrium lattice parameter multiplier: ",configurationEquLat(i)
-		End If
-!Calculated bulk modulus
-		If(configurationBM(i).gt.-2.0D20)Then
-		  If(configurationRefBM(i).gt.-2.0D20)Then
-		    write(999,"(I4,A20,F18.10,A9,F18.10)") i,&
-		    "  Bulk Modulus/GPa: ",configurationBM(i)," Ref BM: ",&
-		    configurationRefBM(i)
-		  Else
-		    write(999,"(I4,A20,F18.10,A13)") i,&
-		    "  Bulk Modulus/GPa: ",configurationBM(i)," (No Ref BM) "
-		  End If
-		End If
-!Calculated bulk modulus
-		If(configurationEC(i,1).gt.-2.0D20)Then
-		  ecComponentCounter = 0
-		  Do j=1,6
-		    If(configurationEC(i,j).gt.-2.0D20)Then
-			  ecComponentCounter = ecComponentCounter + 1
-			End If
-		  End Do
-		  If(ecComponentCounter.eq.3)Then		!Cubic
-		    write(999,"(I4,A37)") i,&
-		    "  Cubic elastic constants C11 C12 C44"
-			If(configurationRefEC(i,1).gt.-2.0D20)Then
-			  write(999,"(I4,A23,F18.10,A2,F18.10,A2,F18.10)") i,&
-		      "  C11,C12,C44/GPa:     ",&
-			  configurationEC(i,1),", ",configurationEC(i,2),", ",configurationEC(i,3)
-			  write(999,"(I4,A23,F18.10,A2,F18.10,A2,F18.10)") i,&
-			  "  Ref C11,C12,C44/GPa: ",&
-		      configurationRefEC(i,1),", ",configurationRefEC(i,2),", ",configurationRefEC(i,3)
-			Else
-			  write(999,"(I4,A23,F18.10,A2,F18.10,A2,F18.10)") i,&
-		      "  C11,C12,C44/GPa:     ",&
-			  configurationEC(i,1),", ",configurationEC(i,2),", ",configurationEC(i,3)
-			End If
-		  End If	
-		End If		
-!RSS between calculated and 
-		If(configurationRSS(i,1).gt.0.0D0)Then
-		  write(999,"(I4,A20,F18.10)") i,&
-		  "  Energy RSS (1):   ",configurationRSS(i,1)
-		End If
-		If(configurationRSS(i,2).gt.0.0D0)Then
-		  write(999,"(I4,A20,F18.10)") i,&
-		  "  Stress RSS (2):   ",configurationRSS(i,2)
-		End If
-		If(configurationRSS(i,3).gt.0.0D0)Then
-		  write(999,"(I4,A20,F18.10)") i,&
-		  "  Force RSS (3):    ",configurationRSS(i,3)
-		End If
-		If(configurationRSS(i,4).gt.0.0D0)Then
-		  write(999,"(I4,A20,F18.10)") i,&
-		  "  Eq Vol RSS (4):   ",configurationRSS(i,4)
-		End If
-		If(configurationRSS(i,5).gt.0.0D0)Then
-		  write(999,"(I4,A20,F18.10)") i,&
-		  "  BM RSS (5):       ",configurationRSS(i,5)
-		End If		
-	    write(999,"(A1)") " "
-	  End Do 
-	  If(trialResidualSquareSum.gt.-2.0D20)Then
-		write(999,"(A24,E20.10)") "RSS all configurations: ",trialResidualSquareSum
-	  End If
-	  !If(eamFunctionWobbliness(1).gt.0.0D0)Then	    
-		!write(999,"(A24)") "EAM Functions Wobbliness: "
-		!Do i=1,size(eamFunctionWobbliness,1)
-		!  write(999,"(A4,I4,E20.10)") "Pot ",i,eamFunctionWobbliness(i)
-		!End Do
-	  !End If
-	  write(999,"(A1)") " "
-!Close output file
-      close(999)
-	End If  
-  End Subroutine calcOutput
-
-  
-  
-!------------------------------------------------------------------------!
-! ***outputPrepareEAM*** 
-! Calculates the energy (and forces, if required) of all the configurations
-! splitting the work over the MPI processes
-!------------------------------------------------------------------------!  
-  Subroutine outputPrepareEAM () 
-!Outputs configuration calculation details
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i, j, k 
-	Integer(kind=StandardInteger) :: configCounter, atomCounter, ecComponentCounter
-!Write energies to output file, if master process
-    If(mpiProcessID.eq.0)Then
-!-------------------------------------
-! Output Forces to force file
-!-------------------------------------
-!open output file	
-	  open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
-	  status="old",position="append",action="write")	 
-!Write to file	  
-	  write(999,"(A59)") "EAM potential functions read in and output in EAMPA format."
-	  write(999,"(A64)") trim(eamPreparedFile)
-!Close output file
-      close(999)
-	End If  
-  End Subroutine outputPrepareEAM
-
-!------------------------------------------------------------------------!
-!                                                                        !
-! OUTPUT TO OTHER FILE                                                   !
-!                                                                        !
-!                                                                        !
-!------------------------------------------------------------------------!
-
-!-------------------------------------
-! Output Forces to force file
-!-------------------------------------
-  Subroutine outputForces() 
-!Outputs configuration forces to file
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i,j,k,n
-	Integer(kind=StandardInteger) :: configAtomsCount
-!If root/master process
-    If(mpiProcessID.eq.0)Then
-!Write forces to output file, if master process
-!open forces output file	
-	  open(unit=5,file=trim(trim(outputDirectory)//"/forces.dat"),action="write")
-	  !open(unit=989,file=trim(outputFileForces),status="old",position="append",action="write")	   
-!Loop through configurations
-	  Do i=1,configCount	    
-	    configAtomsCount = configAtoms(i)
-		write(5,"(A15,I4)") "Configuration: ",i
-	    Do j=1,configAtomsCount
-	      n = configAtomsStart(i) + j		  
-		  If(configurationRefForce(n,1).gt.-2.0D20)Then
-		    write(5,"(I4,E20.10,E20.10,E20.10,E20.10,E20.10,E20.10)") &
-			j,&
-			ForceZero(configurationForce(n,1),1.0D-15),&
-			ForceZero(configurationForce(n,2),1.0D-15),&
-			ForceZero(configurationForce(n,3),1.0D-15),&
-			ForceZero(configurationRefForce(n,1),1.0D-15),&
-			ForceZero(configurationRefForce(n,2),1.0D-15),&
-			ForceZero(configurationRefForce(n,3),1.0D-15)
-		  Else	
-			write(5,"(I4,E20.10,E20.10,E20.10)") &
-			j,&
-			ForceZero(configurationForce(n,1),1.0D-15),&
-			ForceZero(configurationForce(n,2),1.0D-15),&
-			ForceZero(configurationForce(n,3),1.0D-15)
-		  End If
-	    End Do
-	  End Do	 
-	  close(5)	
-!----------------------------------
-  	End If  
-  End Subroutine outputForces
-  
-!-------------------------------------
-! Output Bulk Modulus Data
-!-------------------------------------
-  Subroutine outputBM(configurationID,bmData)
-!Outputs configuration forces to file
-!force declaration of all variables
-	Implicit None	
-!declare private variables
-	Integer(kind=StandardInteger) :: i,j,k,n,configurationID
-	Integer(kind=StandardInteger) :: configAtomsCount
-	Real(kind=DoubleReal), Dimension(1:50,1:3) :: bmData
-!If root/master process
-    If(mpiProcessID.eq.0)Then  
-!----------------------------------
-!open forces output file	
-	  open(unit=5,file=trim(trim(outputDirectory)//"/bm.dat"),action="write")	
-	  write(5,"(A15,I4)") "Configuration: ",configurationID
-	  Do i=1,size(bmData,1)
-	    If(bmData(i,1).gt.-2.0D20)Then
-		  write(5,"(I8,E20.10,E20.10,E20.10)") i,bmData(i,1),bmData(i,2),bmData(i,3)
-		End If
-	  End Do
-	  close(5)
-!----------------------------------
-  	End If    
-  End Subroutine outputBM
-  
-  
-!-------------------------------------
-! Output Prepared EAM Potential File
-!-------------------------------------
-    Subroutine outputEAMPrepData(eamKeyArray, eamDataArray, fileName, numberOfPointsIn, processIn)  	
-!force declaration of all variables
-	Implicit None
-!declare private variables
-	Integer(kind=StandardInteger) :: ios, i, j, k, potKey
-	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints, processFlag
-	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
-	Real(kind=DoubleReal) :: x, y, dy
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
-	Character(len=5)  :: eamTypeText
-	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArray 
-	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArray
-	Character(*) :: fileName
-!optional variables	
-	Integer(kind=StandardInteger), optional :: numberOfPointsIn
-	Integer(kind=StandardInteger), optional :: processIn
-	  If(Present(numberOfPointsIn))Then
-	    numberOfPoints = numberOfPointsIn
-	  Else
-        numberOfPoints = 0	  
-	  End If
-	  If(Present(processIn))Then
-	    processFlag = processIn
-	  Else
-	    processFlag = -1
-	  End If	
-	  PRINT *,fileName
-!Store reduced potential to file
-	If(mpiProcessID.eq.0)Then
-	  open(unit=24,file=trim(fileName))
-	  If(numberOfPoints.lt.10)Then
-	    Do potKey=1,size(eamKeyArray,1)
-!Get number of points to reduce to
-	      If(eamKeyArray(potKey,3).eq.1)Then     !Pair
-	        write(24,"(A5,A2,A1,A2,A1)") "PAIR ",elements(eamKeyArray(potKey,1))," ",&
-		    elements(eamKeyArray(potKey,2))," "
-		  Else  
-		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.1)Then
-		      eamTypeText = "DENS "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.2)Then
-		      eamTypeText = "SDEN "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.1)Then
-		      eamTypeText = "EMBE "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.2)Then
-		      eamTypeText = "SEMB "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.4)Then
-		      eamTypeText = "DDEN "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.5)Then
-		      eamTypeText = "DEMB "
-		    End If
-		    write(24,"(A5,A2)") eamTypeText,elements(eamKeyArray(potKey,1))
-	      End If	
-!pot positions
-	      potStart = eamKeyArray(potKey,4)
-          potLength = eamKeyArray(potKey,5)
-	      potEnd = potStart + potLength - 1
-!loop over data points
+ 
+  Subroutine saveEamFile(fileName)
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Character(len=64) :: fileName
+    Character(len=255) :: filePath
+    Integer(kind=StandardInteger) :: i, j, k, functionCounter    
+    fileName = Trim(Adjustl(fileName))
+    functionCounter = 0
+    If(fileName(1:1).ne." ")Then
+      filePath = Trim(outputDirectory)//"/"//Trim(fileName)    
+      Open(UNIT=1,FILE=Trim(filePath)) 
+! Loop through EAM Functions
+      Do i=1,size(eamKey,1)
+        If(eamKey(i,1).gt.0)Then
+          functionCounter = functionCounter + 1
+          If(eamKey(i,2).gt.0)Then
+            write(1,"(A4,A1,A2,A1,A2)") eamFunctionTypes(eamKey(i,3))," ",&
+            elements(eamKey(i,1))," ",elements(eamKey(i,2))
+          Else
+            write(1,"(A4,A1,A2)") eamFunctionTypes(eamKey(i,3))," ",&
+            elements(eamKey(i,1))       
+          End If        
           k = 0
-	      Do i=potStart,potEnd
-		    k = k + 1
-	        x = eamDataArray(i,1)
-		    y = eamDataArray(i,2)
-		    dy = eamDataArray(i,3)
-!write to file
-            write(24,"(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") x,"  ",&
-		    y,"  ",dy,"    ",potKey,k,i
-	      End Do	
-        End Do
-	  ElseIf(numberOfPoints.ge.10)Then
-!Interpolate between points
-!Loop through potential functions
-        dataPointCounter = 1
-	    Do potKey=1,size(eamKeyArray,1)
-!make expanded set of data points
-	      If(eamKeyArray(potKey,3).eq.1)Then     !Pair
-	        write(24,"(A5,A2,A1,A2,A1)") "PAIR ",elements(eamKeyArray(potKey,1))," ",&
-		    elements(eamKeyArray(potKey,2))," "
-		  Else  
-		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.1)Then
-		      eamTypeText = "DENS "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.2)Then
-		      eamTypeText = "SDEN "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.1)Then
-		      eamTypeText = "EMBE "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.2)Then
-		      eamTypeText = "SEMB "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.4)Then
-		      eamTypeText = "DDEN "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.5)Then
-		      eamTypeText = "DEMB "
-		    End If
-		    write(24,"(A5,A2)") eamTypeText,elements(eamKeyArray(potKey,1))
-	      End If	
-	      potStart = eamKeyArray(potKey,4)
-          potLength = eamKeyArray(potKey,5)
-	      potEnd = potStart + potLength - 1
-!loop through reduced data points
-!Interpolate 4th order polynomial (5 data points)
-	      Do i=1,numberOfPoints
-	        x = eamDataArray(potStart,1)+&
-		    1.0D0*(i-1)*((eamDataArray(potEnd,1)-&
-			eamDataArray(potStart,1))/(numberOfPoints-1))
-		    !yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
-		    yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength)
-		    y = yArray(1)
-		    dy = yArray(2)
-!write to file
-            write(24,"(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") x,"  ",&
-		    y,"  ",dy,"    ",potKey,i,dataPointCounter	
-!increment counter
-		    dataPointCounter = dataPointCounter + 1		
-	      End Do	
-        End Do
-	  End If
-!Close file
-	  close(24)
-	End If
-!Wait for all processes to catch up	 
-    Call MPI_synchProcesses()
-  End Subroutine outputEAMPrepData  
+          Do j=eamKey(i,4),eamKey(i,6)
+            k = k + 1
+            write(1,"(E17.10,A1,E17.10,A1,E17.10,A1,E17.10,A1,I5,A1,I5,A1,I5)") &
+            eamData(j,1)," ",eamData(j,2)," ",eamData(j,3)," ",&
+            eamData(j,4)," ",i," ",k," ",j
+          End Do
+        End If
+        If(functionCounter.eq.eamFunctionCount)Then
+          Exit
+        End If  
+      End Do
+    End If
+! Close file
+    Close(1)
+  End Subroutine saveEamFile 
+    
 
-!-------------------------------------
-! Output Prepared EAM Potential File DLPOLY format
-!-------------------------------------
-    Subroutine outputEAMPrepDataDlpoly(eamKeyArray, eamDataArray, fileName, numberOfPointsIn, processIn)  	
-!force declaration of all variables
-	Implicit None
-!declare private variables
-	Integer(kind=StandardInteger) :: ios, i, j, k, n, potKey
-	Integer(kind=StandardInteger) :: numberOfPoints, totalReducedDataPoints, processFlag
-	Integer(kind=StandardInteger) :: potStart, potLength, potEnd, dataPointCounter
-	Real(kind=DoubleReal) :: x, y, dy
-	Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray
-	Character(len=5)  :: eamTypeText
-	Integer(kind=StandardInteger), Dimension( : , : ), Allocatable :: eamKeyArray 
-	Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: eamDataArray
-	Character(*) :: fileName
-	Character(len=128) :: fileRow
-!optional variables	
-	Integer(kind=StandardInteger), optional :: numberOfPointsIn
-	Integer(kind=StandardInteger), optional :: processIn
-	  If(Present(numberOfPointsIn))Then
-	    numberOfPoints = numberOfPointsIn
-	  Else
-        numberOfPoints = 0	  
-	  End If
-	  If(Present(processIn))Then
-	    processFlag = processIn
-	  Else
-	    processFlag = -1
-	  End If	
-!Store reduced potential to file
-	If(mpiProcessID.eq.0)Then
-!open file
-	  open(unit=24,file=trim(fileName))
-!write header
- 	  write(24,"(A15)") "# DLPOLY Format"
- 	  write(24,"(I8)") size(eamKeyArray,1)
-	  If(numberOfPoints.lt.10)Then
-!loop through functions
-	    Do potKey=1,size(eamKeyArray,1)
-!pot positions
-	      potStart = eamKeyArray(potKey,4)
-          potLength = eamKeyArray(potKey,5)
-	      potEnd = potStart + potLength - 1
-!Get number of points to reduce to
-	      If(eamKeyArray(potKey,3).eq.1)Then     !Pair
-	        write(24,"(A5,A2,A1,A2,A1,I8,E24.16E3,E24.16E3)") &
-			"PAIR ",elements(eamKeyArray(potKey,1))," ",&
-		    elements(eamKeyArray(potKey,2))," ",potLength,&
-			(1.0D0*eamDataArray(potStart,1)),(1.0D0*eamDataArray(potEnd,1))
-		  Else  
-		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.1)Then
-		      eamTypeText = "DENS "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.2)Then
-		      eamTypeText = "SDEN "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.1)Then
-		      eamTypeText = "EMBE "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.2)Then
-		      eamTypeText = "SEMB "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.4)Then
-		      eamTypeText = "DDEN "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.5)Then
-		      eamTypeText = "DEMB "
-		    End If
-			write(24,"(A5,A2,I8,E24.16E3,E24.16E3)") &
-			eamTypeText,elements(eamKeyArray(potKey,1)),potLength,&
-			(1.0D0*eamDataArray(potStart,1)),(1.0D0*eamDataArray(potEnd,1))
-	      End If	
-!loop over data points
-          k = ceiling(1.0D0*potLength/4)
-		  n = potStart
-	      Do i=1,k
-		    fileRow = " "
-		    Do j=1,4
-		      If(n.le.potEnd)Then
-	            y = eamDataArray(n,2)	
-			    fileRow = trim(fileRow)//" "//dpToString(y)
-			  End If
-			  n = n+1
-			End Do
-!write to file
-            write(24,"(A)") trim(fileRow)
-	      End Do	
+  Subroutine outputForcesFile()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i, j, printOut, startKey, endKey   
+! Only on master process
+    If(mpiProcessID.eq.0)Then
+    Open(UNIT=1,FILE=Trim(outputDirectory)//"/forces.dat") 
+    Do i=1,configCount
+      write(1,"(A15,I8)") "Configuration: ",i
+      printOut = 0
+      startKey = configurationCoordsKeyG(i,1)
+      endKey = configurationCoordsKeyG(i,3)
+      If(configRefForces(startKey,1).gt.-2.0D20)Then
+        printOut = 1
+      End If
+      If(configCalcForces(startKey,1).gt.-2.0D20)Then
+        printOut = 2
+      End If
+      If(configRefForces(startKey,1).gt.-2.0D20.and.configCalcForces(startKey,1).gt.-2.0D20)Then
+        printOut = 3
+      End If      
+      If(printOut.gt.0)Then
+        Do j=configurationCoordsKeyG(i,1),configurationCoordsKeyG(i,3)
+          If(printOut.eq.1)Then
+            write(1,"(I8,A3,E17.10,A1,E17.10,A1,E17.10)") &
+            j," R ",configRefForces(j,1)," ",configRefForces(j,2)," ",configRefForces(j,3)
+          End If
+          If(printOut.eq.2)Then
+            write(1,"(I8,A3,E17.10,A1,E17.10,A1,E17.10)") &
+            j," C ",configCalcForces(j,1)," ",configCalcForces(j,2)," ",configCalcForces(j,3)
+          End If
+          If(printOut.eq.3)Then
+             write(1,"(I8,A3,E17.10,A1,E17.10,A1,E17.10,A5,E17.10,A1,E17.10,A1,E17.10)") &
+            j," R ",configRefForces(j,1)," ",configRefForces(j,2)," ",configRefForces(j,3),"   C ",&
+            configCalcForces(j,1)," ",configCalcForces(j,2)," ",configCalcForces(j,3)
+          End If
         End Do
-	  ElseIf(numberOfPoints.ge.10)Then
-!Interpolate between points
-!Loop through potential functions
-        dataPointCounter = 1
-	    Do potKey=1,size(eamKeyArray,1)
-!make expanded set of data points
-	      If(eamKeyArray(potKey,3).eq.1)Then     !Pair
-	        write(24,"(A5,A2,A1,A2,A1)") "PAIR ",elements(eamKeyArray(potKey,1))," ",&
-		    elements(eamKeyArray(potKey,2))," "
-		  Else  
-		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.1)Then
-		      eamTypeText = "DENS "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.2.and.eamType.eq.2)Then
-		      eamTypeText = "SDEN "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.1)Then
-		      eamTypeText = "EMBE "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.3.and.eamType.eq.2)Then
-		      eamTypeText = "SEMB "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.4)Then
-		      eamTypeText = "DDEN "
-		    End If
-		    If(eamKeyArray(potKey,3).eq.5)Then
-		      eamTypeText = "DEMB "
-		    End If
-		    write(24,"(A5,A2)") eamTypeText,elements(eamKeyArray(potKey,1))
-	      End If	
-	      potStart = eamKeyArray(potKey,4)
-          potLength = eamKeyArray(potKey,5)
-	      potEnd = potStart + potLength - 1
-!loop through reduced data points
-!Interpolate 4th order polynomial (5 data points)
-	      Do i=1,numberOfPoints
-	        x = eamDataArray(potStart,1)+&
-		    1.0D0*(i-1)*((eamDataArray(potEnd,1)-&
-			eamDataArray(potStart,1))/(numberOfPoints-1))
-		    !yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength,"N")
-		    yArray = PointInterpolationArr(eamDataArray,x,5,potStart,potLength)
-		    y = yArray(1)
-		    dy = yArray(2)
-!write to file
-            write(24,"(E24.16E3,A2,E24.16E3,A2,E24.16E3,A4,I8,I8,I8)") x,"  ",&
-		    y,"  ",dy,"    ",potKey,i,dataPointCounter	
-!increment counter
-		    dataPointCounter = dataPointCounter + 1		
-	      End Do	
-        End Do
-	  End If
-!Close file
-	  close(24)
-	End If
-!Wait for all processes to catch up	 
-    Call MPI_synchProcesses()
-  End Subroutine outputEAMPrepDataDlpoly    
+      End If
+    End Do
+    Close(1)
+    End If    
+  End Subroutine outputForcesFile 
+  
   
   
 
-End Module output
+  
+  
+!----------------------------------------
+! Save to output file
+!----------------------------------------  
+  
+  Subroutine outputEvaluate()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: configID, totalAtoms
+! Only on root process
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+      status="old",position="append",action="write")
+      write(999,"(A1)") " "
+      write(999,"(F8.4,A2,A26)") ProgramTime(),"  ","Configuration Evaluations:"
+      write(999,"(A5,A5,A7,A13,A13,A13)") "Cfg  ","Proc ","Atoms  ","Ref Energy   ",&
+      "Calc Energy  ","RSS          "
+      totalAtoms = 0
+      Do configID=1,configCount
+        write(999,"(I4,A1,I4,A1,I6,A1,F12.4,A1,F12.4,A1,F12.4,A1)") &
+        configID," ",processMap(configID,1)," ",&
+        configurationCoordsKeyG(configID,2)," ",&
+        (configRefEnergies(configID)*configurationCoordsKeyG(configID,2))," ",&
+        configCalcEnergies(configID)," ",&
+        configRSS(configID,size(configRSS,2))," "    
+        totalAtoms = totalAtoms + configurationCoordsKeyG(configID,2)       
+      End Do
+      write(999,"(A36,I8)")  "Total atoms:                        ",totalAtoms
+      write(999,"(A36,F12.4)") "Total RSS all configurations:       ",totalRSS
+      write(999,"(A1)") " "
+  
+  
+      Close(999)
+    End If  
+  End Subroutine outputEvaluate 
+  
+  
+  Subroutine outputTimeTaken(textOut,duration)
+    Integer(kind=StandardInteger) :: i
+    Real(kind=DoubleReal) :: duration
+    Character(*) :: textOut
+    Character(Len=48) :: textPrint    
+! Only on root process
+    If(mpiProcessID.eq.0)Then
+      Do i=1,48
+        textPrint(i:i) = "."
+      End Do  
+      Do i=1,Len(textOut)
+        textPrint(i:i) = textOut(i:i)
+      End Do    
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+      status="old",position="append",action="write")
+      write(999,"(A32,F14.6,A1)") textPrint, duration, "s"
+      Close(999)
+    End If  
+  End Subroutine outputTimeTaken 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+End Module output  

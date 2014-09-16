@@ -1,0 +1,154 @@
+
+    Integer(kind=StandardInteger) :: i,n,k
+  Integer(kind=StandardInteger) :: order, inputSetStart, inputSetEnd
+  Integer(kind=StandardInteger) :: verbose
+    Real(kind=DoubleReal) :: x,y,dy,numerator,denominator,numeratorPart
+    Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: points
+    Real(kind=DoubleReal), Dimension(1:subsetSizeIn, : ), Allocatable :: pointsSubset
+    Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: pointsInterp
+    Real(kind=DoubleReal), Dimension( : ), Allocatable :: coefficients
+  Real(kind=DoubleReal), Dimension( : ), Allocatable :: yArray, yArrayTemp
+  Integer(kind=StandardInteger) :: interpType
+!Optional vars
+  Integer(kind=StandardInteger), optional :: subsetSizeIn
+  Integer(kind=StandardInteger), optional :: inputSetStartIn
+  Integer(kind=StandardInteger), optional :: inputSetLengthIn
+  Integer(kind=StandardInteger), optional :: interpTypeIn
+  Integer(kind=StandardInteger), optional :: verboseIn
+!Sort vars
+  Integer(kind=StandardInteger) :: orderData
+  Real(kind=DoubleReal) :: sortXA, sortXB, sortYA, sortYB
+  Logical :: sorting
+!Subset vars  
+  Integer(kind=StandardInteger) :: subsetSize, dataSize, xPos, posOffset
+  Real(kind=DoubleReal) :: xLower, xUpper
+
+!Set variables  
+  dataSize = size(points,1)
+  If(present(inputSetStartIn))Then
+    inputSetStart = inputSetStartIn
+  Else
+    inputSetStart = 1
+  End If
+  If(present(inputSetLengthIn))Then
+    inputSetEnd = inputSetStartIn+inputSetLengthIn-1
+    dataSize = inputSetLengthIn
+  Else
+    inputSetEnd = dataSize
+  End If  
+  verbose = 0
+  If(Present(verboseIn))Then
+    verbose = verboseIn
+  End If
+!If interpolating a subset of points, make the subset
+  If(present(subsetSizeIn))Then
+    subsetSize = subsetSizeIn
+!Check size
+    If(subsetSize.lt.2)Then
+      subsetSize = 2
+    End If
+    If(subsetSize.gt.dataSize)Then
+      subsetSize = dataSize
+    End If
+  Else
+      subsetSize = dataSize  
+    End If
+  If(subsetSize.lt.dataSize)Then
+!reduce set of data points
+      xLower = points(inputSetStart,1)
+    xUpper = points(inputSetEnd,1)
+    posOffset = 0
+    If(x.lt.xLower)Then
+      xPos = 1
+    posOffset = 0
+    Elseif(x.gt.dataSize)Then
+      xPos = dataSize
+    posOffset = subsetSize
+    Else
+!Estimate position
+    xPos = Floor(((x - xLower) / (xUpper - xLower)) * 1.0D0 * dataSize) + inputSetStart
+    xLower = points(xPos,1)
+    xUpper = points(xPos+1,1)
+    If(x.ge.xLower.and.x.le.xUpper)Then
+!Position found  
+        If(verbose.eq.1)Then
+            print *,"Position found"
+        print *,"   ",xPos,dataSize,posOffset,subsetSize,inputSetEnd
+      End If  
+    Else
+!Find position  
+      Do i=1,dataSize
+        xLower = points(xPos+i,1)
+        xUpper = points(xPos+i+1,1)
+        If((xPos+i+1).eq.inputSetEnd.or.(x.ge.xLower.and.x.le.xUpper))Then
+        xPos = xPos + i
+        Exit
+      End If
+        xLower = points(xPos-i,1)
+        xUpper = points(xPos-i+1,1)
+        If((xPos-i).eq.inputSetStart.or.(x.ge.xLower.and.x.le.xUpper))Then
+        xPos = xPos-i
+        Exit
+      End If      
+      End Do
+!Set offset
+        If(verbose.eq.1)Then
+        print *,"Set Offset"
+      End If
+          posOffset = -1*floor(subsetSize/2.0D0)
+    End If
+    End If
+!adjust position with offset
+    If(verbose.eq.1)Then
+        print *,"Pre-Adjust offset"
+    print *,"   ",xPos,dataSize,posOffset,subsetSize,inputSetEnd
+    End If
+    If((xPos+posOffset).lt.inputSetStart)Then
+    posOffset = 0  
+    End If
+    If((xPos-posOffset).gt.inputSetEnd)Then
+      posOffset = -1*subsetSize  
+    End If
+    If((xPos+subsetSize).gt.inputSetEnd)Then
+      posOffset = -1*subsetSize  
+    End If
+    If(verbose.eq.1)Then
+        print *,"Adjust offset"
+    print *,"   ",xPos,dataSize,posOffset,subsetSize,inputSetEnd
+    End If 
+    Do i=1,subsetSize
+    pointsSubset(i,1) = points(xPos+posOffset+i-1,1)
+    pointsSubset(i,2) = points(xPos+posOffset+i-1,2)
+      If(verbose.eq.1)Then
+      print *,points(xPos+posOffset+i-1,1),points(xPos+posOffset+i-1,2)
+    End If
+    End Do
+      Allocate(pointsInterp(1:subsetSize,1:2))
+    Do i=1,subsetSize
+    pointsInterp(i,1) = pointsSubset(i,1)
+    pointsInterp(i,2) = pointsSubset(i,2)
+    End Do
+    If(verbose.eq.1)Then
+    print *,"Subset of points:"
+    Do i=1,subsetSize
+        print *,"   ",pointsInterp(i,1),pointsInterp(i,2)
+    End Do  
+    End If
+    dataSize = subsetSize  
+  Else  
+    Allocate(pointsInterp(1:subsetSize,1:2))
+    Do i=1,subsetSize
+    pointsInterp(i,1) = points(inputSetStart+i-1,1)
+    pointsInterp(i,2) = points(inputSetStart+i-1,2)
+    End Do 
+  End If
+!set variables
+    order = dataSize-1
+!Allocate coefficients array  
+  Allocate(coefficients(0:order))
+!make coefficients for Lagrange's formula  
+  
+!Store results in array
+    Allocate(yArray(1:2))
+    yArray(1) = InterpLagrange(x,pointsInterp,0)
+    yArray(2) = InterpLagrange(x,pointsInterp,1)

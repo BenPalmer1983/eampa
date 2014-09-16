@@ -1,78 +1,116 @@
 Program eampa
-
 ! University of Birmingham
 ! Ben Palmer
 !
-
+! This package has been designed with several aims in mind.
+! 1. make batch of input files for PWscf
+! 2. Analyse EAM potentials
+! 3. Fit polynomial splines to EAM functions and output in tabulated form
+! 4. Fit these functions to DFT generated data
+! 5. Predicted bulk properties from EAM potentials
+!
+! Internal units:
+! - energy, eV
+! - length, Angstrom
+! - forces, ev/Angstrom
+!
 !Setup Modules
-  Use kinds				!data kinds
-  Use constants			!physical constants module
-  Use units				!unit conversion and normalisation 
-  Use strings		    !string functions
-  Use maths				!maths functions
-  Use initialise		! initialise program
-  Use input				! input
-  Use prep     			! prep module
-  Use calc			    ! calc
-  Use prepeam			! calc
-  Use prepdl     		! prep dlpoly files
-  Use preppotfit     	! prep potfit files
-  Use run			    ! calc
-  Use pwbatch			! calc
-  Use output			! output
+  Use kinds          ! data kinds
+  Use msubs           ! mpi module
+  Use constants      ! physical constants module
+  Use units          ! unit conversion and normalisation 
+  Use general        ! string functions
+  Use maths          ! maths functions
+  Use globals        ! declare all globals
+  Use initialise     ! initialise program
+  Use loadData       ! load important data
+  Use readinput      ! read input
+  Use readEAM        ! read EAM potential file  
+  Use readConfig     ! read config file  
+  Use neighbourList  ! make neighbour list 
+  Use prep           ! prepare before calculations etc 
+  Use calcEAM
+  Use calcEval
+  Use optimise
+  Use pwBatch        ! read config file  
+  Use output
   Use clean
-  
-!Include MPI header
-  Include 'mpif.h'
-  
+! Force declaration of all variables
+  Implicit None
+! Include MPI header
+  Include 'mpif.h'  
 !Variables
-  Integer(kind=StandardInteger) :: error  
-
-
-!run initialisation module
-  Call runInitialise()
+  Integer(kind=StandardInteger) :: error    
+!-------------------------------------------------------------- 
+!--- Load data and initialise
+!Init MPI
+  Call MPI_Init(error)   
+! Run globals module:
+! Initialise the default values for the global variables
+  Call initGlobals()
+! Run initialisation module:
+! Make and store output/temp directories
+! Create output files
+! Init a file cleanup list
+  Call runInitialise()  
+! Run load data module:
+! Loads isotope data into 4 arrays
+! Any other data useful should be loaded here
+  Call loadIsotopeData()
+!-------------------------------------------------------------- 
+!--- Read Input Files
+! Read user input file:
+  Call readUserInput()
+! Optional read ins
+  If(optionReadEAM.eq.1)Then
+    Call readEAMFile()
+  End If
+  If(optionReadConf.eq.1)Then
+    Call readConfigFile()
+  End If
+  If(optionNeighbourList.eq.1)Then
+    Call makeNeighbourList()
+  End If
+! Prepare for calculations
+  Call runPrep()
+!-------------------------------------------------------------- 
+!--- Eval/Calculate config energies
+  If(optionCalcEnergies.eq.1)Then
+    Call calcEnergies()
+  End If  
+  If(optionEval.eq.1)Then
+    Call evaluate()
+  End If
+  If(optionEvalFull.eq.1)Then
+    Call evaluate()
+  End If
   
-!read input files, potential and configurations
-  Call runInput()  
-
-!prepare data, make neighbour list
-  If(optionRunPrep.eq.1)Then
-    Call runPrep()
-  End If
-
-!prepare eam potential
-  If(optionRunPrepEAM.eq.1)Then 
-    Call runPrepeam()
-  End If
-
-!prepare dlpoly files
-  If(optionRunDLPrep.eq.1)Then 
-    Call runPrepdl()
-  End If
+!-------------------------------------------------------------- 
+!--- Optimise input potential functions
+  If(optionOptimise.eq.1)Then
+    Call runOptimise()
+  End If  
   
-!prepare potfit files 
-  If(prepPotfitOption(1:1).eq."Y".or.optionRunPrepPotfit.eq.1)Then
-    Call runPrepPotfit()
-  End If
-
-!start calculations
-  If(optionRunProcesses.eq.1)Then
-    Call runProcesses()
-  End If
   
- !Run pwscf batch file
+!-------------------------------------------------------------- 
+!--- PW Batch Files
   If(optionRunPWBatch.eq.1)Then
-    Call runPWBatch()
+    !Call runPWBatch()
   End If
   
-!Finalise MPI
-  Call MPI_Finalize(error)
-
   
-!Clean up  
+!--------------------------------------------------------------   
+!--- Output 
+  If(optionOutput.eq.1)Then 
+    Call outputForcesFile()
+  End If
+  
+  
+!--------------------------------------------------------------   
+!--- Clean up and finalise 
   Call runClean()
-  
-  
-  
+! Finalise MPI
+  Call MPI_Finalize(error)
+    
   
 End

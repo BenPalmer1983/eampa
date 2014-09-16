@@ -1,0 +1,582 @@
+Module globals
+
+!--------------------------------------------------------------!
+! General subroutines and functions                        
+! Ben Palmer, University of Birmingham   
+!--------------------------------------------------------------!
+
+! Declare all global variables 
+
+!----------------------------------------
+! Updated: 12th Aug 2014
+!----------------------------------------
+
+! Setup Modules
+  Use kinds
+  Use msubs
+  Use general
+! Force declaration of all variables
+  Implicit None
+! Initialise Subroutine Variable
+  Real(kind=DoubleReal) :: programStartTime
+  Real(kind=DoubleReal) :: timeStart, timeEnd, timeDuration
+  Character(len=255) :: currentWorkingDirectory
+  Character(len=255) :: outputFile
+  Character(len=255) :: outputFileEnergies
+  Character(len=255) :: outputFileForces
+  Character(len=512), Dimension(1:100) :: fileCleanupList
+  Character(len=255) :: outputDirectory
+  Character(len=255) :: tempDirectory
+! MPI Global Variables
+  Integer(kind=StandardInteger) :: mpiProcessCount, mpiProcessID    
+! System Variables  
+  Real(kind=DoubleReal) :: largeArraySize
+  Integer(kind=StandardInteger), Dimension(1:1024,1:10) :: processMap
+  
+!-----------------------  
+! Default variables
+  Character(len=4), Dimension(1:10) :: eamFunctionTypes
+! Declare variables - debug options
+  Integer(kind=StandardInteger) :: printToTerminal
+! Declare variables - run options
+  Character(len=4) :: eampaRunType
+  Integer(kind=StandardInteger) :: optionReadConf
+  Integer(kind=StandardInteger) :: optionReadEAM
+  Integer(kind=StandardInteger) :: optionRunPrep
+  Integer(kind=StandardInteger) :: optionNeighbourList
+  Integer(kind=StandardInteger) :: optionCalcEnergies
+  Integer(kind=StandardInteger) :: optionEval
+  Integer(kind=StandardInteger) :: optionEvalFull
+  Integer(kind=StandardInteger) :: optionOptimise
+  Integer(kind=StandardInteger) :: optionRunPWBatch
+  Integer(kind=StandardInteger) :: optionOutput
+! Input File - User Input
+  Character(len=255) :: inputFilePath
+  Character(len=255) :: inputFilePathT
+! EAM Details - User Input
+  Character(len=255) :: eamFilePath
+  Character(len=255) :: eamFilePathT
+  Character(len=255) :: eamNodesFilePath
+  Character(len=64) :: eamSaveFile
+  Integer(kind=StandardInteger) :: eamInterpPoints
+  Real(kind=DoubleReal), Dimension(1:6) :: zblHardCore                             ! 1 Pair ZBL end, 2 Pair Spline End, 3 Dens Value, 4 De
+  Integer(kind=StandardInteger), Dimension(1:50) :: splineNodeCount
+  Integer(kind=StandardInteger) :: splineTotalNodes
+! Config Details - User Input  
+  Real(kind=DoubleReal), Dimension(1:3,1:3) :: globalConfigUnitVector
+  Character(len=255) :: configFilePath
+  Character(len=255) :: configFilePathT
+  Character(len=255) :: saveConfigFile
+  Character(len=255) :: saveExpConfigFile
+! Calculation details  
+  Character(len=8) :: calcEqVol
+! Optimise options  
+  Real(kind=DoubleReal), Dimension(1:10) :: varyNodeOptions
+  
+! RSS calculation options  
+  Integer(kind=StandardInteger), Dimension(1:20) :: rssWeighting  
+  
+! PW Batch Files - User Input  
+  Character(len=255) :: pwbConfigFilePath                                          ! 255Bytes
+  Character(len=255) :: pwbConfigFilePathT                                         ! 255Bytes
+  Character(len=255) :: pwbBatchDir
+  Character(len=4) :: pwbVarianceType
+  Real(kind=DoubleReal) :: pwbVarianceMax
+  Real(kind=DoubleReal) :: pwbVarianceSigma
+  
+!-----------------------
+! Read EAM File + Read Configuration File    < 20MB
+  Character(len=2), Dimension(1:300) :: elements                                   ! 0.6KB    
+  Integer(kind=StandardInteger) :: elementsCount                                                     
+  Integer(kind=StandardInteger), Dimension(1:300) :: elementsCharge                ! 1.2KB
+! Read EAM File 
+  Integer(kind=StandardInteger) :: eamFunctionCount, eamPairCount, eamDensCount, eamEmbeCount
+  Integer(kind=StandardInteger) :: eamDdenCount, eamSdenCount, eamDembCount, eamSembCount
+  Integer(kind=StandardInteger) :: eamType                                         ! 4bit        1=EAM, 2=2BMEAM
+  Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKey                     ! 1.2KB       1 atomA, 2 atomB, 3 function/al type, 4 func start, 5 func length, 6 func end
+  Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamData                        ! 3.2MB       1 x, 2 y(x), 3 y'(x), 4 y''(x) 
+  Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKey
+  Real(kind=DoubleReal), Dimension(1:10000,1:4) :: splineNodesData
+  Integer(kind=StandardInteger) :: eamForceSpline
+  Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyInput
+  Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataInput
+  Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyOpt
+  Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataOpt
+  Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKeyOpt
+  Real(kind=DoubleReal), Dimension(1:10000,1:4) :: splineNodesDataOpt
+! Read Configuration File  
+  Integer(kind=StandardInteger) :: configCount                                     ! 4bit
+  Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsI         ! 41KB        1 xcopy, 2 ycopy, 3 zcopy, 4 forces,   
+  Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 BM 
+! Input coords and forces
+  Integer(kind=StandardInteger) :: coordCount                                      ! 4bit
+  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKey   ! 13KB        1 start, 2 length, 3 end
+  Integer(kind=StandardInteger), Dimension(1:200000,1:1) :: configurationCoordsI   ! 800KB       1 atomID
+  Real(kind=DoubleReal), Dimension(1:200000,1:3) :: configurationCoordsR           ! 4.8MB       1 x, 2 y, 3 z
+  Real(kind=DoubleReal), Dimension(1:200000,1:3) :: configurationForcesR           ! 4.8MB       1 fx, 2 fy, 3 fz 
+! Generated/expanded coords and forces 
+  Integer(kind=StandardInteger) :: coordCountG                                     ! 4bit
+  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKeyG  ! 13KB        1 start, 2 length, 3 end
+  Integer(kind=StandardInteger), Dimension(1:500000,1:1) :: configurationCoordsIG  ! 2MB         1 atomID
+  Real(kind=DoubleReal), Dimension(1:500000,1:3) :: configurationCoordsRG          ! 12.5MB      1 x, 2 y, 3 z
+! Configuration Reference/Calculated Values
+  Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configRef                       !             1 Energy PA, 2 EqVol 
+  Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configCalc                      !             1 Energy, 2 EqVol    (maybe)
+  Real(kind=DoubleReal), Dimension(1:500000,1:3) :: configRefForces                ! 12.5MB      1 fx, 2 fy, 3 fz
+  Real(kind=DoubleReal), Dimension(1:500000,1:3) :: configCalcForces
+  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configRefStresses
+  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configCalcStresses
+  Real(kind=DoubleReal), Dimension(1:1024) :: configRefEnergies
+  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEnergies
+  Real(kind=DoubleReal), Dimension(1:1024) :: configRefEV                          ! Equilibrium volume
+  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEV
+  Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
+  Real(kind=DoubleReal) :: totalRSS, optimumRSS
+! DFT Config
+  Character(len=8), Dimension(1:10,1:2) :: dftReplaceLabel 
+  
+
+!----------------------------------------------
+! Neighbour List  
+!----------------------------------------------
+  Integer(kind=StandardInteger), Dimension(1:500000) :: nlUniqueKeys               ! 2.0MB
+  Integer(kind=StandardInteger) :: neighbourListCount
+  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: neighbourListKey
+  Integer(kind=StandardInteger), Dimension(1:500000,1:6) :: neighbourListI         ! 12.0MB
+  Real(kind=DoubleReal), Dimension(1:500000) :: neighbourListR                     ! 4.0MB
+  Real(kind=DoubleReal), Dimension(1:500000,12) :: neighbourListCoords             ! 48.0MB
+  Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpread
+  
+  
+!----------------------------------------------
+! Calculations  
+!----------------------------------------------
+  Real(kind=DoubleReal), Dimension(1:50000) :: calculationDensity
+  
+
+  
+!----------------------------------------------
+! Results  
+!---------------------------------------------- 
+  Real(kind=DoubleReal), Dimension(1:1024) :: calcConfigEnergies
+  Real(kind=DoubleReal), Dimension(1:200000,1:3) :: calcConfigForces
+
+  
+  
+!----------------------------------------------
+! PWscf Batch File Globals  
+!----------------------------------------------
+  Real(kind=DoubleReal), Dimension(1:3,1:3) :: pwbUnitVector, pwbUnitVectorWorking      
+  Real(kind=DoubleReal) :: pwbLatticeParameter
+  Integer(kind=StandardInteger) :: pwbXCopy, pwbYCopy, pwbZCopy  
+  Real(kind=DoubleReal) :: pwbXd, pwbYd, pwbZd  
+  Character(len=8), Dimension(1:1024)   :: pwbAtomLabelsInput
+  Real(kind=DoubleReal), Dimension(1:1024,1:3)   :: pwbAtomCoordsInput  
+  Character(len=8), Dimension(1:4096)   :: pwbAtomLabels, pwbAtomLabelsWorking                  ! 2x33KB
+  Real(kind=DoubleReal), Dimension(1:4096,1:3)   :: pwbAtomCoords, pwbAtomCoordsWorking        ! 2x99KB
+  Character(len=8), Dimension(1:128)   :: pwbAtomicSpeciesL 
+  Character(len=64), Dimension(1:128)   :: pwbAtomicSpeciesPP    
+  Real(kind=DoubleReal), Dimension(1:128)   :: pwbAtomicSpeciesDP
+! PWscf options
+  Character(len=64) :: pwbRestartMode, pwbCalculation, pwbOutDir, pwbPseudoDir, pwbPrefix,&
+                       pwbDiskIO, pwbOccupations, pwbSmearing, &
+                       pwbDiagonalization, pwbMixingMode, pwbIonDynamics, pwbCellDynamics, &
+                       pwbKpoints             
+  Character(len=6) ::  pwbTprnfor, pwbTstress
+  Real(kind=DoubleReal) :: pwbEtotConvThr, pwbForcConvThr, pwbDegauss, pwbMixingBeta, &
+                           pwbConvThr, pwbPress, pwbCellFactor
+  Integer(kind=StandardInteger) :: pwbNstep, pwbIbrav, pwbNat, pwbNtyp, pwbEcutwfc, pwbEcutrho
+  Integer(kind=StandardInteger) :: pwbNbnd, pwbFixedAtoms
+  
+  
+  
+  
+  Private    
+!-----------------------
+! Subroutine  
+  Public :: initGlobals
+! Initialise subroutine variables
+  Public :: programStartTime 
+  Public :: timeStart, timeEnd, timeDuration  
+  Public :: outputFile          
+  Public :: outputFileEnergies     
+  Public :: outputFileForces      
+  Public :: currentWorkingDirectory  
+  Public :: fileCleanupList
+  Public :: outputDirectory
+  Public :: tempDirectory
+!MPI Variables  
+  Public :: mpiProcessCount
+  Public :: mpiProcessID  
+! System Variables  
+  Public :: largeArraySize
+  Public :: processMap
+! Default variables
+  Public :: eamFunctionTypes 
+! Set defaults - debug options  
+  Public :: printToTerminal
+! Public Variables - run options
+  Public :: eampaRunType
+  Public :: optionReadEAM
+  Public :: optionReadConf
+  Public :: optionRunPrep
+  Public :: optionNeighbourList
+  Public :: optionCalcEnergies
+  Public :: optionEval
+  Public :: optionEvalFull
+  Public :: optionOptimise
+  Public :: optionRunPWBatch
+  Public :: optionOutput
+! Input File - User Input
+  Public :: inputFilePath, inputFilePathT
+! EAM Details - User Input
+  Public :: eamFilePath, eamFilePathT
+  Public :: eamNodesFilePath
+  Public :: eamSaveFile
+  Public :: eamInterpPoints
+  Public :: zblHardCore
+  Public :: splineNodeCount
+  Public :: splineTotalNodes
+! Config Details - User Input   
+  Public :: globalConfigUnitVector
+  Public :: configFilePath, configFilePathT
+  Public :: saveConfigFile, saveExpConfigFile
+! Calculation details  
+  Public :: calcEqVol
+! Optimise options    
+  Public :: varyNodeOptions
+! RSS calculation options  
+  Public :: rssWeighting  
+! PW Batch Files - User Input   
+  Public :: pwbConfigFilePath, pwbConfigFilePathT
+  Public :: pwbBatchDir
+  Public :: pwbVarianceType  
+  Public :: pwbVarianceMax
+  Public :: pwbVarianceSigma
+!-----------------------  
+! Read EAM File + Read Configuration File
+  Public :: elements
+  Public :: elementsCount
+  Public :: elementsCharge
+! Read EAM File  
+  Public :: eamFunctionCount, eamPairCount, eamDensCount, eamEmbeCount
+  Public :: eamDdenCount, eamSdenCount, eamDembCount, eamSembCount
+  Public :: eamType
+  Public :: eamKey
+  Public :: eamData
+  Public :: splineNodesData
+  Public :: splineNodesKey
+  Public :: eamForceSpline
+  Public :: eamKeyInput
+  Public :: eamDataInput
+  Public :: eamKeyOpt
+  Public :: eamDataOpt
+  Public :: splineNodesKeyOpt
+  Public :: splineNodesDataOpt
+! Read Configuration File 
+  Public :: configCount
+  Public :: configurationsI, configurationsR
+  Public :: coordCount
+  Public :: configurationCoordsKey, configurationCoordsI
+  Public :: configurationCoordsR, configurationForcesR
+  Public :: coordCountG
+  Public :: configurationCoordsKeyG, configurationCoordsIG
+  Public :: configurationCoordsRG
+! Configuration Reference/Calculated Values
+  Public :: configRef                     
+  Public :: configCalc                      
+  Public :: configRefForces               
+  Public :: configCalcForces
+  Public :: configRefStresses
+  Public :: configCalcStresses
+  Public :: configRefEnergies
+  Public :: configCalcEnergies
+  Public :: configRefEV
+  Public :: configCalcEV
+  Public :: configRSS
+  Public :: totalRSS, optimumRSS
+! Neighbour List
+  Public :: nlUniqueKeys  
+  Public :: neighbourListCount  
+  Public :: neighbourListKey
+  Public :: neighbourListI        
+  Public :: neighbourListR       
+  Public :: neighbourListCoords   
+  Public :: atomSeparationSpread
+! Calculations  
+  Public :: calculationDensity
+! Results  
+  Public :: calcConfigEnergies
+  Public :: calcConfigForces
+! DFT Config
+  Public :: dftReplaceLabel 
+  
+  
+!----------------------------------------------
+! PWscf Batch File Globals 
+  Public :: pwbUnitVector, pwbUnitVectorWorking      
+  Public :: pwbLatticeParameter
+  Public :: pwbXCopy, pwbYCopy, pwbZCopy  
+  Public :: pwbXd, pwbYd, pwbZd  
+  Public :: pwbAtomLabelsInput
+  Public :: pwbAtomCoordsInput  
+  Public :: pwbAtomLabels, pwbAtomLabelsWorking
+  Public :: pwbAtomCoords, pwbAtomCoordsWorking 
+  Public :: pwbAtomicSpeciesL, pwbAtomicSpeciesPP    
+  Public :: pwbAtomicSpeciesDP
+!PWscf options
+  Public :: pwbRestartMode, pwbCalculation, pwbOutDir, pwbPseudoDir, pwbPrefix,&
+            pwbDiskIO, pwbOccupations, pwbSmearing, &
+            pwbDiagonalization, pwbMixingMode, pwbIonDynamics, pwbCellDynamics, &
+            pwbKpoints             
+  Public :: pwbTprnfor, pwbTstress
+  Public :: pwbEtotConvThr, pwbForcConvThr, pwbDegauss, pwbMixingBeta, &
+            pwbConvThr, pwbPress, pwbCellFactor
+  Public :: pwbNstep, pwbIbrav, pwbNat, pwbNtyp, pwbEcutwfc, pwbEcutrho
+  Public :: pwbNbnd, pwbFixedAtoms
+  
+  
+  
+Contains
+  
+! Init global variables
+  Subroutine initGlobals() 
+    Implicit None  
+!Initialise Subroutine Variable
+    programStartTime = 0.0D0
+    timeStart = 0.0D0
+    timeEnd = 0.0D0
+    timeDuration = 0.0D0
+    currentWorkingDirectory = BlankString(currentWorkingDirectory)
+    outputFile = BlankString(outputFile)
+    outputFileEnergies = BlankString(outputFileEnergies)
+    outputFileForces = BlankString(outputFileForces)
+    fileCleanupList = BlankStringArray(fileCleanupList)
+    outputDirectory = BlankString(outputDirectory)
+    tempDirectory = BlankString(tempDirectory)
+! MPI Global Variables
+    mpiProcessCount = 0
+    mpiProcessID = 0 
+! System Variables  
+    largeArraySize = 0.0D0
+    processMap = 0   
+! Default variables    
+    eamFunctionTypes = BlankStringArray(eamFunctionTypes)
+    eamFunctionTypes(1) = "PAIR"
+    eamFunctionTypes(2) = "DENS"
+    eamFunctionTypes(3) = "EMBE"
+    eamFunctionTypes(4) = "DDEN"
+    eamFunctionTypes(5) = "SDEN"
+    eamFunctionTypes(6) = "DEMB"
+    eamFunctionTypes(7) = "SEMB"
+! Debug options  
+    printToTerminal = 0
+! Run options
+    eampaRunType = BlankString(eampaRunType)
+    optionReadConf = 0
+    optionReadEAM = 0
+    optionRunPrep = 0  
+    optionNeighbourList = 0
+    optionCalcEnergies = 0
+    optionEval = 0
+    optionEvalFull = 0
+    optionOptimise = 0
+    optionRunPWBatch = 0  
+    optionOutput = 0    
+! Input File - User Input  
+    inputFilePath = BlankString(inputFilePath)
+    inputFilePathT = BlankString(inputFilePathT)
+! EAM Details - User Input  
+    eamFilePath = BlankString(eamFilePath)
+    eamFilePathT = BlankString(eamFilePathT)
+    eamSaveFile = BlankString(eamSaveFile)
+    eamNodesFilePath = BlankString(eamNodesFilePath)
+    eamInterpPoints = 4
+    zblHardCore = 0.0D0
+    splineNodeCount = 0
+    splineTotalNodes = 0
+! Config Details - User Input   
+    globalConfigUnitVector = 0.0D0 
+    configFilePath = BlankString(configFilePath)
+    configFilePathT = BlankString(configFilePathT)
+    saveConfigFile = BlankString(saveConfigFile)
+    saveExpConfigFile = BlankString(saveExpConfigFile)    
+! Calculation details  
+    calcEqVol = BlankString(calcEqVol)    
+! Optimise options    
+    varyNodeOptions = 0.0D0 
+! RSS calculation options  
+    rssWeighting = 0  
+! PW Batch Files - User Input   
+    pwbConfigFilePath = BlankString(pwbConfigFilePath)
+    pwbConfigFilePathT = BlankString(pwbConfigFilePathT)
+    pwbBatchDir = BlankString(pwbBatchDir)
+    pwbVarianceType = BlankString(pwbVarianceType)
+    pwbVarianceMax = 0.0D0
+    pwbVarianceSigma = 0.0D0
+! Read EAM + Config    
+    elements = "ZZ"
+    elementsCount = 0
+    elementsCharge = -1
+! Read EAM File
+    eamFunctionCount = 0
+    eamPairCount = 0
+    eamDensCount = 0
+    eamEmbeCount = 0
+    eamDdenCount = 0
+    eamSdenCount = 0
+    eamDembCount = 0
+    eamSembCount = 0
+    eamType = 1
+    eamKey = -1
+    eamData = 0.0D0    
+    splineNodesKey = -1
+    splineNodesData = 0.0D0
+    eamForceSpline = 0    
+    eamKeyInput = -1
+    eamDataInput = 0.0D0
+    eamKeyOpt = -1
+    eamDataOpt = 0.0D0
+    splineNodesKeyOpt = -1
+    splineNodesDataOpt = 0.0D0
+! Read Configuration File 
+    configCount = 0
+    configurationsI = 0
+    configurationsR = 0.0D0
+    coordCount = 0
+    configurationCoordsKey = 0
+    configurationCoordsI = 0
+    configurationCoordsR = 0.0D0
+    configurationForcesR = -2.1D20
+    coordCountG = 0
+    configurationCoordsKeyG = 0
+    configurationCoordsIG = 0
+    configurationCoordsRG = 0.0D0
+! Configuration Reference/Calculated Values
+    configRef = -2.1D20                    
+    configCalc = -2.1D20                      
+    configRefForces = -2.1D20               
+    configCalcForces = -2.1D20
+    configRefStresses = -2.1D20
+    configCalcStresses = -2.1D20  
+    configRefEnergies = -2.1D20  
+    configCalcEnergies = -2.1D20       
+    configRefEV = -2.1D20    
+    configCalcEV = -2.1D20      
+    configRSS = 0.0D0
+    totalRSS = 0.0D0
+    optimumRSS = 0.0D0
+! Neighbour List
+    nlUniqueKeys = 0
+    neighbourListCount = 0
+    neighbourListKey = 0
+    neighbourListI = 0
+    neighbourListR = 0.0D0
+    neighbourListCoords = 0.0D0
+    atomSeparationSpread = 0
+! Calculation
+    calculationDensity = 0.0D0
+! Results  
+    calcConfigEnergies = 0.0D0
+    calcConfigForces = 0.0D0
+! DFT Config
+    dftReplaceLabel = BlankString2DArray(dftReplaceLabel)
+  
+    
+!----------------------------------------------
+! PWscf Batch File Globals - default values 
+!---------------------------------------------- 
+    pwbUnitVector = 0.0D0    
+    pwbAtomLabelsInput = "#BLANK##"
+    pwbAtomCoordsInput = -2.1D20
+    pwbAtomicSpeciesL = "#BLANK##"
+    pwbAtomicSpeciesPP = "#BLANK##"
+    pwbAtomicSpeciesDP = -2.1D20
+!Default pwscf file values, text
+    pwbRestartMode = "from_scratch"
+    pwbCalculation = "scf"
+    pwbOutDir = "/gpfs/bb/bxp912/scratch"
+    pwbPseudoDir = "/gpfs/bb/bxp912/pseudopotentials"
+    pwbPrefix = "pwbatchfile"
+    pwbDiskIO = "low"
+    pwbOccupations = "smearing"
+    pwbSmearing = "mv"
+    pwbDiagonalization = "david"
+    pwbMixingMode = "TF"
+    pwbIonDynamics = "bfgs"
+    pwbCellDynamics = "bfgs"
+    pwbKpoints = "2 2 2 1 1 1"
+!Default pwscf file values, boolean
+    pwbTprnfor = ".true."
+    pwbTstress = ".true."
+!Default pwscf file values, double precision
+    pwbEtotConvThr = 1.0D-4
+    pwbForcConvThr = 1.0D-3
+    pwbDegauss = 0.07
+    pwbMixingBeta = 0.7
+    pwbConvThr = 1.0D-6
+    pwbPress = 0.0
+    pwbCellFactor = 2.0
+!Default pwscf file values, integer
+    pwbNstep = 50
+    pwbIbrav = 14
+    pwbNat = 0
+    pwbNtyp = 0
+    pwbNbnd = 0
+    pwbEcutwfc = 110
+    pwbEcutrho = 320
+!Fixed atoms in coords
+    pwbFixedAtoms = 0    
+    
+    
+    
+! System Variables
+
+! Estimate memory of large arrays
+    largeArraySize = size(eamFunctionTypes) * 1.0D0 * 4.0D0 + &
+                     size(globalConfigUnitVector) * 8.0D0 + &
+                     size(elements) * 1.0D0 + &
+                     size(elementsCharge) * 4.0D0 + &
+                     size(eamKey) * 4.0D0 + &
+                     size(eamData) * 8.0D0 + &
+                     size(configurationsI) * 4.0D0 + &
+                     size(configurationsR) * 8.0D0 + &
+                     size(configurationCoordsKey) * 4.0D0 + &
+                     size(configurationCoordsI) * 4.0D0 + &
+                     size(configurationCoordsR) * 8.0D0 + &
+                     size(configurationForcesR) * 8.0D0 + &
+                     size(configurationCoordsKeyG) * 4.0D0 + &
+                     size(configurationCoordsIG) * 4.0D0 + &
+                     size(configurationCoordsRG) * 8.0D0 + &
+                     size(nlUniqueKeys) * 4.0D0 + &
+                     size(neighbourListKey) * 4.0D0 + &
+                     size(neighbourListI) * 4.0D0 + &
+                     size(neighbourListR) * 8.0D0 + &
+                     size(neighbourListCoords) * 8.0D0 + &
+                     size(pwbUnitVector) * 8.0D0 + &
+                     size(pwbUnitVectorWorking) * 8.0D0 + &
+                     size(pwbAtomLabelsInput) * 1.0D0 * 8.0D0 + &
+                     size(pwbAtomCoordsInput) * 8.0D0 + &
+                     size(pwbAtomLabels) * 1.0D0 * 8.0D0 + &
+                     size(pwbAtomLabelsWorking) * 1.0D0 * 8.0D0 + &
+                     size(pwbAtomCoords) *8.0D0 + &
+                     size(pwbAtomCoordsWorking) *8.0D0 + &
+                     size(pwbAtomicSpeciesL) * 1.0D0 * 8.0D0 + &
+                     size(pwbAtomicSpeciesPP) * 1.0D0 * 64.0D0 + &
+                     size(pwbAtomicSpeciesDP) * 8.0D0 + &
+                     size(calculationDensity) * 8.0D0 + &
+                     size(configRef) * 8.0D0 + &
+                     size(configCalc) * 8.0D0 + &
+                     size(configRefForces) * 8.0D0 + &
+                     size(configCalcForces) * 8.0D0 + &
+                     size(configRefStresses) * 8.0D0 + &
+                     size(configCalcStresses) * 8.0D0
+                     
+                     
+    largeArraySize = largeArraySize / 1.0D6                 
+                     
+    
+  
+  End Subroutine initGlobals
+  
+End Module globals  

@@ -14,10 +14,10 @@ Module constants
   
 !Privacy of functions/subroutines/variables
   Private
-  Public :: avogadrosConstant				!Variable
-  Public :: elementaryCharge				!Variable
-  Public :: pi				                !Variable
-  Public :: lnTwo				            !Variable
+  Public :: avogadrosConstant        !Variable
+  Public :: elementaryCharge        !Variable
+  Public :: pi                        !Variable
+  Public :: lnTwo                    !Variable
 
 
 End Module constants

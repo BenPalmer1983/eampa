@@ -1,9 +1,14 @@
 #!/bin/bash
 mkdir -p bin
-mpif90 -o bin/eampa.x src/kinds.f90 src/constants.f90 src/mpif.f90 src/strings.f90 \
-src/maths.f90 src/general.f90 src/units.f90 src/initialise.f90 src/data.f90 \
-src/input.f90 src/prep.f90 src/output.f90 src/calc.f90 src/optimise.f90 \
-src/prepeam.f90 src/prepdl.f90 src/preppotfit.f90 src/datagen.f90 src/pwbatch.f90 \
-src/run.f90 src/clean.f90 src/eampa.f90 
+#mpif90 -g -fcheck=all -Wall -mtune=native -std=f95 -o
+mpif90 -g -fcheck=all -Wall -mtune=native -o bin/eampa.x \
+ src/kinds.f90 src/msubs.f90 src/constants.f90 \
+src/maths.f90 src/general.f90 src/units.f90 src/globals.f90  \
+src/initialise.f90 src/loadData.f90 src/output.f90 \
+src/readInput.f90 src/readEAM.f90 src/readConfig.f90  \
+src/neighbourList.f90 src/prep.f90  \
+src/calcEAM.f90 src/bulkProperties.f90 src/calcEval.f90 src/optimise.f90  \
+src/pwBatch.f90 src/clean.f90  \
+src/eampa.f90
 sleep 1 
 rm *.mod

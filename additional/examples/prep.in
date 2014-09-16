@@ -1,0 +1,58 @@
+!---------------------- Verbose options
+#print
+yes
+!---------------------- Run type
+#runtype
+opti
+!---------------------- data directory
+#datadir
+"data"
+!---------------------- Potential details
+#potential
+sheng_al_eam.pot !potential file
+#zblcore pair core from 0.0 to 0.5, spline 0.5 to 1.0, dens to 1.0 from 0.5 embedding spline 0.2
+0.5 0.8 1.0 0.5 0.0 0.05
+#eamPrepFile
+eamfile_al_zbl.pot 
+#eamNodesFile
+eamfile_al_zbl.nodes 
+#EAMINTERPPOINTS
+4
+#splineNodes ! type 1, 2, 3, 4, 5, 6, 7
+30 30 20
+#EAMFORCESPLINE
+1
+!---------------------- Configuration details
+#unitvector
+1.0 0.0 0.0
+0.0 1.0 0.0
+0.0 0.0 1.0
+#configurations
+atomsAl.conf
+#SAVECONFIGFILE
+prepAl.conf
+#SAVEEXPCONFIGFILE
+"prepAlExp.conf"
+!---------------------- Add Defect Configurations
+!#vacancyconfiguration  !alat  rcut  ref_evac/eV
+!16.16 6.5 0.67
+!---------------------- Calculation options
+#savecoords
+yes
+#SAVENEIGHBOURLIST
+yes
+#SAVEFORCES
+Yes
+#savebm
+yes
+#eaminterp
+FOURPOINT
+#calceqvol
+All
+!---------------------- Optimise options
+#varynodes !1 fixed, 2 fixed with rand large var, 3 fraction of point, 4 close to surrounding points    option, sigma, vary amount, large vary amount, large vary chance 0.05
+!2 0.3 0.01 0.5 0.2
+6 0.3 0.2 2.0 0.2
+!---------------------- RSS calculation options
+#rssweighting energy force stress evol bm ecs 100 20 1 20 20 20  ! Integers
+1 0 1 1 1 1

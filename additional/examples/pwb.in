@@ -1,0 +1,54 @@
+!---------------------- Verbose options
+#print
+yes
+!---------------------- Run type
+#runtype
+pwb2
+!---------------------- PW Batch Output details
+#pwbBatchDir
+pd
+!---------------------- PW Batch Configuration details
+#pwbType
+basic
+#pwbConfig
+PdPwb.conf
+#pwbStart
+100
+#pwbEnd
+1824
+#pwbRandomVariance   !point varying settings: rand type (F/G/M), maxVar/Ang, sigma 
+G 0.1 0.3
+!---------------------- Server Submission Script details
+#pwbWallTime
+00:10:00
+#pwbNodes
+2
+#pwbPPN
+16
+#pwbPPN
+16
+#pwbMoabQueue
+bbtest
+#pwbOpenMPThreads
+1
+#pwbProcPerNuma
+8
+#pwbPbsAccount
+e298
+!---------------------- PW Specific Settings
+#PWBOUTDIR
+/work/e337/e337/benp/scratch
+#PWBPSEUDODIR
+/work/e337/e337/benp/pseudopotentials
+#PWBECUTWFC
+120
+#PWBECUTRHO
+300
+#PWBNBND
+3226
+#PWBMIXINGMODE
+TF
+#PWBCALCULATION
+scf
+#PWBKPOINTS
+2 2 2 1 1 1

@@ -56,15 +56,19 @@ Contains
 ! Run bulk property calculations
     Call calcEquilibrium()
     
-    
-    
+   
+
+
+   
+! Calculate RSS between reference and calculated values
     Call calcRSS()
-    print *,"rss ",totalRSS
-    
+! Output to terminal
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      print *,"RSS: ",totalRSS
+    End If
     
 ! Output evaluate results to output file
-    Call outputEvaluate()
-  
+    Call outputEvaluate()  
 ! End time
     Call cpu_time(timeEndEval)
 ! Store Time    

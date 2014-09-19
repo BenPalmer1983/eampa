@@ -84,7 +84,9 @@ Contains
     End Do
 ! Distribute eqvol array    
     Call M_collDouble1DMap(configCalcEV,processMap,2)
+    Call M_collDouble1DMap(configCalcEE,processMap,2)
     Call M_distDouble1D(configCalcEV)
+    Call M_distDouble1D(configCalcEE)
 ! End time
     Call cpu_time(eqTimeEnd)
 ! Record time taken to make neighbour list

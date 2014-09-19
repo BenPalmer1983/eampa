@@ -46,7 +46,8 @@ Contains
     configCalcStresses = -2.1D20  
 ! Loop through configurations
     Do configID=1,configCount
-      If(processMap(configID,1).eq.mpiProcessID)Then
+      If(processMap(configID,1).eq.mpiProcessID)Then  ! build in more mpi options here
+      
         Call calcEnergy(configID, configEnergy, 1)
         configCalcEnergies(configID) = configEnergy
       End If  

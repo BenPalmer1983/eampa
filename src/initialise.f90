@@ -73,11 +73,9 @@ contains
       print *,"MPI Processes: ",mpiProcessCount
       print "(A7,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)", &
       " Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)  
-      print "(A31,F8.4,A5,F8.4,A3)"," Large array memory allocated: ",&
+      print "(A30,F8.4,A5,F8.4,A3)","Large array memory allocated: ",&
         largeArraySize,"MB  (",(mpiProcessCount*largeArraySize),"MB)"
     End If
-!store start time
-    Call cpu_time(programStartTime)
 !Call init subroutines
     Call initVars()
     Call makeDirectories()
@@ -87,14 +85,14 @@ contains
 !Read initVars
   Subroutine initVars()  
 !declare private variables  
-  Integer(kind=StandardInteger) :: i,j
-  Character(len=512) :: blankLine  
-  Do j=1,512
-    blankLine(j:j) = " "
-  End Do  
-  Do i=1,100
-    fileCleanupList(i) = blankLine
-  End Do    
+    Integer(kind=StandardInteger) :: i,j
+    Character(len=512) :: blankLine  
+    Do j=1,512
+      blankLine(j:j) = " "
+    End Do  
+    Do i=1,100
+      fileCleanupList(i) = blankLine
+    End Do    
   End Subroutine initVars  
   
     
@@ -130,6 +128,10 @@ contains
       write(999,"(A1)") " "
       write(999,"(A15,I4)") "MPI Processes: ",mpiProcessCount
       write(999,"(A1)") " "
+      write(999,"(A1)") " "
+      write(999,"(A19,F8.4)") "Load globals time: ",(globalsTimeEnd-globalsTimeStart)
+      write(999,"(A31,F8.4,A5,F8.4,A3)") "Large array memory allocated: ",&
+        largeArraySize,"MB  (",(mpiProcessCount*largeArraySize),"MB)"
       write(999,"(A1)") " "
 !close output file
       close(999)

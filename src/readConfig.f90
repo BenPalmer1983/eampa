@@ -19,8 +19,9 @@ Module readConfig
   Use general
   Use units
   Use initialise
-  Use loadData  
+  Use loadData   
   Use globals
+  Use output 
 ! Force declaration of all variables
   Implicit None
 !Privacy of variables/functions/subroutines
@@ -32,6 +33,9 @@ Contains
   Subroutine readConfigFile()
     Implicit None   ! Force declaration of all variables
 ! Private variables    
+    Real(kind=DoubleReal) :: timeStartRC, timeEndRC
+! Start Time
+    Call cpu_time(timeStartRC)    
 ! Prepare the temporary config file
     If(mpiProcessID.eq.0)Then
       Call prepFile()   
@@ -46,13 +50,17 @@ Contains
 ! Generate co-ordinates   
     Call generateCoords()
 ! Output summary of config to the output file
-    Call outputSummary()  
+    Call outputConfigSummaryT()  
 ! Output files
     If(mpiProcessID.eq.0)Then
       Call outputConfigFiles()   
     End If   
 ! Synch MPI processes    
     Call M_synchProcesses() 
+! End Time
+    Call cpu_time(timeEndRC)        
+! Store Time    
+    Call storeTime(7,timeEndRC-timeStartRC)  
   End Subroutine readConfigFile 
   
   
@@ -108,7 +116,7 @@ Contains
 ! Private variables
     Integer(kind=StandardInteger), Parameter :: maxFileRows = 10000000 
     Integer(kind=StandardInteger) :: ios, i, j, writeFile
-    Real(kind=DoubleReal) :: cohEnergy, optEnergyPerAtom, radiusCutoff
+    Real(kind=DoubleReal) :: cohEnergy, optEnergyPerAtom, radiusCutoff, eqVol
     Integer(kind=StandardInteger) :: optEnergyAtoms
     Character(len=255) :: fileRow
     Character(len=255) :: configFilePathTA, configFilePathTB, configFilePathTC, configFilePathTDFT
@@ -167,7 +175,7 @@ Contains
     
 ! Loop through DFT files    
     Open(UNIT=1,FILE=Trim(configFilePathTC))
-    Do i=1,maxFileRows 
+    Do i=1,maxFileRows   
 ! Read in line
       Read(1,"(A255)",IOSTAT=ios) fileRow
 ! Break out If end of file
@@ -178,6 +186,7 @@ Contains
         dftFilePath = BlankString(dftFilePath)
         dftType = BlankString(dftType)
         dftReplaceLabel = BlankString2DArray(dftReplaceLabel)
+        eqVol = -2.1D20
       End If
       If(fileRow(1:5).eq."#PATH")Then  ! Path to DFT file     
         Read(fileRow,*) bufferA, dftFilePath
@@ -197,6 +206,11 @@ Contains
         optEnergyPerAtom = UnitConvert(optEnergyPerAtom, bufferC, "EV")
         optEnergyPerAtom = optEnergyPerAtom / optEnergyAtoms
       End If
+      If(fileRow(1:3).eq."#EV")Then  ! Equilibrium volume
+        Read(fileRow,*) bufferA, bufferB, bufferC
+        Read(bufferB,*) eqVol   
+        eqVol = UnitConvert(eqVol, bufferC, "ANG3")
+      End If
       If(fileRow(1:3).eq."#RC")Then  ! Radius cutoff 
         Read(fileRow,*) bufferA, bufferB, bufferC
         Read(bufferB,*) radiusCutoff
@@ -214,7 +228,8 @@ Contains
       End If
       If(fileRow(1:7).eq."#ENDDFT")Then  ! Clean variables
         If(trim(dftType).eq."PWSCF")Then
-          Call readPWSCFFile(dftFilePath, configFilePathT, optEnergyPerAtom, cohEnergy, radiusCutoff)
+          Call readPWSCFFile(dftFilePath, configFilePathT, optEnergyPerAtom, &
+          eqVol, cohEnergy, radiusCutoff)
         End If  
       End If
     End Do
@@ -402,6 +417,7 @@ Contains
     Integer(kind=StandardInteger) :: x, y, z, xCopy, yCopy, zCopy
     Real(kind=DoubleReal) :: aLat
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: configUnitVector 
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: configVolVector 
     Real(kind=DoubleReal) :: xC, yC, zC    
 ! Init variables
     configUnitVector = 0.0D0
@@ -435,6 +451,16 @@ Contains
       configUnitVector(3,3) = configurationsR(i,10) 
 ! Apply global unit vector      
       configUnitVector = matmul(globalConfigUnitVector,configUnitVector)
+! Store config unit vector      
+      configurationsR(i,21) = configUnitVector(1,1)
+      configurationsR(i,22) = configUnitVector(1,2)
+      configurationsR(i,23) = configUnitVector(1,3)
+      configurationsR(i,24) = configUnitVector(2,1)
+      configurationsR(i,25) = configUnitVector(2,2)
+      configurationsR(i,26) = configUnitVector(2,3)
+      configurationsR(i,27) = configUnitVector(3,1)
+      configurationsR(i,28) = configUnitVector(3,2)
+      configurationsR(i,29) = configUnitVector(3,3)
 ! Loop through coords
       Do x=1,xCopy
         Do y=1,yCopy
@@ -469,29 +495,19 @@ Contains
       configurationCoordsKeyG(i,3) = coordStartG+coordLengthG-1      
       coordStartG = coordStartG + coordLengthG
       coordLengthG = 0
-    End Do
+! Store configuration volume   
+      Do j=1,3 
+        configVolVector(j,1) = aLat*xCopy*configUnitVector(j,1)
+        configVolVector(j,2) = aLat*yCopy*configUnitVector(j,2)
+        configVolVector(j,3) = aLat*zCopy*configUnitVector(j,3)
+      End Do  
+      configVolume(i) = TripleProductSq(configVolVector)
+    End Do    
+    
   End Subroutine generateCoords 
   
   
-    
-  
-  Subroutine outputSummary()
-! Saves the eam file to the output directory
-    Implicit None   ! Force declaration of all variables
-! Private variables    
-    Integer(kind=StandardInteger) :: i
-! Print out
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      Print *, "Configuration Summary"
-      Do i=1,configCount
-        Print "(A9,I4,A1,I8,A1,I8,A1,F8.5,A1,I4,A1,I4,A1,I4)",&
-        "  Config ",i," ",configurationCoordsKeyG(i,1)," ",configurationCoordsKeyG(i,2),&
-        " ",configurationsR(i,1)," ",configurationsI(i,1)," ",configurationsI(i,2),&
-        " ",configurationsI(i,3) 
-      End Do
-    End If
-  End Subroutine outputSummary 
- 
+
  
   Subroutine outputConfigFiles() 
 ! Saves the eam file to the output directory
@@ -515,7 +531,7 @@ Contains
           configRefStresses(i,2),configRefStresses(i,3)
           write(102,"(A4,F12.7,F12.7,F12.7)") "#SY ",configRefStresses(i,4),&
           configRefStresses(i,5),configRefStresses(i,6)
-          write(102,"(A4,F12.7,F12.7,F12.7)") "#SZ ",configRefStresses(i,4),&
+          write(102,"(A4,F12.7,F14.7,F12.7)") "#SZ ",configRefStresses(i,4),&
           configRefStresses(i,5),configRefStresses(i,6)
         End If 
         write(102,"(A4,I2,A1,I2,A1,I2)") "#CC ",configurationsI(i,1)," ",&
@@ -523,6 +539,9 @@ Contains
         write(102,"(A4,F10.7)") "#RC ",configurationsR(i,11)
         If(configRef(i,1).gt.-2.0D20)Then
           write(102,"(A5,F10.7,A3)") "#EPA ",configRef(i,1)," EV"
+        End If
+        If(configRefEV(i).gt.-2.0D20)Then
+          write(102,"(A4,F12.7,A5)") "#EV ",configRefEV(i)," ANG3"
         End If
         coordStart = configurationCoordsKey(i,1)
         coordEnd = configurationCoordsKey(i,3)     
@@ -648,8 +667,8 @@ Contains
   
   
   
-  Subroutine readPWSCFFile(dftFilePath, confFilePath, dftInOptEnergy, dftInCohEnergy, &
-                           dftInRadiusCutoff)
+  Subroutine readPWSCFFile(dftFilePath, confFilePath, dftInOptEnergy,&
+                          dftInEqVol, dftInCohEnergy, dftInRadiusCutoff)
 ! Read in configuration file
 ! readPWSCFFile(dftFilePath, configFilePathT, optEnergyPerAtom, cohEnergy)
     Implicit None  ! Force declaration of all variables
@@ -662,7 +681,7 @@ Contains
     Integer(kind=StandardInteger) :: readType, lastScf, numberOfAtoms
     Real(kind=DoubleReal) :: aLat, dftInRadiusCutoff
     Real(kind=DoubleReal) :: configTotalEnergy, configEnergyPerAtom
-    Real(kind=DoubleReal) :: dftInOptEnergy, dftInCohEnergy
+    Real(kind=DoubleReal) :: dftInOptEnergy, dftInCohEnergy, dftInEqVol
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: stress
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: crystalAxes    !Unit vector
     Character(len=8), Dimension(1:4096) :: atomType
@@ -870,6 +889,9 @@ Contains
     write(101,"(A9)") "#CC 1 1 1"
     write(101,"(A4,F10.7)") "#RC ",dftInRadiusCutoff
     write(101,"(A5,F10.7,A3)") "#EPA ",configEnergyPerAtom," eV"
+    If(dftInEqVol.gt.-2.0D20)Then
+      write(101,"(A4,F16.7,A5)") "#EV ",dftInEqVol," ANG3" 
+    End If
     write(101,"(A4)") "#F Y"
     Do i=1,numberOfAtoms
       write(101,"(A3,A2,F16.10,A1,F16.10,A1,F16.10,A1,F16.10,A1,F16.10,A1,F16.10)") &

@@ -41,6 +41,8 @@ Program eampa
   Include 'mpif.h'  
 !Variables
   Integer(kind=StandardInteger) :: error    
+!store start time
+  Call cpu_time(programStartTime)
 !-------------------------------------------------------------- 
 !--- Load data and initialise
 !Init MPI
@@ -109,6 +111,15 @@ Program eampa
 !--------------------------------------------------------------   
 !--- Clean up and finalise 
   Call runClean()
+  
+  
+! Store end time
+  Call cpu_time(programEndTime)
+! Store Time    
+  Call storeTime(100,programEndTime-programStartTime)    
+! Output times
+  Call outputCpuTimes()  
+  
 ! Finalise MPI
   Call MPI_Finalize(error)
     

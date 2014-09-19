@@ -32,6 +32,9 @@ Contains
     Character(len=64) :: fileName
     Character(len=32) :: fileNumber
     Integer(kind=StandardInteger), Dimension(1:splineTotalNodes) :: splineNodeList
+    Real(kind=DoubleReal) :: timeStartOpt, timeEndOpt
+! Start Time
+    Call cpu_time(timeStartOpt)
 ! Print out to terminal
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"Start Optimise EAM"
@@ -48,7 +51,7 @@ Contains
     splineNodesKeyOpt = splineNodesKey
     splineNodesDataOpt = splineNodesData   
 ! Force ZBL if required
-    If(zblHardCore(1).gt.0.0D0)Then
+    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
       Call eamZblHardCore()
     End If    
 !-------------------------------------  
@@ -65,7 +68,7 @@ Contains
 ! Spline EAM - Evaluate Splined EAM
 !-------------------------------------
     Call setEamSpline()
-    If(zblHardCore(1).gt.0.0D0)Then
+    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
       Call eamZblHardCore()
     End If  
     fileName = "potSpline.pot"  
@@ -99,7 +102,7 @@ Contains
 ! Make spline EAM from nodes
         Call setEamSpline()
 ! Apply ZBL hard core if required      
-        If(zblHardCore(1).gt.0.0D0)Then
+        If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
           Call eamZblHardCore()
         End If  
 ! Save potential
@@ -130,7 +133,7 @@ Contains
 ! Make spline EAM from nodes
     Call setEamSpline()
 ! Apply ZBL hard core if required      
-    If(zblHardCore(1).gt.0.0D0)Then
+    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
       Call eamZblHardCore()
     End If  
     fileName = BlankString(fileName)
@@ -144,6 +147,10 @@ Contains
     End If
     
     
+! End Time
+    Call cpu_time(timeEndOpt)  
+! Store Time    
+    Call storeTime(5,timeEndOpt-timeStartOpt)      
     
   End Subroutine runOptimise
   

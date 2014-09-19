@@ -24,7 +24,6 @@ Module msubs
   Public :: M_distDouble1D
   Public :: M_distDouble2D
   Public :: M_collDouble1D
-  Public :: M_collDouble1DMap
   Public :: M_collDouble2D
   
 !Functions
@@ -417,52 +416,7 @@ Module msubs
   End Subroutine M_collDouble1D 
   
   
-!------------------------------
-! M_collDouble1D
-!------------------------------
-
-  Subroutine M_collDouble1DMap(sendIn, mapIn, mapCol)
-! Collects 1D dp array from  workers back to root
-    Implicit None   ! Force declaration of all variables
-! Private variables
-    Integer(kind=StandardInteger) :: arrayX, mapCol
-    Real(kind=DoubleReal), Dimension(:) :: sendIn
-    Integer(kind=StandardInteger), Dimension(:,:) :: mapIn
-    Real(kind=DoubleReal), Dimension(1:size(sendIn)) :: send, receive
-    Integer(kind=StandardInteger) :: n, i, processTo, processFrom, tag
-    Integer(kind=StandardInteger) :: processID,processCount,error
-    Integer, Dimension(MPI_STATUS_SIZE) :: status
-! Init variables    
-    n = 0
-    send = 0.0D0
-    receive = 0.0D0
-    arrayX = size(sendIn,1)
-! Call mpi subroutines
-    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
-    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-! All processes back to root  
-    If(processID.gt.0) Then    
-      send = sendIn    
-      processTo = 0
-      tag = 1000 + processID
-      Call MPI_SEND(send,arrayX,MPI_DOUBLE_PRECISION,processTo,tag,&
-      MPI_COMM_WORLD,status,error)  
-    End If  
-! Collect from processes by root
-    If(processID.eq.0) Then
-      Do n=1,processCount-1      
-        processFrom = n
-        tag = 1000 + n
-        Call MPI_RECV(receive,arrayX,MPI_DOUBLE_PRECISION,processFrom,tag,&
-        MPI_COMM_WORLD,status,error) 
-        Do i=1,size(receive) 
-          If(n.eq.mapIn(i,mapCol))Then
-            sendIn(i) = receive(i)
-          End If          
-        End Do
-      End Do    
-    End If 
-  End Subroutine M_collDouble1DMap   
+  
   
   
 !------------------------------
@@ -578,6 +532,51 @@ Module msubs
   
   
 ! UNDER DEVELOPMENT  
+  
+  
+! With processor map
+  Subroutine M_collDouble1DMap(sendIn, processMap, processMapCol)
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Real(kind=DoubleReal), Dimension(:,:) :: processMap
+    Integer(kind=StandardInteger) :: processMapCol, arrayX
+    Real(kind=DoubleReal), Dimension(:) :: sendIn
+    Real(kind=DoubleReal), Dimension(1:size(sendIn)) :: send, receive
+    Integer(kind=StandardInteger) :: n, i, processTo, processFrom, tag
+    Integer(kind=StandardInteger) :: processID,processCount,error
+    Integer, Dimension(MPI_STATUS_SIZE) :: status
+! Optional variables
+    send = 0.0D0
+    receive = 0.0D0
+! Init variables    
+    arrayX = size(sendIn,1)
+! Call mpi subroutines
+    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
+! Send from workers
+    If(processID.gt.0) Then    
+      send = sendIn    
+      processTo = 0
+      tag = 1000 + processID
+      Call MPI_SEND(send,arrayX,MPI_DOUBLE_PRECISION,processTo,tag,&
+      MPI_COMM_WORLD,status,error)  
+    End If  
+! Collect from workers by root
+    If(processID.eq.0) Then
+      Do n=1,processCount-1      
+        processFrom = n
+        tag = 1000 + n
+        Call MPI_RECV(receive,arrayX,MPI_DOUBLE_PRECISION,processFrom,tag,&
+        MPI_COMM_WORLD,status,error) 
+        Do i=1,size(receive) 
+          If(n.eq.processMap(i,processMapCol))Then
+            sendIn(i) = receive(i)
+          End If
+        End Do
+      End Do    
+    End If    
+  End Subroutine M_collDouble1DMap 
+  
   
   
   

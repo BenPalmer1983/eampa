@@ -39,10 +39,11 @@ Contains
   Character(len=8) :: tempName 
   Character(len=255) :: fileRow
   Character(len=32) :: bufferA, bufferB, bufferC, bufferD, bufferE, bufferF
-  
+  Real(kind=DoubleReal) :: timeStartRI, timeEndRI
+! Start Time
+    Call cpu_time(timeStartRI)
 !Read in command line arguments
-  Call get_command_argument(1,inputFilePath)
-  
+  Call get_command_argument(1,inputFilePath)  
 !Write to output.dat file
   If(mpiProcessID.eq.0)Then
     open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
@@ -50,9 +51,6 @@ Contains
     write(999,"(F8.4,A2,A24,A60)") ProgramTime(),"  ",&
     "Reading user input file ",inputFilePath
   End If  
-  
-
-
 ! Step 1 - strip input file of comment lines etc
 !
 !Read input file, and make new stripped temp input file 
@@ -61,8 +59,7 @@ Contains
     inputFilePathT = trim(tempDirectory)//"/"//tempName//".temp.in"
   End If
   Call M_distChar(inputFilePathT)
-  Call fileToClean(inputFilePathT)
-  
+  Call fileToClean(inputFilePathT)  
 !Master process only
   If(mpiProcessID.eq.0)Then
     Open(UNIT=1,FILE=trim(inputFilePath))   
@@ -204,6 +201,11 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
       Read(fileRow,*) eamForceSpline
     End If
+    If(fileRow(1:12).eq."#EAMFORCEZBL")then
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
+      Read(fileRow,*) eamForceZBL
+    End If
+    
     
 !----------------------------------      
 ! Config Details
@@ -243,7 +245,7 @@ Contains
 !----------------------------------     
     If(fileRow(1:10).eq."#CALCEQVOL")Then  
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
-      calcEqVol = trim(adjustl(fileRow))
+      calcEqVol = trim(adjustl(StrToUpper(fileRow)))
     End If  
     
     
@@ -264,7 +266,7 @@ Contains
 !----------------------------------     
     If(fileRow(1:13).eq."#RSSWEIGHTING")Then  
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
-      Call strToIntArr(fileRow,rssWeighting)      
+      Call strToDPArr(fileRow,rssWeighting)      
     End If  
     
     
@@ -296,6 +298,12 @@ Contains
   Close(1)
   
   
+! Synch MPI processes    
+    Call M_synchProcesses() 
+! End Time
+    Call cpu_time(timeEndRI)        
+! Store Time    
+    Call storeTime(8,timeEndRI-timeStartRI)    
   End Subroutine readUserInput 
   
   

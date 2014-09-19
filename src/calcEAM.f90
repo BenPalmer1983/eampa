@@ -21,6 +21,7 @@ Module calcEAM
   Use globals
   Use initialise
   Use loadData  
+  Use output 
 ! Force declaration of all variables
   Implicit None
 !Privacy of variables/functions/subroutines
@@ -36,6 +37,9 @@ Contains
     Implicit None   ! Force declaration of all variables
     Integer(kind=StandardInteger) :: configID, forceKeyStart, forceKeyEnd, selectedProcess
     Real(kind=DoubleReal) :: configEnergy
+    Real(kind=DoubleReal) :: energyTimeStart, energyTimeEnd
+! Start time
+    Call cpu_time(energyTimeStart)
 ! Init variables    
     configCalcEnergies = -2.1D20 
     configCalcForces = -2.1D20
@@ -58,7 +62,10 @@ Contains
       Call M_collDouble2D(configCalcForces, selectedProcess, forceKeyStart, forceKeyEnd)
     End Do  
     Call M_distDouble2D(configCalcForces)
-    
+! End time
+    Call cpu_time(energyTimeEnd)
+! Record time taken to make neighbour list
+    Call outputTimeTaken("E-F-S Calc Configs",energyTimeEnd-energyTimeStart)      
   End Subroutine calcEnergies 
   
   
@@ -76,6 +83,9 @@ Contains
     Integer(kind=StandardInteger), Optional :: forceCalcIn
     Integer(kind=StandardInteger) :: forceCalc, forceKeyA, forceKeyB
     Real(kind=DoubleReal) :: densDerivAB, densDerivBA, embeDerivA, embeDerivB, forceM
+    Real(kind=DoubleReal) :: timeStartEFS, timeEndEFS
+! Start Time
+    Call cpu_time(timeStartEFS)
 ! Init variables
     rCutoff = configurationsR(configID,11)
     pairEnergy = 0.0D0
@@ -196,8 +206,10 @@ Contains
       End If 
     End Do   
     End If
-    
-    
+! End Time
+    Call cpu_time(timeEndEFS)        
+! Store Time    
+    Call storeTime(1,timeEndEFS-timeStartEFS)   
   End Subroutine calcEnergy 
 
 

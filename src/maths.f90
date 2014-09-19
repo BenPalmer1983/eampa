@@ -29,12 +29,19 @@ Module maths
 ! Polynomial Related Functions
   Public :: SolvePolynomial  
   Public :: CalcPolynomial
+  Public :: DerivativePolynomial
 ! Fitting, Regression, Interpolation  
   Public :: PolyFit             ! Fit polynomial to large set of data - Vandermonde
   Public :: SP_PolyFit          ! Fit polynomial to large set of data - Superposition
+  Public :: MinPolyFit          ! Fit polynomial, find minimum (if in region of data points)
   Public :: InterpLagrange      !find y(x) or y'(x) using lagrange interp from set of x-y
   Public :: PointInterp         !y(x) from large set of data x-y, finds region and uses lagrange interp
   Public :: CalcResidualSquareSum
+! Vector Functions  
+  Public :: CrossProduct
+  Public :: DotProduct
+  Public :: TripleProduct
+  Public :: TripleProductSq
 ! Random Number Related Functions 
   Public :: RandomInteger
   Public :: RandomFloat
@@ -112,7 +119,7 @@ Contains
 !------------------------------------------------------------------------!     
   
   Function SolvePolynomial (coefficients, lower, upper) RESULT (output)   
-!Solves the polynomial p(x) = 0
+!Solves the polynomial p(x) = 0, in region close to p(x) = 0
     Implicit None  !Force declaration of all variables
 !Declare variables
     Real(kind=DoubleReal), Dimension(:) :: coefficients
@@ -194,6 +201,18 @@ Contains
     End Do    
   End Function CalcPolynomial
   
+  
+  Function DerivativePolynomial (coefficientsIn) RESULT (coefficientsOut)
+!Calculates p(x) by default, p'(x) for derivativeIn = 1 etc
+    Implicit None  !Force declaration of all variables
+!Declare variables
+    Real(kind=DoubleReal), Dimension( : ) :: coefficientsIn
+    Real(kind=DoubleReal), Dimension(1:(size(coefficientsIn)-1)) :: coefficientsOut
+    Integer(kind=StandardInteger) :: j
+    Do j=1,size(coefficientsIn,1)-1    
+      coefficientsOut(j) = j * coefficientsIn(j+1)
+    End Do
+ End Function DerivativePolynomial  
   
   
 !------------------------------------------------------------------------! 
@@ -382,7 +401,6 @@ Contains
     xMatrix = InvertMatrix(xMatrix)
     coefficients = MatMul(xMatrix,yMatrix)    
   End Function PolyFitExact
-  
 
   Function CalcResidualSquareSum(points,coefficients) RESULT (rss) 
 !Fits a polynomial of order to the points input
@@ -399,6 +417,42 @@ Contains
       rss = rss + (y-points(i,2))**2  
     End Do  
   End Function CalcResidualSquareSum   
+  
+  Function MinPolyFit(points,order) RESULT (x)
+! Fit poly to points, then calculate minimum of the curve, assuming it's in the region of the points (+- 25%)
+! and there isn't too much wobble
+    Implicit None  !Force declaration of all variables
+!Declare variables
+    Real(kind=DoubleReal), Dimension(:,:) :: points
+    Integer(kind=StandardInteger) :: order           ! Largest poly term e.g. x3+x2+x+1 3rd order
+    Real(kind=DoubleReal), Dimension(1:(order+1)) :: coefficients
+    Real(kind=DoubleReal), Dimension(1:order) :: coefficientsD
+    Real(kind=DoubleReal) :: xMin, xMax, xDiff, x
+    Integer(kind=StandardInteger) :: i
+! Init values    
+    x = 0.0D0 
+    Do i=1,size(points,1)
+      If(i.eq.1)Then
+        xMin = points(i,1)
+        xMax = points(i,1)
+      Else  
+        If(points(i,1).lt.xMin)Then
+          xMin = points(i,1)
+        End If
+        If(points(i,1).gt.xMax)Then
+          xMax = points(i,1)
+        End If
+      End If
+    End Do
+    xDiff = xMax - xMin
+    xMin = xMin - 0.25D0*xDiff
+    xMax = xMax + 0.25D0*xDiff
+! Fit points
+    coefficients = PolyFit(points,order)
+    coefficientsD = DerivativePolynomial(coefficients)    
+! Find minimum
+    x = SolvePolynomial(coefficientsD,xMin,xMax)     
+  End Function MinPolyFit   
   
   Function InterpLagrange(x, points, derivativeIn) RESULT (output)
 ! Calculates y(x) or y'(x) using Lagrange interpolation
@@ -1082,6 +1136,23 @@ Contains
 !Calculate cross product
     TripleProductResult = DotProduct(VectorA,CrossProduct(VectorB,VectorC))
   End Function TripleProduct  
+  
+  Function TripleProductSq(VectorIn) RESULT (TripleProductResult)
+! Calculates (scalar) triple product of three vectors input in 3x3 matrix (resulting in volume of 3 vectors)
+    Implicit None  ! Force declaration of all variables
+!declare variables
+    Integer(kind=StandardInteger) :: i
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: VectorIn
+    Real(kind=DoubleReal), Dimension(1:3) :: VectorA, VectorB, VectorC
+    Real(kind=DoubleReal) :: TripleProductResult
+!Calculate cross product
+    Do i=1,3
+      VectorA(i) = VectorIn(1,i)
+      VectorB(i) = VectorIn(2,i)
+      VectorC(i) = VectorIn(3,i)
+    End Do
+    TripleProductResult = DotProduct(VectorA,CrossProduct(VectorB,VectorC))
+  End Function TripleProductSq 
   
   
 !------------------------------------------------------------------------!  

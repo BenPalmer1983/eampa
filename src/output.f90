@@ -24,12 +24,18 @@ Module output
 ! Force declaration of all variables
   Implicit None
 !Privacy of variables/functions/subroutines
-  Private    
-!Public Subroutines
+  Private  
+! Public Subroutines - Output to specific file
   Public :: saveEamFile
   Public :: outputForcesFile
+! Public Subroutines - Output to output file
+  Public :: outputNLSummary
   Public :: outputEvaluate
   Public :: outputTimeTaken
+  Public :: outputProcessMap
+  Public :: outputCpuTimes
+! Public Subroutines - Output to terminal
+  Public :: outputConfigSummaryT
   
 Contains
 
@@ -128,6 +134,28 @@ Contains
 !----------------------------------------
 ! Save to output file
 !----------------------------------------  
+
+  Subroutine outputNLSummary()
+! Output neighbour list summary to output file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i
+! Only on root process
+    If(mpiProcessID.eq.0)Then    
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+      status="old",position="append",action="write")
+      write(999,"(A1)") ""
+      write(999,"(A22)") "Neighbour List Summary"
+      write(999,"(A22)") "Start   End     Length"
+      Do i=1,configCount
+        write(999,"(I8,I8,I8)") neighbourListKey(i,1),&
+        neighbourListKey(i,3),neighbourListKey(i,2)
+      End Do
+      write(999,"(A1)") ""
+      Close(999)
+    End If  
+  End Subroutine outputNLSummary 
+  
   
   Subroutine outputEvaluate()
 ! Output ref and calc forces to file
@@ -140,29 +168,34 @@ Contains
       status="old",position="append",action="write")
       write(999,"(A1)") " "
       write(999,"(F8.4,A2,A26)") ProgramTime(),"  ","Configuration Evaluations:"
-      write(999,"(A5,A5,A7,A13,A13,A13)") "Cfg  ","Proc ","Atoms  ","Ref Energy   ",&
-      "Calc Energy  ","RSS          "
+      write(999,"(A5,A5,A7,A13,A13,A13,A13,A13,A13)") &
+      "Cfg  ","Proc ","Atoms  ","Ref Energy   ",&
+      "Calc Energy  ","Ref Eq Vol   ","Calc Eq Vol  ","Calc Eq Ene  ","RSS          "
       totalAtoms = 0
       Do configID=1,configCount
-        write(999,"(I4,A1,I4,A1,I6,A1,F12.4,A1,F12.4,A1,F12.4,A1)") &
+        write(999,"(I4,A1,I4,A1,I6,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1)") &
         configID," ",processMap(configID,1)," ",&
         configurationCoordsKeyG(configID,2)," ",&
         (configRefEnergies(configID)*configurationCoordsKeyG(configID,2))," ",&
-        configCalcEnergies(configID)," ",&
-        configRSS(configID,size(configRSS,2))," "    
+        configCalcEnergies(configID)," ",& 
+        configRefEV(configID)," ",& 
+        configCalcEV(configID)," ",& 
+        configCalcEE(configID)," ",& 
+        configRSS(configID,size(configRSS,2))," "  
         totalAtoms = totalAtoms + configurationCoordsKeyG(configID,2)       
       End Do
       write(999,"(A36,I8)")  "Total atoms:                        ",totalAtoms
       write(999,"(A36,F12.4)") "Total RSS all configurations:       ",totalRSS
       write(999,"(A1)") " "
-  
-  
       Close(999)
     End If  
   End Subroutine outputEvaluate 
   
   
   Subroutine outputTimeTaken(textOut,duration)
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
     Integer(kind=StandardInteger) :: i
     Real(kind=DoubleReal) :: duration
     Character(*) :: textOut
@@ -175,17 +208,82 @@ Contains
       Do i=1,Len(textOut)
         textPrint(i:i) = textOut(i:i)
       End Do    
-      open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
-      status="old",position="append",action="write")
-      write(999,"(A32,F14.6,A1)") textPrint, duration, "s"
-      Close(999)
+      duration = duration
+      ! Temporarily disabled
+      !open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+      !status="old",position="append",action="write")
+      !write(999,"(A32,F14.6,A1)") textPrint, duration, "s"
+      !Close(999)
     End If  
   End Subroutine outputTimeTaken 
   
+    
+  Subroutine outputProcessMap()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: i
+  ! Only on root process
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+      status="old",position="append",action="write")
+      
+      write(999,"(A64)") "----------------------------------------------------------------"
+      write(999,"(A64)") "                         Process Map                            "
+      write(999,"(A64)") "----------------------------------------------------------------"
+      write(999,"(A64)") "MapID  Ener  EV                                                 "
+      Do i=1,configCount
+        write(999,"(I6,I6,I6)") i,processMap(i,1),processMap(i,2)        
+      End Do
+      Close(999)
+    End If    
+  End Subroutine outputProcessMap 
+   
+    
+  Subroutine outputCpuTimes()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: i
+  ! Only on root process
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+      status="old",position="append",action="write")
+      
+      write(999,"(A64)") "----------------------------------------------------------------"
+      write(999,"(A64)") "                        CPU Times/s                             "
+      write(999,"(A64)") "----------------------------------------------------------------"
+      Do i=1,size(cpuTime,1)
+        If(cpuTime(i).gt.0.0D0)Then
+          write(999,"(I3,A1,A48,F10.5)") i," ",cpuTimeLabels(i),cpuTime(i)               
+        End If
+      End Do
+      Close(999)
+    End If    
+  End Subroutine outputCpuTimes  
   
+   
+!----------------------------------------
+! Output to terminal
+!----------------------------------------     
   
-  
-  
+  Subroutine outputConfigSummaryT()
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: i
+! Print out
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      Print *, "Configuration Summary"
+      Do i=1,configCount
+        Print "(A9,I4,A1,I8,A1,I8,A1,F8.5,A1,I4,A1,I4,A1,I4,A1,F12.6)",&
+        "  Config ",i," ",configurationCoordsKeyG(i,1)," ",configurationCoordsKeyG(i,2),&
+        " ",configurationsR(i,1)," ",configurationsI(i,1)," ",configurationsI(i,2),&
+        " ",configurationsI(i,3)," ",configVolume(i) 
+      End Do
+    End If
+  End Subroutine outputConfigSummaryT 
+ 
   
   
   

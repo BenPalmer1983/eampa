@@ -1,0 +1,46 @@
+1    Globals Init
+2    Evaluation Calculations
+3    Equilibrium Volume/Energy
+4    Read EAM
+5    Optimise Potential Functions
+6    E-F-S Calculations
+7    Read Configs
+8    Read User Input
+
+
+
+100  Programme Time
+
+
+
+
+Real(kind=DoubleReal) :: timeStartEAM, timeEndEAM
+
+! Start Time
+    Call cpu_time(timeStartEAM)
+
+! End Time
+    Call cpu_time(timeEndEAM)    
+    
+! Store Time    
+    Call storeTime(1,timeEndEAM-timeStartEAM)  
+    
+
+    
+
+
+Real(kind=DoubleReal) :: timeStartOpt, timeEndOpt
+
+! Start Time
+    Call cpu_time(timeStartOpt)
+
+! End Time
+    Call cpu_time(timeEndOpt)        
+! Store Time    
+    Call storeTime(1,timeEndOpt-timeStartOpt)      
+    
+    
+    
+
+! Synch MPI processes    
+    Call M_synchProcesses() 

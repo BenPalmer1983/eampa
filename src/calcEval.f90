@@ -38,22 +38,25 @@ Contains
   
   
   
-  Subroutine resetCalcVars()
-    configCalc = -2.1D20 
-    configCalcForces = -2.1D20
-    configCalcStresses = -2.1D20  
-  End Subroutine resetCalcVars   
+ 
   
+!------------------------------------
+! Run Evaluate
+!------------------------------------  
   
   Subroutine evaluate()
     Implicit None   ! Force declaration of all variables
 ! Private variables      
-
+    Real(kind=DoubleReal) :: timeStartEval, timeEndEval
 ! Start time
-    Call cpu_time(timeStart)
+    Call cpu_time(timeStartEval)
     
 ! Run energy/force/stress calculations
-    Call calcEnergies()    
+    Call calcEnergies()  
+! Run bulk property calculations
+    Call calcEquilibrium()
+    
+    
     
     Call calcRSS()
     print *,"rss ",totalRSS
@@ -63,11 +66,23 @@ Contains
     Call outputEvaluate()
   
 ! End time
-    Call cpu_time(timeEnd)
-! Record time taken to make neighbour list
-    Call outputTimeTaken("Evaluate",timeEnd-timeStart)    
-  End Subroutine evaluate   
+    Call cpu_time(timeEndEval)
+! Store Time    
+    Call storeTime(2,timeEndEval-timeStartEval)
+  End Subroutine evaluate  
+
+
   
+  
+!------------------------------------
+! Reset RSS subroutines
+!------------------------------------
+  
+  Subroutine resetCalcVars()
+    configCalc = -2.1D20 
+    configCalcForces = -2.1D20
+    configCalcStresses = -2.1D20  
+  End Subroutine resetCalcVars  
 
   
   Subroutine calcRSS()  
@@ -82,8 +97,8 @@ Contains
 ! Energy RSS
       If(configCalcEnergies(configID).gt.-2.0D20.and.configRefEnergies(configID).gt.-2.0D20)Then
         configRSS(configID,1) = rssWeighting(1)*&
-          (configCalcEnergies(configID)-&
-          configRefEnergies(configID)*configurationCoordsKeyG(configID,2))**2
+        (configCalcEnergies(configID)-&
+        configRefEnergies(configID)*configurationCoordsKeyG(configID,2))**2
       End If
 ! Force RSS  
       fsKey = configurationCoordsKeyG(configID,1)
@@ -98,7 +113,18 @@ Contains
       !  configRSS(configID,2) = rssWeighting(2)*configRSS(configID,2)
       !  print *,configRSS(configID,2),rssWeighting(2)
       !End If
+! Eq Vol RSS      
+      If(configCalcEV(configID).gt.-2.0D20.and.configRefEV(configID).gt.-2.0D20)Then
+        configRSS(configID,4) = rssWeighting(4)*&
+        (configCalcEV(configID)-configRefEV(configID))**2
+      End If      
     End Do
+    
+    
+
+
+    
+    
 ! Total RSS
     xSize = size(configRSS,1)
     ySize = size(configRSS,2)

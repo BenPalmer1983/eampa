@@ -18,8 +18,11 @@ Module globals
 ! Force declaration of all variables
   Implicit None
 ! Initialise Subroutine Variable
-  Real(kind=DoubleReal) :: programStartTime
+  Real(kind=DoubleReal) :: programStartTime, programEndTime
   Real(kind=DoubleReal) :: timeStart, timeEnd, timeDuration
+  Real(kind=DoubleReal) :: globalsTimeStart, globalsTimeEnd
+  Real(kind=DoubleReal), Dimension(1:100) :: cpuTime
+  Character(Len=64), Dimension(1:100) :: cpuTimeLabels  
   Character(len=255) :: currentWorkingDirectory
   Character(len=255) :: outputFile
   Character(len=255) :: outputFileEnergies
@@ -62,6 +65,8 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:6) :: zblHardCore                             ! 1 Pair ZBL end, 2 Pair Spline End, 3 Dens Value, 4 De
   Integer(kind=StandardInteger), Dimension(1:50) :: splineNodeCount
   Integer(kind=StandardInteger) :: splineTotalNodes
+  Integer(kind=StandardInteger) :: eamForceSpline
+  Integer(kind=StandardInteger) :: eamForceZBL
 ! Config Details - User Input  
   Real(kind=DoubleReal), Dimension(1:3,1:3) :: globalConfigUnitVector
   Character(len=255) :: configFilePath
@@ -74,7 +79,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:10) :: varyNodeOptions
   
 ! RSS calculation options  
-  Integer(kind=StandardInteger), Dimension(1:20) :: rssWeighting  
+  Real(kind=DoubleReal), Dimension(1:20) :: rssWeighting  
   
 ! PW Batch Files - User Input  
   Character(len=255) :: pwbConfigFilePath                                          ! 255Bytes
@@ -97,7 +102,6 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamData                        ! 3.2MB       1 x, 2 y(x), 3 y'(x), 4 y''(x) 
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKey
   Real(kind=DoubleReal), Dimension(1:10000,1:4) :: splineNodesData
-  Integer(kind=StandardInteger) :: eamForceSpline
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyInput
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataInput
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyOpt
@@ -107,29 +111,31 @@ Module globals
 ! Read Configuration File  
   Integer(kind=StandardInteger) :: configCount                                     ! 4bit
   Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsI         ! 41KB        1 xcopy, 2 ycopy, 3 zcopy, 4 forces,   
-  Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 BM 
+  Real(kind=DoubleReal), Dimension(1:1024,1:30) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 BM   21-29 configUnitVector
 ! Input coords and forces
   Integer(kind=StandardInteger) :: coordCount                                      ! 4bit
   Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKey   ! 13KB        1 start, 2 length, 3 end
-  Integer(kind=StandardInteger), Dimension(1:200000,1:1) :: configurationCoordsI   ! 800KB       1 atomID
-  Real(kind=DoubleReal), Dimension(1:200000,1:3) :: configurationCoordsR           ! 4.8MB       1 x, 2 y, 3 z
-  Real(kind=DoubleReal), Dimension(1:200000,1:3) :: configurationForcesR           ! 4.8MB       1 fx, 2 fy, 3 fz 
+  Integer(kind=StandardInteger), Dimension(1:50000,1:1) :: configurationCoordsI   !             1 atomID
+  Real(kind=DoubleReal), Dimension(1:50000,1:3) :: configurationCoordsR           !             1 x, 2 y, 3 z
+  Real(kind=DoubleReal), Dimension(1:50000,1:3) :: configurationForcesR           !             1 fx, 2 fy, 3 fz 
 ! Generated/expanded coords and forces 
   Integer(kind=StandardInteger) :: coordCountG                                     ! 4bit
   Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKeyG  ! 13KB        1 start, 2 length, 3 end
-  Integer(kind=StandardInteger), Dimension(1:500000,1:1) :: configurationCoordsIG  ! 2MB         1 atomID
-  Real(kind=DoubleReal), Dimension(1:500000,1:3) :: configurationCoordsRG          ! 12.5MB      1 x, 2 y, 3 z
+  Integer(kind=StandardInteger), Dimension(1:100000,1:1) :: configurationCoordsIG  !          1 atomID
+  Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configurationCoordsRG          !       1 x, 2 y, 3 z
+  Real(kind=DoubleReal), Dimension(1:1024) :: configVolume
 ! Configuration Reference/Calculated Values
   Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configRef                       !             1 Energy PA, 2 EqVol 
   Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configCalc                      !             1 Energy, 2 EqVol    (maybe)
-  Real(kind=DoubleReal), Dimension(1:500000,1:3) :: configRefForces                ! 12.5MB      1 fx, 2 fy, 3 fz
-  Real(kind=DoubleReal), Dimension(1:500000,1:3) :: configCalcForces
+  Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configRefForces                !       1 fx, 2 fy, 3 fz
+  Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configCalcForces
   Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configRefStresses
   Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configCalcStresses
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEnergies
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEnergies
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEV                          ! Equilibrium volume
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEV
+  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEE
   Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
   Real(kind=DoubleReal) :: totalRSS, optimumRSS
 ! DFT Config
@@ -139,14 +145,17 @@ Module globals
 !----------------------------------------------
 ! Neighbour List  
 !----------------------------------------------
-  Integer(kind=StandardInteger), Dimension(1:500000) :: nlUniqueKeys               ! 2.0MB
+  Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeys               ! 2.0MB
   Integer(kind=StandardInteger) :: neighbourListCount
   Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: neighbourListKey
-  Integer(kind=StandardInteger), Dimension(1:500000,1:6) :: neighbourListI         ! 12.0MB
-  Real(kind=DoubleReal), Dimension(1:500000) :: neighbourListR                     ! 4.0MB
-  Real(kind=DoubleReal), Dimension(1:500000,12) :: neighbourListCoords             ! 48.0MB
+  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListI         ! 12.0MB
+  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListR                     ! 4.0MB
+  Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoords             ! 48.0MB
   Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpread
-  
+! Temporary NL arrays    
+  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIT         ! 16.0MB
+  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRT                     ! 5.0MB
+  Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoordsT             ! 60.0MB
   
 !----------------------------------------------
 ! Calculations  
@@ -195,9 +204,12 @@ Module globals
 !-----------------------
 ! Subroutine  
   Public :: initGlobals
+  Public :: storeTime
 ! Initialise subroutine variables
-  Public :: programStartTime 
+  Public :: programStartTime, programEndTime
   Public :: timeStart, timeEnd, timeDuration  
+  Public :: cpuTime, cpuTimeLabels
+  Public :: globalsTimeStart, globalsTimeEnd
   Public :: outputFile          
   Public :: outputFileEnergies     
   Public :: outputFileForces      
@@ -237,6 +249,8 @@ Module globals
   Public :: zblHardCore
   Public :: splineNodeCount
   Public :: splineTotalNodes
+  Public :: eamForceSpline
+  Public :: eamForceZBL
 ! Config Details - User Input   
   Public :: globalConfigUnitVector
   Public :: configFilePath, configFilePathT
@@ -266,7 +280,6 @@ Module globals
   Public :: eamData
   Public :: splineNodesData
   Public :: splineNodesKey
-  Public :: eamForceSpline
   Public :: eamKeyInput
   Public :: eamDataInput
   Public :: eamKeyOpt
@@ -282,6 +295,7 @@ Module globals
   Public :: coordCountG
   Public :: configurationCoordsKeyG, configurationCoordsIG
   Public :: configurationCoordsRG
+  Public :: configVolume
 ! Configuration Reference/Calculated Values
   Public :: configRef                     
   Public :: configCalc                      
@@ -293,6 +307,7 @@ Module globals
   Public :: configCalcEnergies
   Public :: configRefEV
   Public :: configCalcEV
+  Public :: configCalcEE
   Public :: configRSS
   Public :: totalRSS, optimumRSS
 ! Neighbour List
@@ -303,6 +318,10 @@ Module globals
   Public :: neighbourListR       
   Public :: neighbourListCoords   
   Public :: atomSeparationSpread
+! Temporary NL arrays    
+  Public :: neighbourListIT        
+  Public :: neighbourListRT       
+  Public :: neighbourListCoordsT 
 ! Calculations  
   Public :: calculationDensity
 ! Results  
@@ -342,11 +361,26 @@ Contains
 ! Init global variables
   Subroutine initGlobals() 
     Implicit None  
-!Initialise Subroutine Variable
-    programStartTime = 0.0D0
+! Global Init Start time
+    Call cpu_time(globalsTimeStart)
+! Initialise Subroutine Variable
+    programEndTime = 0.0D0
     timeStart = 0.0D0
     timeEnd = 0.0D0
     timeDuration = 0.0D0
+    cpuTime = 0.0D0
+    cpuTimeLabels(1) = "Globals Init"
+    cpuTimeLabels(2) = "Evaluation Calculations"
+    cpuTimeLabels(3) = "Equilibrium Volume/Energy"
+    cpuTimeLabels(4) = "Read EAM"
+    cpuTimeLabels(5) = "Optimise Potential Functions"
+    cpuTimeLabels(6) = "E-F-S Calculations"
+    cpuTimeLabels(7) = "Read Configs"
+    cpuTimeLabels(8) = "Read User Input"
+    
+    cpuTimeLabels(100) = "Program Time"
+    
+    
     currentWorkingDirectory = BlankString(currentWorkingDirectory)
     outputFile = BlankString(outputFile)
     outputFileEnergies = BlankString(outputFileEnergies)
@@ -359,7 +393,7 @@ Contains
     mpiProcessID = 0 
 ! System Variables  
     largeArraySize = 0.0D0
-    processMap = 0   
+    processMap = -1   
 ! Default variables    
     eamFunctionTypes = BlankStringArray(eamFunctionTypes)
     eamFunctionTypes(1) = "PAIR"
@@ -395,6 +429,8 @@ Contains
     zblHardCore = 0.0D0
     splineNodeCount = 0
     splineTotalNodes = 0
+    eamForceSpline = 0
+    eamForceZBL = 0
 ! Config Details - User Input   
     globalConfigUnitVector = 0.0D0 
     configFilePath = BlankString(configFilePath)
@@ -431,8 +467,7 @@ Contains
     eamKey = -1
     eamData = 0.0D0    
     splineNodesKey = -1
-    splineNodesData = 0.0D0
-    eamForceSpline = 0    
+    splineNodesData = 0.0D0 
     eamKeyInput = -1
     eamDataInput = 0.0D0
     eamKeyOpt = -1
@@ -452,6 +487,7 @@ Contains
     configurationCoordsKeyG = 0
     configurationCoordsIG = 0
     configurationCoordsRG = 0.0D0
+    configVolume = 0.0D0
 ! Configuration Reference/Calculated Values
     configRef = -2.1D20                    
     configCalc = -2.1D20                      
@@ -463,6 +499,7 @@ Contains
     configCalcEnergies = -2.1D20       
     configRefEV = -2.1D20    
     configCalcEV = -2.1D20      
+    configCalcEE = -2.1D20  
     configRSS = 0.0D0
     totalRSS = 0.0D0
     optimumRSS = 0.0D0
@@ -474,6 +511,10 @@ Contains
     neighbourListR = 0.0D0
     neighbourListCoords = 0.0D0
     atomSeparationSpread = 0
+! Temporary NL arrays    
+    neighbourListIT = 0        
+    neighbourListRT = 0.0D0       
+    neighbourListCoordsT = 0.0D0 
 ! Calculation
     calculationDensity = 0.0D0
 ! Results  
@@ -533,12 +574,26 @@ Contains
 ! System Variables
 
 ! Estimate memory of large arrays
-    largeArraySize = size(eamFunctionTypes) * 1.0D0 * 4.0D0 + &
+    largeArraySize = size(fileCleanupList) * 1.0D0 * 512.0D0 + &     ! Character
+                     size(processMap) * 1.0D0 * 4.0D0 + &            ! Int
+                     size(eamFunctionTypes) * 1.0D0 * 4.0D0 + &
+                     size(zblHardCore) * 1.0D0 * 8.0D0 + &           ! DP
+                     size(splineNodeCount) * 1.0D0 * 4.0D0 + &       ! Int
                      size(globalConfigUnitVector) * 8.0D0 + &
+                     size(varyNodeOptions) * 1.0D0 * 8.0D0 + &     
+                     size(rssWeighting) * 1.0D0 * 4.0D0 + &                            
                      size(elements) * 1.0D0 + &
                      size(elementsCharge) * 4.0D0 + &
                      size(eamKey) * 4.0D0 + &
                      size(eamData) * 8.0D0 + &
+                     size(splineNodesKey) * 4.0D0 + &
+                     size(splineNodesData) * 8.0D0 + &
+                     size(eamKeyInput) * 4.0D0 + &
+                     size(eamDataInput) * 8.0D0 + &
+                     size(eamKeyOpt) * 4.0D0 + &
+                     size(eamDataOpt) * 8.0D0 + &
+                     size(splineNodesKeyOpt) * 4.0D0 + &
+                     size(splineNodesDataOpt) * 8.0D0 + &
                      size(configurationsI) * 4.0D0 + &
                      size(configurationsR) * 8.0D0 + &
                      size(configurationCoordsKey) * 4.0D0 + &
@@ -553,6 +608,9 @@ Contains
                      size(neighbourListI) * 4.0D0 + &
                      size(neighbourListR) * 8.0D0 + &
                      size(neighbourListCoords) * 8.0D0 + &
+                     size(neighbourListIT) * 4.0D0 + &
+                     size(neighbourListRT) * 8.0D0 + &
+                     size(neighbourListCoordsT) * 8.0D0 + &
                      size(pwbUnitVector) * 8.0D0 + &
                      size(pwbUnitVectorWorking) * 8.0D0 + &
                      size(pwbAtomLabelsInput) * 1.0D0 * 8.0D0 + &
@@ -576,7 +634,25 @@ Contains
     largeArraySize = largeArraySize / 1.0D6                 
                      
     
+! Global Init End Time
+    Call cpu_time(globalsTimeEnd)    
+! Store time duration
+    Call storeTime(1,globalsTimeEnd-globalsTimeStart)   
   
   End Subroutine initGlobals
+  
+! Init global variables
+  Subroutine storeTime(i,time) 
+    Implicit None  
+! Private variables    
+    Integer(kind=StandardInteger) :: i
+    Real(kind=DoubleReal) :: time
+    cpuTime(i) = cpuTime(i) + time
+  End Subroutine storeTime
+
+
+
+
+  
   
 End Module globals  

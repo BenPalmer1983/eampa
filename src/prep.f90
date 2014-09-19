@@ -21,6 +21,7 @@ Module prep
   Use initialise
   Use loadData  
   Use globals
+  Use output
 ! Force declaration of all variables
   Implicit None
 !Privacy of variables/functions/subroutines
@@ -42,11 +43,31 @@ Contains
   Subroutine setProcessMap()
     Implicit None   ! Force declaration of all variables
 ! Private variables    
-    Integer(kind=StandardInteger) :: i
+    Integer(kind=StandardInteger) :: i, j
+! Init variables
+    i = 0    
+    j = 0
+! Energy/force/stress calculations    
     Do i=1,configCount
       processMap(i,1) = mod(i-1,mpiProcessCount)
     End Do
+! Equilibrium volume calculations
+    If(calcEqVol(1:3).eq."ALL")Then    
+      Do i=1,configCount
+        processMap(i,2) = mod(i-1,mpiProcessCount)
+      End Do
+    Else If(calcEqVol(1:3).eq."SEL")Then  
+      Do i=1,configCount
+        If(configRefEV(i).gt.-2.0D20)Then
+          j = j + 1
+          processMap(i,2) = mod(j-1,mpiProcessCount)
+        End If
+      End Do
+    Else !none  
+      !do nothing
+    End If
     
+    Call outputProcessMap()
   End Subroutine setProcessMap
   
   

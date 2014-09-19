@@ -37,6 +37,9 @@ Contains
   Subroutine readEAMFile()
     Implicit None   ! Force declaration of all variables
 ! Private variables    
+    Real(kind=DoubleReal) :: timeStartEAM, timeEndEAM
+! Start Time
+    Call cpu_time(timeStartEAM)    
 ! Prepare the eam file
     If(mpiProcessID.eq.0)Then
       Call prepFile()    
@@ -56,13 +59,19 @@ Contains
       Call setEamSpline()
     End If    
 ! Force ZBL if required
-    If(zblHardCore(1).gt.0.0D0)Then
+    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
       Call eamZblHardCore()
     End If
 ! Save the eam file in the output dir if required    
     Call saveEamFile(eamSaveFile) 
 ! Output summary of EAM to the output file
     Call outputSummary()    
+! Synchronise Processes
+    Call M_synchProcesses()
+! End Time
+    Call cpu_time(timeEndEAM)
+! Store Time    
+    Call storeTime(4,timeEndEAM-timeStartEAM)  
   End Subroutine readEAMFile 
   
   

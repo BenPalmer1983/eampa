@@ -8,7 +8,7 @@ Module neighbourList
 ! Read user input file 
 
 !----------------------------------------
-! Updated: 12th Aug 2014
+! Updated: 16th Sept 2014
 !----------------------------------------
 
 ! Setup Modules
@@ -152,6 +152,8 @@ Contains
       neighbourListKey(configID,3) = configStart+configLength-1
       configStart = configStart + configLength
     End Do  ! End loop configs
+! Save summary to output file
+    Call outputNLSummary()    
 ! Save tally to file    
     Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"nlSeparation.dat",&
     status="old",position="append",action="write") 

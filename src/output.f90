@@ -168,19 +168,24 @@ Contains
       status="old",position="append",action="write")
       write(999,"(A1)") " "
       write(999,"(F8.4,A2,A26)") ProgramTime(),"  ","Configuration Evaluations:"
-      write(999,"(A5,A5,A7,A13,A13,A13,A13,A13,A13)") &
+      write(999,"(A5,A5,A7,A13,A13,A13,A13,A13,A13,A13,A13)") &
       "Cfg  ","Proc ","Atoms  ","Ref Energy   ",&
-      "Calc Energy  ","Ref Eq Vol   ","Calc Eq Vol  ","Calc Eq Ene  ","RSS          "
+      "Calc Energy  ","Config Vol   ","Ref Eq Vol   ","Calc Eq Vol  ",&
+      "Calc Eq Ene  ","Calc Eq LatF ","RSS          "
       totalAtoms = 0
       Do configID=1,configCount
-        write(999,"(I4,A1,I4,A1,I6,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1)") &
+        write(999,&
+        "(I4,A1,I4,A1,I6,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1)"&
+        ) &
         configID," ",processMap(configID,1)," ",&
         configurationCoordsKeyG(configID,2)," ",&
         (configRefEnergies(configID)*configurationCoordsKeyG(configID,2))," ",&
         configCalcEnergies(configID)," ",& 
+        configVolume(configID)," ",& 
         configRefEV(configID)," ",& 
         configCalcEV(configID)," ",& 
         configCalcEE(configID)," ",& 
+        configCalcEL(configID)," ",& 
         configRSS(configID,size(configRSS,2))," "  
         totalAtoms = totalAtoms + configurationCoordsKeyG(configID,2)       
       End Do

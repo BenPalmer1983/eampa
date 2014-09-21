@@ -38,18 +38,21 @@ Contains
     Integer(kind=StandardInteger) :: configID, forceKeyStart, forceKeyEnd, selectedProcess
     Real(kind=DoubleReal) :: configEnergy
     Real(kind=DoubleReal) :: energyTimeStart, energyTimeEnd
+    !Integer(kind=StandardInteger) :: processesPerEnergy
 ! Start time
     Call cpu_time(energyTimeStart)
 ! Init variables    
     configCalcEnergies = -2.1D20 
     configCalcForces = -2.1D20
-    configCalcStresses = -2.1D20  
+    configCalcStresses = -2.1D20 
+! MPI Processes per energy calculation    
 ! Loop through configurations
     Do configID=1,configCount
-      If(processMap(configID,1).eq.mpiProcessID)Then  ! build in more mpi options here
-      
+      If(processMap(configID,1).eq.mod(mpiProcessID,configCount))Then  ! build in more mpi options here
         Call calcEnergy(configID, configEnergy, 1)
-        configCalcEnergies(configID) = configEnergy
+        If(processMap(configID,1).eq.mpiProcessID)Then
+          configCalcEnergies(configID) = configEnergy  !Store result from primary mpi process
+        End If
       End If  
     End Do
 ! Distribute energy array    
@@ -85,6 +88,8 @@ Contains
     Integer(kind=StandardInteger) :: forceCalc, forceKeyA, forceKeyB
     Real(kind=DoubleReal) :: densDerivAB, densDerivBA, embeDerivA, embeDerivB, forceM
     Real(kind=DoubleReal) :: timeStartEFS, timeEndEFS
+    Integer(kind=StandardInteger) :: processesPerEnergy, primaryProcess, embKeyInc, processID
+    Integer(kind=StandardInteger), Dimension(1:10,1:2) :: procArrayEmbe
 ! Start Time
     Call cpu_time(timeStartEFS)
 ! Init variables
@@ -111,6 +116,28 @@ Contains
         configCalcStresses(configID,i) = 0.0D0
       End Do  
     End If
+! Multiple processes per energy calculation
+    processesPerEnergy = Floor(1.0D0*(mpiProcessCount/configCount))
+    primaryProcess = processMap(configID,1)
+    procArrayEmbe = 0
+! Set embe energy calc start-end array
+    If(processesPerEnergy.eq.1)Then
+      procArrayEmbe(1,1) = 1
+      procArrayEmbe(1,2) = configurationCoordsKeyG(configID,2)
+    Else
+      embKeyInc = Floor(1.0D0*configurationCoordsKeyG(configID,2)/processesPerEnergy)
+      procArrayEmbe(1,1) = 1
+      procArrayEmbe(1,2) = embKeyInc
+      Do i=2,processesPerEnergy
+        If(i.eq.processesPerEnergy)Then
+          procArrayEmbe(i,1) = procArrayEmbe(i-1,2)+1
+          procArrayEmbe(i,2) = configurationCoordsKeyG(configID,2)
+        Else  
+          procArrayEmbe(i,1) = procArrayEmbe(i-1,2)+1
+          procArrayEmbe(i,2) = procArrayEmbe(i-1,2)+embKeyInc          
+        End If
+      End Do  
+    End If      
 !--------------------------------------------------
 ! Loop 1 - sum pair energy and density	
 !--------------------------------------------------
@@ -152,12 +179,28 @@ Contains
     End Do 
 !--------------------------------------------------
 ! Loop 2 - embedding energy	
-!--------------------------------------------------       
-    Do i=1,configurationCoordsKeyG(configID,2)
-      yArray = SearchPotentialPoint&
+!--------------------------------------------------   
+    If(mpiEnergy.eq.1)Then
+      Do j=1,processesPerEnergy
+        processID = mod(mpiProcessID,configCount)+(j-1)*configCount
+        If(mpiProcessID.eq.processID)Then
+          Do i=procArrayEmbe(j,1),procArrayEmbe(j,2)
+            yArray = SearchPotentialPoint&
                (neighbourListI(i,1),0,3,eamType,calculationDensity(neighbourListI(i,1)))
-      embeddingEnergy = embeddingEnergy + yArray(1)      
-    End Do      
+            embeddingEnergy = embeddingEnergy + yArray(1)      
+          End Do        
+        End If
+      End Do 
+      If(processesPerEnergy.gt.1)Then
+        Call M_sumDouble(mod(mpiProcessID,configCount), mpiProcessID, embeddingEnergy)        
+      End If 
+    Else
+      Do i=1,configurationCoordsKeyG(configID,2)
+        yArray = SearchPotentialPoint&
+          (neighbourListI(i,1),0,3,eamType,calculationDensity(neighbourListI(i,1)))
+          embeddingEnergy = embeddingEnergy + yArray(1)      
+      End Do
+    End If
 ! Sum energies   
     configEnergy = pairEnergy + embeddingEnergy
 !--------------------------------------------------
@@ -210,7 +253,7 @@ Contains
 ! End Time
     Call cpu_time(timeEndEFS)        
 ! Store Time    
-    Call storeTime(1,timeEndEFS-timeStartEFS)   
+    Call storeTime(6,timeEndEFS-timeStartEFS)   
   End Subroutine calcEnergy 
 
 

@@ -132,6 +132,9 @@ Contains
         optionNeighbourList = 1
         optionCalcEnergies = 1
         optionOutput = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: ENERGY"
+        End If
       End If
       If(fileRow(1:4).eq."EVAL")Then
         optionReadEAM = 1
@@ -139,6 +142,9 @@ Contains
         optionNeighbourList = 1
         optionEval = 1
         optionOutput = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: EVALUATION"
+        End If
       End If
       If(fileRow(1:4).eq."EVAF")Then
         optionReadEAM = 1
@@ -146,9 +152,15 @@ Contains
         optionNeighbourList = 1
         optionEvalFull = 1
         optionOutput = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: EVALUATION [FULL]"
+        End If
       End If
       If(fileRow(1:3).eq."PWB")Then
         optionRunPWBatch = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: PWSCF BATCH INPUT FILES"
+        End If
       End If
       If(fileRow(1:4).eq."OPTI")Then
         optionReadEAM = 1
@@ -157,9 +169,29 @@ Contains
         optionCalcEnergies = 0
         optionOptimise = 1
         optionOutput = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: OPTIMISE POTENTIAL"
+        End If
       End If
-      
+      If(fileRow(1:4).eq."OPTF")Then
+        optionReadEAM = 1
+        optionReadConf = 1
+        optionNeighbourList = 1
+        optionCalcEnergies = 0
+        optionOptimise = 1
+        optionOutput = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: OPTIMISE POTENTIAL [FULL]"
+        End If
+      End If
     End If
+!----------------------------------      
+! MPI Options
+!----------------------------------  
+     If(fileRow(1:10).eq."#MPIENERGY")then
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) mpiEnergy
+    End If   
 !----------------------------------      
 ! EAM Potential
 !----------------------------------  
@@ -247,6 +279,14 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       calcEqVol = trim(adjustl(StrToUpper(fileRow)))
     End If  
+    If(fileRow(1:12).eq."#REFINEEQVOL")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      fileRow = trim(adjustl(fileRow))
+      If(fileRow(1:1).eq."Y")Then
+        refineEqVol = "YES"
+      End If
+    End If  
+    
     
     
     
@@ -257,7 +297,10 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Call strToDPArr(fileRow,varyNodeOptions)      
     End If     
-    
+    If(fileRow(1:9).eq."#OPTLOOPS")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) optLoops  
+    End If       
     
     
     

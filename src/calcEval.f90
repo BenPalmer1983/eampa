@@ -49,16 +49,15 @@ Contains
 ! Private variables      
     Real(kind=DoubleReal) :: timeStartEval, timeEndEval
 ! Start time
-    Call cpu_time(timeStartEval)
-    
+    Call cpu_time(timeStartEval)    
 ! Run energy/force/stress calculations
     Call calcEnergies()  
+! Full evaluation options
+    If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF")Then
 ! Run bulk property calculations
-    Call calcEquilibrium()
+      Call calcEquilibrium()
     
-   
-
-
+    End If
    
 ! Calculate RSS between reference and calculated values
     Call calcRSS()

@@ -56,6 +56,8 @@ Module globals
 ! Input File - User Input
   Character(len=255) :: inputFilePath
   Character(len=255) :: inputFilePathT
+! MPI Options
+  Integer(kind=StandardInteger) :: mpiEnergy
 ! EAM Details - User Input
   Character(len=255) :: eamFilePath
   Character(len=255) :: eamFilePathT
@@ -74,10 +76,11 @@ Module globals
   Character(len=255) :: saveConfigFile
   Character(len=255) :: saveExpConfigFile
 ! Calculation details  
-  Character(len=8) :: calcEqVol
+  Character(len=8) :: calcEqVol  
+  Character(len=3) :: refineEqVol
 ! Optimise options  
   Real(kind=DoubleReal), Dimension(1:10) :: varyNodeOptions
-  
+  Integer(kind=StandardInteger) :: optLoops
 ! RSS calculation options  
   Real(kind=DoubleReal), Dimension(1:20) :: rssWeighting  
   
@@ -102,6 +105,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamData                        ! 3.2MB       1 x, 2 y(x), 3 y'(x), 4 y''(x) 
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKey
   Real(kind=DoubleReal), Dimension(1:10000,1:4) :: splineNodesData
+  Real(kind=DoubleReal), Dimension(1:10000,1:2) :: splineNodesResponse
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyInput
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataInput
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyOpt
@@ -136,6 +140,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEV                          ! Equilibrium volume
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEV
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEE
+  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEL
   Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
   Real(kind=DoubleReal) :: totalRSS, optimumRSS
 ! DFT Config
@@ -161,8 +166,6 @@ Module globals
 ! Calculations  
 !----------------------------------------------
   Real(kind=DoubleReal), Dimension(1:50000) :: calculationDensity
-  
-
   
 !----------------------------------------------
 ! Results  
@@ -241,6 +244,8 @@ Module globals
   Public :: optionOutput
 ! Input File - User Input
   Public :: inputFilePath, inputFilePathT
+! MPI Options
+  Public :: mpiEnergy
 ! EAM Details - User Input
   Public :: eamFilePath, eamFilePathT
   Public :: eamNodesFilePath
@@ -257,8 +262,10 @@ Module globals
   Public :: saveConfigFile, saveExpConfigFile
 ! Calculation details  
   Public :: calcEqVol
+  Public :: refineEqVol
 ! Optimise options    
   Public :: varyNodeOptions
+  Public :: optLoops
 ! RSS calculation options  
   Public :: rssWeighting  
 ! PW Batch Files - User Input   
@@ -280,6 +287,7 @@ Module globals
   Public :: eamData
   Public :: splineNodesData
   Public :: splineNodesKey
+  Public :: splineNodesResponse
   Public :: eamKeyInput
   Public :: eamDataInput
   Public :: eamKeyOpt
@@ -308,6 +316,7 @@ Module globals
   Public :: configRefEV
   Public :: configCalcEV
   Public :: configCalcEE
+  Public :: configCalcEL
   Public :: configRSS
   Public :: totalRSS, optimumRSS
 ! Neighbour List
@@ -420,6 +429,8 @@ Contains
 ! Input File - User Input  
     inputFilePath = BlankString(inputFilePath)
     inputFilePathT = BlankString(inputFilePathT)
+! MPI Options
+    mpiEnergy = 0
 ! EAM Details - User Input  
     eamFilePath = BlankString(eamFilePath)
     eamFilePathT = BlankString(eamFilePathT)
@@ -439,8 +450,10 @@ Contains
     saveExpConfigFile = BlankString(saveExpConfigFile)    
 ! Calculation details  
     calcEqVol = BlankString(calcEqVol)    
+    refineEqVol = "NO "    
 ! Optimise options    
     varyNodeOptions = 0.0D0 
+    optLoops = 1
 ! RSS calculation options  
     rssWeighting = 0  
 ! PW Batch Files - User Input   
@@ -468,6 +481,7 @@ Contains
     eamData = 0.0D0    
     splineNodesKey = -1
     splineNodesData = 0.0D0 
+    splineNodesResponse = 0.0D0 
     eamKeyInput = -1
     eamDataInput = 0.0D0
     eamKeyOpt = -1
@@ -499,7 +513,8 @@ Contains
     configCalcEnergies = -2.1D20       
     configRefEV = -2.1D20    
     configCalcEV = -2.1D20      
-    configCalcEE = -2.1D20  
+    configCalcEE = -2.1D20     
+    configCalcEL = -2.1D20  
     configRSS = 0.0D0
     totalRSS = 0.0D0
     optimumRSS = 0.0D0

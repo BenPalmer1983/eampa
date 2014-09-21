@@ -41,16 +41,13 @@ Contains
 ! Private variables   
     Integer(kind=StandardInteger) :: configID, i    
     Real(kind=DoubleReal) :: configEnergy  
-    Real(kind=DoubleReal), Dimension(1:5,1:2) :: dataPoints    
+    Real(kind=DoubleReal), Dimension(1:7,1:2) :: dataPoints    
     Real(kind=DoubleReal) :: eqTimeStart, eqTimeEnd
-    Real(kind=DoubleReal), Dimension(1:1024,1:10) :: outputEqVol
-    Real(kind=DoubleReal), Dimension(1:4) :: polyCoeffs
+    Real(kind=DoubleReal), Dimension(1:5) :: polyCoeffs
 ! Start time
     Call cpu_time(eqTimeStart)
 ! Reset calc ev array
     configCalcEV = -2.1D20   
-! Blank output array    
-    outputEqVol = -2.1D20 
 ! Loop through configurations
     Do configID=1,configCount
 ! Assign process ID
@@ -58,35 +55,37 @@ Contains
 ! Store original neighbour list to reload   
         Call saveConfigNL(configID) 
         Call calcEnergy(configID, configEnergy, 0)
-        dataPoints(3,1) = configVolume(configID)
-        dataPoints(3,2) = configEnergy
-        Do i=-2,2
+        dataPoints(4,1) = configVolume(configID)
+        dataPoints(4,2) = configEnergy
+        Do i=-3,3
           If(i.ne.0)Then
-            If(i.gt.-2)Then
+            If(i.gt.-3)Then
               Call loadConfigNL(configID)
             End If
-            Call isotropicDistortion(configID,0.05D0*i)
+            Call isotropicDistortion(configID,0.01D0*i)
             Call calcEnergy(configID, configEnergy, 0)
-            dataPoints(3+i,1) = ((1.0D0+0.05D0*i)**3)*configVolume(configID)
-            dataPoints(3+i,2) = configEnergy
+            dataPoints(4+i,1) = ((1.0D0+0.01D0*i)**3)*configVolume(configID)
+            dataPoints(4+i,2) = configEnergy
           End If
-        End Do  
-        Do i=1,5
-          outputEqVol(configID,2*(i-1)+1) = dataPoints(i,1)
-          outputEqVol(configID,2*(i-1)+2) = dataPoints(i,2)
-        End Do        
+        End Do    
         Call loadConfigNL(configID)   
 ! Find optimum energy/volume
-        configCalcEV(configID) = MinPolyFit(dataPoints,3) 
-        polyCoeffs = PolyFit(dataPoints,3)
+        configCalcEV(configID) = MinPolyFit(dataPoints,4) 
+        polyCoeffs = PolyFit(dataPoints,4)
         configCalcEE(configID) = CalcPolynomial(polyCoeffs, configCalcEV(configID))
+        configCalcEL(configID) = ((1.0D0*configCalcEV(configID))/(1.0D0*configVolume(configID)))&
+                                 **(1.0D0/3.0D0)
       End If  
     End Do
 ! Distribute eqvol array    
     Call M_collDouble1DMap(configCalcEV,processMap,2)
     Call M_collDouble1DMap(configCalcEE,processMap,2)
+    Call M_collDouble1DMap(configCalcEL,processMap,2)
     Call M_distDouble1D(configCalcEV)
     Call M_distDouble1D(configCalcEE)
+    Call M_distDouble1D(configCalcEL)
+
+    
 ! End time
     Call cpu_time(eqTimeEnd)
 ! Record time taken to make neighbour list

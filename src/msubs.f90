@@ -26,6 +26,7 @@ Module msubs
   Public :: M_collDouble1D
   Public :: M_collDouble1DMap
   Public :: M_collDouble2D
+  Public :: M_sumDouble
   
 !Functions
   
@@ -563,16 +564,54 @@ Module msubs
     End If    
   End Subroutine M_collDouble2D 
   
+    
   
   
   
   
+!--------------------------------------------------------------------------------------------------- 
+! Sum variable/array subroutines
+!--------------------------------------------------------------------------------------------------- 
+
+!------------------------------
+! M_collDouble1D
+!------------------------------
   
   
   
   
-  
-  
+  Subroutine M_sumDouble(procA, procB, doubleIn)
+! Adds doubleIn on procB to doubleIn on procA
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: procA, procB
+    Real(kind=DoubleReal) :: doubleIn, send, receive 
+    Integer(kind=StandardInteger) :: processTo, processFrom, tag
+    Integer(kind=StandardInteger) :: processID,processCount,error
+    Integer, Dimension(MPI_STATUS_SIZE) :: status
+! Init variables    
+    send = 0.0D0
+    receive = 0.0D0
+! Call mpi subroutines
+    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
+! Send from proc B
+    If(processID.eq.procB)Then     
+      processTo = procA
+      tag = 3211+procB
+      send = doubleIn
+      Call MPI_SEND(send,1,MPI_DOUBLE_PRECISION,processTo,tag,&
+      MPI_COMM_WORLD,status,error)  
+    End If 
+! Recv by proc A and add to existing value    
+    If(processID.eq.procA)Then    
+      processFrom = procB
+      tag = 3211+procB
+      Call MPI_RECV(receive,4,MPI_DOUBLE_PRECISION,processFrom,tag,&
+      MPI_COMM_WORLD,status,error) 
+      doubleIn = doubleIn + receive
+    End If
+  End Subroutine M_sumDouble 
   
   
   

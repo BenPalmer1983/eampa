@@ -68,6 +68,10 @@ Contains
     Integer(kind=StandardInteger), Parameter :: maxFileRows = 10000000 
     Integer(kind=StandardInteger) :: ios, i
     Character(len=255) :: fileRow
+! Output to terminal    
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+      print *,"Re-read input file"
+    End If
 !re-read user input file for specific pwbatch entries to replace defaults    
 !open & read in file    
     Open(UNIT=1,FILE=Trim(inputFilePathT)) 

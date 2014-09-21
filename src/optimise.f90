@@ -86,12 +86,26 @@ Contains
         Print *,"Spline RSS: ",totalRSS
       End If 
     End If  
+    
+!-------------------------------------      
+! Response of each node to a small perturbation
+!-------------------------------------     
+    Do i=1,size(splineNodeList,1)
+! Set optimum spline points as working spline points
+      splineNodesKey = splineNodesKeyOpt
+      splineNodesData = splineNodesDataOpt     
+      
+      
+    End Do
+    !splineNodesResponse
+    
+    
 !-------------------------------------      
 ! Loop and vary position of spline nodes
 !-------------------------------------   
     Call makeSplineNodeList(splineNodeList)
     j = 0
-    Do loops=1,10
+    Do loops=1,optLoops
       Do i=1,size(splineNodeList,1)
         j = j + 1
 ! Set optimum spline points as working spline points

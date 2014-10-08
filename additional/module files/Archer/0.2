@@ -1,0 +1,13 @@
+#%Module -*- tcl -*-
+##
+## modules eampa/0.2
+##
+## modulefiles/eampa/0.2
+##
+proc ModulesHelp { } {
+  puts stderr "\tAdds EAMPA 0.2 to your environment (GNU compiled),"
+}
+module-whatis "Adds EAMPA 0.2 to your environment (GNU compiled)"
+set     topdir          /home/e337/e337/benp/eampa
+set     version         0.2
+prepend-path   PATH   $topdir/bin

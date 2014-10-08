@@ -1,0 +1,15 @@
+#!/bin/bash --login
+#PBS -l select=1
+#PBS -l walltime=0:05:00
+#PBS -A e337
+set -v
+set -x
+module add eampa/0.2
+# Make sure any symbolic links are resolved to absolute path
+export PBS_O_WORKDIR=$(readlink -f $PBS_O_WORKDIR)
+# Change to the direcotry that the job was submitted from
+cd $PBS_O_WORKDIR
+# Set the number of threads to 1
+export OMP_NUM_THREADS=1
+# Run Jobs
+aprun -n 24 -N 24 -d 1 -j 1 -ss /home/e337/e337/benp/eampa/bin/eampa.x prep.in > prep.out

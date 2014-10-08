@@ -1,0 +1,14 @@
+#%Module -*- tcl -*-
+##
+## modules eampa/0.2
+##
+## modulefiles/eampa/0.2
+##
+proc ModulesHelp { } {
+  puts stderr "\tAdds EAMPA 0.2 to your environment (GNU compiled),"
+}
+module-whatis "Adds EAMPA 0.2 to your environment (GNU compiled)"
+module load /gpfs/apps/modules/apps/openmpi/v1.6.5/gcc-tm-ib/v4.8.2
+set     topdir          /gpfs/bb/bxp912/eampa
+set     version         0.2
+prepend-path   PATH   $topdir/bin

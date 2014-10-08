@@ -28,6 +28,7 @@ Module readConfig
   Private    
 !Public Subroutines
   Public :: readConfigFile
+  Public :: generateCoords
   
 Contains
   Subroutine readConfigFile()
@@ -35,7 +36,9 @@ Contains
 ! Private variables    
     Real(kind=DoubleReal) :: timeStartRC, timeEndRC
 ! Start Time
-    Call cpu_time(timeStartRC)    
+    Call cpu_time(timeStartRC) 
+! Clear config arrays
+    Call resetConfigVars()
 ! Prepare the temporary config file
     If(mpiProcessID.eq.0)Then
       Call prepFile()   
@@ -49,6 +52,8 @@ Contains
     Call readFile() 
 ! Generate co-ordinates   
     Call generateCoords()
+! Synch MPI processes    
+    Call M_synchProcesses()
 ! Output summary of config to the output file
     Call outputConfigSummaryT()  
 ! Output files
@@ -62,7 +67,27 @@ Contains
 ! Store Time    
     Call storeTime(7,timeEndRC-timeStartRC)  
   End Subroutine readConfigFile 
+    
   
+  Subroutine resetConfigVars()
+! Reset arrays used to store coords etc
+    Implicit None   ! Force declaration of all variables
+! Reset
+    configCount = 0
+    configurationsI = 0
+    configurationsR = 0.0D0
+    coordCount = 0
+    configurationCoordsKey = 0
+    configurationCoordsI = 0
+    configurationCoordsR = 0.0D0
+    configurationForcesR = -2.1D20
+    coordCountG = 0
+    configurationCoordsKeyG = 0
+    configurationCoordsIG = 0
+    configurationCoordsRG = 0.0D0
+    configVolume = 0.0D0
+    configVolumeOpt = -2.1D0
+  End Subroutine resetConfigVars 
   
   Subroutine prepFile()
 ! Creates a temporary file to contain the config potential
@@ -88,12 +113,12 @@ Contains
     Do i=1,maxFileRows 
 ! Read in line
       Read(1,"(A255)",IOSTAT=ios) fileRow
-      fileRow = RemoveComments(fileRow)
-      fileRow = RemoveQuotes(fileRow)
 ! Break out If end of file
       If (ios /= 0) Then
         EXIT 
       End If 
+      fileRow = RemoveComments(fileRow)
+      fileRow = RemoveQuotes(fileRow)
       fileRow = Trim(Adjustl(fileRow))
       If(fileRow(1:1).ne."!".or.fileRow(1:1).ne." ")Then
         If(StrToUpper(fileRow(1:5)).eq."#PATH")Then  !Ensure path remains case sensitive
@@ -116,8 +141,7 @@ Contains
 ! Private variables
     Integer(kind=StandardInteger), Parameter :: maxFileRows = 10000000 
     Integer(kind=StandardInteger) :: ios, i, j, writeFile
-    Real(kind=DoubleReal) :: cohEnergy, optEnergyPerAtom, radiusCutoff, eqVol
-    Integer(kind=StandardInteger) :: optEnergyAtoms
+    Real(kind=DoubleReal) :: radiusCutoff, eqVol, confWeight
     Character(len=255) :: fileRow
     Character(len=255) :: configFilePathTA, configFilePathTB, configFilePathTC, configFilePathTDFT
     Character(len=255) :: dftFilePath
@@ -132,6 +156,7 @@ Contains
     configFilePathTB = Trim(configFilePathT)//"B.temp.conf"   ! Input configs
     configFilePathTC = Trim(configFilePathT)//"C.temp.conf"   ! DFT input configs
     configFilePathTDFT = Trim(configFilePathT)//"DFT.temp.conf" ! DFT file
+    confWeight = 1.0D0
 ! Separate configs from dft file configs
     Open(UNIT=1,FILE=Trim(configFilePathTA)) 
     Open(UNIT=2,FILE=Trim(configFilePathTB)) 
@@ -157,7 +182,7 @@ Contains
     Close(2)
     Close(1)
 ! Set temp file name    
-    configFilePathT = Trim(configFilePathT)//".temp.conf" 
+    configFilePathT = Trim(configFilePathT)//".tempfinal.conf" 
 ! Copy already set configs to config temp file 
     Open(UNIT=1,FILE=Trim(configFilePathTB))    
     Open(UNIT=2,FILE=Trim(configFilePathT)) 
@@ -194,22 +219,14 @@ Contains
       If(fileRow(1:5).eq."#TYPE")Then  ! Ab init file type to read in
         Read(fileRow,*) bufferA, dftType
       End If
-      If(fileRow(1:5).eq."#CEPA")Then  ! Coh energy per atom    
-        Read(fileRow,*) bufferA, bufferB, bufferC
-        Read(bufferB,*) cohEnergy
-        cohEnergy = UnitConvert(cohEnergy, bufferC, "EV")
-      End If
-      If(fileRow(1:4).eq."#OPT")Then  ! Optimum/relaxed configuration energy
-        Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
-        Read(bufferB,*) optEnergyPerAtom
-        Read(bufferD,*) optEnergyAtoms        
-        optEnergyPerAtom = UnitConvert(optEnergyPerAtom, bufferC, "EV")
-        optEnergyPerAtom = optEnergyPerAtom / optEnergyAtoms
-      End If
       If(fileRow(1:3).eq."#EV")Then  ! Equilibrium volume
         Read(fileRow,*) bufferA, bufferB, bufferC
         Read(bufferB,*) eqVol   
         eqVol = UnitConvert(eqVol, bufferC, "ANG3")
+      End If
+      If(fileRow(1:3).eq."#CW")Then  ! Config Weighting
+        Read(fileRow,*) bufferA, bufferB
+        Read(bufferB,*) confWeight   
       End If
       If(fileRow(1:3).eq."#RC")Then  ! Radius cutoff 
         Read(fileRow,*) bufferA, bufferB, bufferC
@@ -228,41 +245,17 @@ Contains
       End If
       If(fileRow(1:7).eq."#ENDDFT")Then  ! Clean variables
         If(trim(dftType).eq."PWSCF")Then
-          Call readPWSCFFile(dftFilePath, configFilePathT, optEnergyPerAtom, &
-          eqVol, cohEnergy, radiusCutoff)
+          Call readPWSCFFile(dftFilePath, configFilePathT, &
+          eqVol, radiusCutoff, confWeight)
         End If  
       End If
     End Do
     Close(1)
-    
-    
-    
-    
-    
-
-    
-    
-! Copy back to config file    
-    !Open(UNIT=1,FILE=Trim(configFilePathT)) 
-    !Open(UNIT=2,FILE=Trim(configFilePathTB)) 
-    !Do i=1,maxFileRows 
-! Read in line
-      !Read(2,"(A255)",IOSTAT=ios) fileRow
-! Break out If end of file
-      !If (ios /= 0) Then
-        !EXIT 
-      !End If  
-      !write(1,"(A)") Trim(fileRow)
-    !End Do  
-    
-    
-    
-    
+! Add files to clean
     Call fileToClean(configFilePathT)
     Call fileToClean(configFilePathTB)
     Call fileToClean(configFilePathTC)
     Call fileToClean(configFilePathTDFT)
-
   End Subroutine readDFTFiles 
   
   
@@ -331,7 +324,7 @@ Contains
         Read(bufferB,*) configurationsI(configCount,1)    
         Read(bufferC,*) configurationsI(configCount,2)   
         Read(bufferD,*) configurationsI(configCount,3)  
-      End If
+      End If      
       If(fileRow(1:2).eq."#F")Then    
         Read(fileRow,*) bufferA, bufferB    
         If(bufferB(1:1).eq."Y")Then
@@ -360,6 +353,11 @@ Contains
           End If  
         End If  
       End If
+! Read in configuration weighting
+      If(fileRow(1:3).eq."#CW")Then
+        Read(fileRow,*) bufferA, bufferB
+        Read(bufferB,*) configWeighting(configCount)    
+      End If  
 ! Read in energy
       If(fileRow(1:4).eq."#EPA")Then
         Read(fileRow,*) bufferA, bufferB, bufferC
@@ -373,7 +371,13 @@ Contains
         Read(bufferB,*) configRef(configCount,2)    
         configRef(configCount,2) = UnitConvert(configRef(configCount,2),bufferC,"ANG3")
         configRefEV(configCount) = configRef(configCount,2)  ! Also store in eqvol array
-      End If        
+      End If   
+! Read in Bulk Modulus
+      If(fileRow(1:3).eq."#BM")Then
+        Read(fileRow,*) bufferA, bufferB, bufferC
+        Read(bufferB,*) configRefBM(configCount)    
+        configRefBM(configCount) = UnitConvert(configRefBM(configCount),bufferC,"GPA")
+      End If       
 ! Read in stresses
       If(fileRow(1:3).eq."#SX")Then
         Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
@@ -418,7 +422,7 @@ Contains
     Real(kind=DoubleReal) :: aLat
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: configUnitVector 
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: configVolVector 
-    Real(kind=DoubleReal) :: xC, yC, zC    
+    Real(kind=DoubleReal) :: xC, yC, zC, xCa, yCa, zCa    
 ! Init variables
     configUnitVector = 0.0D0
     coordStart = 0
@@ -461,7 +465,7 @@ Contains
       configurationsR(i,27) = configUnitVector(3,1)
       configurationsR(i,28) = configUnitVector(3,2)
       configurationsR(i,29) = configUnitVector(3,3)
-! Loop through coords
+! Loop through coords to make supercell
       Do x=1,xCopy
         Do y=1,yCopy
           Do z=1,zCopy    
@@ -469,14 +473,14 @@ Contains
 ! Increment counter            
               coordCountG = coordCountG + 1
               coordLengthG = coordLengthG + 1
-! Calculate coordinate
-              xC = aLat*(x + configurationCoordsR(j,1) - 1)
-              yC = aLat*(y + configurationCoordsR(j,2) - 1)
-              zC = aLat*(z + configurationCoordsR(j,3) - 1)
+! Calculate coordinate in supercell
+              xCa = aLat*(x + configurationCoordsR(j,1) - 1)
+              yCa = aLat*(y + configurationCoordsR(j,2) - 1)
+              zCa = aLat*(z + configurationCoordsR(j,3) - 1)
 ! Apply unit vector
-              xC = xC*configUnitVector(1,1)+yC*configUnitVector(1,2)+zC*configUnitVector(1,3)
-              yC = xC*configUnitVector(2,1)+yC*configUnitVector(2,2)+zC*configUnitVector(2,3)
-              zC = xC*configUnitVector(3,1)+yC*configUnitVector(3,2)+zC*configUnitVector(3,3)
+              xC = xCa*configUnitVector(1,1)+yCa*configUnitVector(1,2)+zCa*configUnitVector(1,3)
+              yC = xCa*configUnitVector(2,1)+yCa*configUnitVector(2,2)+zCa*configUnitVector(2,3)
+              zC = xCa*configUnitVector(3,1)+yCa*configUnitVector(3,2)+zCa*configUnitVector(3,3)
 ! Store results
               configurationCoordsIG(coordCountG,1) = configurationCoordsI(j,1)      ! Atom type
               configurationCoordsRG(coordCountG,1) = xC                             ! X coord
@@ -531,8 +535,8 @@ Contains
           configRefStresses(i,2),configRefStresses(i,3)
           write(102,"(A4,F12.7,F12.7,F12.7)") "#SY ",configRefStresses(i,4),&
           configRefStresses(i,5),configRefStresses(i,6)
-          write(102,"(A4,F12.7,F14.7,F12.7)") "#SZ ",configRefStresses(i,4),&
-          configRefStresses(i,5),configRefStresses(i,6)
+          write(102,"(A4,F12.7,F14.7,F12.7)") "#SZ ",configRefStresses(i,7),&
+          configRefStresses(i,8),configRefStresses(i,9)
         End If 
         write(102,"(A4,I2,A1,I2,A1,I2)") "#CC ",configurationsI(i,1)," ",&
         configurationsI(i,2)," ",configurationsI(i,3)
@@ -545,7 +549,7 @@ Contains
         End If
         coordStart = configurationCoordsKey(i,1)
         coordEnd = configurationCoordsKey(i,3)     
-        If(configCalcForces(i,1).gt.-2.0D20)Then
+        If(configurationForcesR(coordStart,1).gt.-2.0D20)Then
           write(102,"(A4)") "#F Y"
           Do j=coordStart,coordEnd
             elementLabel = elements(configurationCoordsI(j,1))
@@ -586,8 +590,8 @@ Contains
           configRefStresses(i,2),configRefStresses(i,3)
           write(102,"(A4,F12.7,F12.7,F12.7)") "#SY ",configRefStresses(i,4),&
           configRefStresses(i,5),configRefStresses(i,6)
-          write(102,"(A4,F12.7,F12.7,F12.7)") "#SZ ",configRefStresses(i,4),&
-          configRefStresses(i,5),configRefStresses(i,6)
+          write(102,"(A4,F12.7,F12.7,F12.7)") "#SZ ",configRefStresses(i,7),&
+          configRefStresses(i,8),configRefStresses(i,9)
         End If 
         write(102,"(A12)") "#CC    1 1 1"
         !configurationsR(i,1)
@@ -599,7 +603,7 @@ Contains
         End If
         coordStartG = configurationCoordsKeyG(i,1)
         coordEndG = configurationCoordsKeyG(i,3)     
-        If(configCalcForces(i,1).gt.-2.0D20)Then
+        If(configRefForces(coordStartG,1).gt.-2.0D20)Then
           write(102,"(A4)") "#F Y"
           Do j=coordStartG,coordEndG
             elementLabel = elements(configurationCoordsIG(j,1))
@@ -667,8 +671,8 @@ Contains
   
   
   
-  Subroutine readPWSCFFile(dftFilePath, confFilePath, dftInOptEnergy,&
-                          dftInEqVol, dftInCohEnergy, dftInRadiusCutoff)
+  Subroutine readPWSCFFile(dftFilePath, confFilePath, &
+                          dftInEqVol, dftInRadiusCutoff, confWeight)
 ! Read in configuration file
 ! readPWSCFFile(dftFilePath, configFilePathT, optEnergyPerAtom, cohEnergy)
     Implicit None  ! Force declaration of all variables
@@ -681,12 +685,14 @@ Contains
     Integer(kind=StandardInteger) :: readType, lastScf, numberOfAtoms
     Real(kind=DoubleReal) :: aLat, dftInRadiusCutoff
     Real(kind=DoubleReal) :: configTotalEnergy, configEnergyPerAtom
-    Real(kind=DoubleReal) :: dftInOptEnergy, dftInCohEnergy, dftInEqVol
+    Real(kind=DoubleReal) :: dftInEqVol, confWeight
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: stress
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: crystalAxes    !Unit vector
     Character(len=8), Dimension(1:4096) :: atomType
+    Character(len=8) :: atomTypeTemp
     Real(kind=DoubleReal), Dimension(1:4096,1:3) :: atomCoords
-    Real(kind=DoubleReal), Dimension(1:4096,1:3) :: atomForcess        
+    Real(kind=DoubleReal), Dimension(1:4096,1:3) :: atomForcess     
+    Real(kind=DoubleReal) :: energyOffset
 ! Init variables
     readType = 0    ! SCF calculation    
     lastScf = 1
@@ -736,8 +742,8 @@ Contains
           read(fileLineBuffer,*) bufferA, bufferB
           read(bufferA,*) configTotalEnergy
           configTotalEnergy = UnitConvert(configTotalEnergy,"RY","EV")
-          configEnergyPerAtom = (configTotalEnergy/(1.0D0*numberOfAtoms))-&
-            (dftInOptEnergy-dftInCohEnergy)  
+          !configEnergyPerAtom = (configTotalEnergy/(1.0D0*numberOfAtoms))-&
+          !  (dftInOptEnergy-dftInCohEnergy)  
         End If      
 !Stresses        
         If(fileRow(1:38).eq."          total   stress  (Ry/bohr**3)")Then
@@ -875,6 +881,21 @@ Contains
       End If
     End Do  
     Close(101) 
+! Sort out energy    
+    energyOffset = 0.0D0
+    Do i=1,numberOfAtoms
+      atomTypeTemp = StrToUpper(Trim(atomType(i)))
+      Do j=1,size(dftElement)
+        If(dftElement(j).eq."  ")Then
+          Exit
+        End If
+        If(dftElement(j).eq.atomTypeTemp(1:2))Then
+          energyOffset = energyOffset - (dftOptEnergy(j)-dftCohEnergy(j))
+        End If
+      End Do      
+    End Do    
+    configTotalEnergy = configTotalEnergy + energyOffset
+    configEnergyPerAtom = configTotalEnergy / (1.0D0 * numberOfAtoms)
 ! Save to file
     open(unit=101,file=trim(confFilePath),status="old",position="append",action="write")
     write(101,"(A27,I8,A9,E20.10)") "#NEW  !added config, atoms ",numberOfAtoms,&
@@ -888,7 +909,8 @@ Contains
     write(101,"(A4,F12.7,F12.7,F12.7)") "#SZ ",stress(3,1),stress(3,2),stress(3,3)
     write(101,"(A9)") "#CC 1 1 1"
     write(101,"(A4,F10.7)") "#RC ",dftInRadiusCutoff
-    write(101,"(A5,F10.7,A3)") "#EPA ",configEnergyPerAtom," eV"
+    write(101,"(A4,F10.7)") "#CW ",confWeight    
+    write(101,"(A5,F10.7,A3)") "#EPA ",configEnergyPerAtom," EV"
     If(dftInEqVol.gt.-2.0D20)Then
       write(101,"(A4,F16.7,A5)") "#EV ",dftInEqVol," ANG3" 
     End If

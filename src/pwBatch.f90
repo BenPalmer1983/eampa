@@ -121,8 +121,36 @@ Contains
         Read(1,"(A255)",IOSTAT=ios) fileRow
         Read(fileRow,*) pwbNbnd
       End If
+      If(StrToUpper(fileRow(1:11)).eq."#PWBDEGAUSS")then
+!read next line
+        Read(1,"(A255)",IOSTAT=ios) fileRow
+        Read(fileRow,*) pwbDegauss
+      End If
+      If(StrToUpper(fileRow(1:11)).eq."#PWBDEGAUSS")then
+!read next line
+        Read(1,"(A255)",IOSTAT=ios) fileRow
+        Read(fileRow,*) pwbDegauss
+      End If
+      If(StrToUpper(fileRow(1:15)).eq."#PWBETOTCONVTHR")then
+!read next line
+        Read(1,"(A255)",IOSTAT=ios) fileRow
+        Read(fileRow,*) pwbEtotConvThr
+      End If
+      If(StrToUpper(fileRow(1:15)).eq."#PWBFORCCONVTHR")then
+!read next line
+        Read(1,"(A255)",IOSTAT=ios) fileRow
+        Read(fileRow,*) pwbForcConvThr
+      End If
+      If(StrToUpper(fileRow(1:15)).eq."#PWBCONVTHR")then
+!read next line
+        Read(1,"(A255)",IOSTAT=ios) fileRow
+        Read(fileRow,*) pwbConvThr
+      End If
       
       
+      
+      
+    
       
     End Do  
   End Subroutine loadPWBatchVars 
@@ -249,64 +277,222 @@ Contains
       End Do
     End Do      
     pwbNat = n
+    pwbNatWorking = pwbNat
+    pwbNtypWorking = pwbNtyp
 ! Store working labels and coords
     pwbAtomCoordsWorking = pwbAtomCoords
     pwbAtomLabelsWorking = pwbAtomLabels
   End Subroutine loadPWBatchConfig 
   
+  
+  
+  
 !------------------------------------------------------------------
-! Write pwscf file 
+! Make batch files
 !------------------------------------------------------------------  
   Subroutine makeBatchFiles() 
 !force declaration of all variables
     Implicit None    
 !declare private variables
-    Integer(kind=StandardInteger) :: i, j
-    Real(kind=DoubleReal) :: maxVariance
+    Character(len=16) :: tempString
 !-----------------------
 ! Single "batch" file
 !-----------------------
-    If(eampaRunType(1:4).eq."PWB1")Then ! Make single batch file
+    If(pwbRunType(1:16).eq."SINGLE          ")Then ! Make single batch file
+! Load unit vector
       pwbUnitVectorWorking = pwbUnitVector
-      If(mpiProcessID.eq.0)Then
-        Call writePWscfFile("pwscf.in")
+! Number of atoms/types
+      pwbNatWorking = pwbNat
+      pwbNtypWorking = pwbNtyp
+! Load label and coords      
+      pwbAtomCoordsWorking = pwbAtomCoords
+      pwbAtomLabelsWorking = pwbAtomLabels
+! Add interstitial      
+      tempString = pwbInterstitialDetails(2)
+      If(tempString(1:1).ne." ")Then
+        Call addInterstitial()
       End If
+! Randomise co-ordinates      
+      If(pwbVarianceSwitch.eq.1)Then
+        Call randomiseCoordinates()
+      End If
+! Write file
+      Call writePWscfFile("pwscf.in")
 ! Synch MPI processes    
       Call M_synchProcesses() 
     End If
-!-----------------------
-! Single "batch" file, randomised coords
-!-----------------------
-    If(eampaRunType(1:4).eq."PWB2")Then ! Make single batch file
-! Set unit vector
-      pwbUnitVectorWorking = pwbUnitVector
-! Calculate primary lattice parameter     
-      maxVariance = pwbVarianceMax/(1.0D0*sqrt(pwbUnitVectorWorking(1,1)**2+&
-      pwbUnitVectorWorking(1,2)**2+&
-      pwbUnitVectorWorking(1,3)**2)*pwbXCopy*pwbLatticeParameter)
-      Do j=1,3
-        Do i=1,size(pwbAtomCoordsWorking,1)
-          If(pwbAtomLabelsWorking(j).eq."#BLANK##")Then
-            Exit
-          End If
-          pwbAtomCoordsWorking(i,j) = &
-          RandomVaryPoint(pwbAtomCoordsWorking(i,j), maxVariance, pwbVarianceSigma)
-        End Do
-      End Do
-      If(mpiProcessID.eq.0)Then
-        Call writePWscfFile("pwscf.in")
-      End If
-! Synch MPI processes    
-      Call M_synchProcesses() 
-    End If    
-
-    
-  
   
   
   End Subroutine makeBatchFiles 
   
     
+    
+    
+    
+    
+!------------------------------------------------------------------
+! Vary/Modify Coordinates
+!------------------------------------------------------------------      
+    
+  Subroutine randomiseCoordinates()
+    Implicit None    ! Force declaration of all variables
+! Declare private variables
+    Integer(kind=StandardInteger) :: i, j
+    Real(kind=DoubleReal) :: maxVariance    
+! Calculate primary lattice parameter     
+    maxVariance = pwbVarianceMax/(1.0D0*sqrt(pwbUnitVectorWorking(1,1)**2+&
+    pwbUnitVectorWorking(1,2)**2+&
+    pwbUnitVectorWorking(1,3)**2)*pwbXCopy*pwbLatticeParameter)
+    Do j=1,3
+      Do i=1,size(pwbAtomCoordsWorking,1)
+        If(pwbAtomLabelsWorking(j).eq."#BLANK##")Then
+          Exit
+        End If
+        pwbAtomCoordsWorking(i,j) = &
+        RandomVaryPoint(pwbAtomCoordsWorking(i,j), maxVariance, pwbVarianceSigma)
+      End Do
+    End Do
+  End Subroutine randomiseCoordinates 
+    
+    
+  Subroutine addInterstitial()
+    Implicit None    ! Force declaration of all variables
+! Declare private variables
+    Character(len=16) :: crystalStructure, interstitialType
+    Real(kind=DoubleReal) :: xFrac, yFrac, zFrac
+    Real(kind=DoubleReal) :: xC, yC, zC
+    Real(kind=DoubleReal) :: newLatticeParameter
+    !Integer(kind=StandardInteger) :: i, j    
+! Init variables
+    xFrac = 1.0D0/pwbXCopy
+    yFrac = 1.0D0/pwbYCopy
+    zFrac = 1.0D0/pwbZCopy
+    crystalStructure = pwbInterstitialDetails(1)
+    interstitialType = pwbInterstitialDetails(2)
+! Choose type of structure
+    If(crystalStructure(1:3).eq."FCC")Then    
+      If(interstitialType(1:1).eq."O")Then  ! Add octahedral interstitial in first cube
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+          Print *,"Add FCC Octahedral"
+        End If
+        pwbNatWorking = pwbNatWorking + 1
+        pwbAtomLabelsWorking(pwbNatWorking) = pwbAtomicSpeciesL(pwbInterstitialAtom)
+        pwbAtomCoordsWorking(pwbNatWorking,1) = 0.5D0 * xFrac
+        pwbAtomCoordsWorking(pwbNatWorking,2) = 0.5D0 * yFrac
+        pwbAtomCoordsWorking(pwbNatWorking,3) = 0.5D0 * zFrac 
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+          Print "(A9,A8,F12.5,A1,F12.5,A1,F12.5)", " Added   ",&
+          pwbAtomLabelsWorking(pwbNatWorking),pwbAtomCoordsWorking(pwbNatWorking,1)," ",&
+          pwbAtomCoordsWorking(pwbNatWorking,2)," ",pwbAtomCoordsWorking(pwbNatWorking,3)
+        End If   
+      End If
+      If(interstitialType(1:1).eq."T")Then  ! Add tetrahedral interstitial in first cube
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+          Print *,"Add FCC Tetrahedral"
+        End If
+        pwbNatWorking = pwbNatWorking + 1
+        pwbAtomLabelsWorking(pwbNatWorking) = pwbAtomicSpeciesL(pwbInterstitialAtom)
+        pwbAtomCoordsWorking(pwbNatWorking,1) = 0.25D0 * xFrac
+        pwbAtomCoordsWorking(pwbNatWorking,2) = 0.25D0 * yFrac
+        pwbAtomCoordsWorking(pwbNatWorking,3) = 0.25D0 * zFrac
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+          Print "(A9,A8,F12.5,A1,F12.5,A1,F12.5)", " Added   ",&
+          pwbAtomLabelsWorking(pwbNatWorking),pwbAtomCoordsWorking(pwbNatWorking,1)," ",&
+          pwbAtomCoordsWorking(pwbNatWorking,2)," ",pwbAtomCoordsWorking(pwbNatWorking,3)
+        End If
+      End If
+      If(interstitialType(1:2).eq."D1")Then  ! Add Dumbbell
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+          Print *,"Add FCC Dumbell 1"
+        End If
+! Remove atom        
+        xC = 1.0D0 * xFrac
+        yC = 0.5D0 * yFrac
+        zC = 0.5D0 * zFrac        
+        Call removeAtom(xC, yC, zC)
+! Add dumbbell atoms
+        pwbNatWorking = pwbNatWorking + 1
+        pwbAtomLabelsWorking(pwbNatWorking) = pwbAtomicSpeciesL(pwbInterstitialAtom)
+        pwbAtomCoordsWorking(pwbNatWorking,1) = 0.7D0 * xFrac
+        pwbAtomCoordsWorking(pwbNatWorking,2) = 0.5D0 * xFrac
+        pwbAtomCoordsWorking(pwbNatWorking,3) = 0.5D0 * xFrac
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+          Print "(A9,A8,F12.5,A1,F12.5,A1,F12.5)", " Added   ",&
+          pwbAtomLabelsWorking(pwbNatWorking),pwbAtomCoordsWorking(pwbNatWorking,1)," ",&
+          pwbAtomCoordsWorking(pwbNatWorking,2)," ",pwbAtomCoordsWorking(pwbNatWorking,3)
+        End If
+        pwbNatWorking = pwbNatWorking + 1
+        pwbAtomLabelsWorking(pwbNatWorking) = pwbAtomicSpeciesL(pwbInterstitialAtom)
+        pwbAtomCoordsWorking(pwbNatWorking,1) = 1.3D0 * xFrac
+        pwbAtomCoordsWorking(pwbNatWorking,2) = 0.5D0 * xFrac
+        pwbAtomCoordsWorking(pwbNatWorking,3) = 0.5D0 * xFrac
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+          Print "(A9,A8,F12.5,A1,F12.5,A1,F12.5)", " Added   ",&
+          pwbAtomLabelsWorking(pwbNatWorking),pwbAtomCoordsWorking(pwbNatWorking,1)," ",&
+          pwbAtomCoordsWorking(pwbNatWorking,2)," ",pwbAtomCoordsWorking(pwbNatWorking,3)
+        End If
+! Increase volume of cell
+        newLatticeParameter = pwbLatticeParameter*&
+        (1.0D0*pwbNatWorking/(1.0D0*(pwbNatWorking-1)))**(1.0D0/3.0D0)       
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+          Print "(A30,F12.5,A4,F12.5)"," Increased lattice parameter: ",pwbLatticeParameter,&
+          " to ",newLatticeParameter
+        End If
+        pwbLatticeParameter = newLatticeParameter
+      End If
+    
+    End If
+    
+    
+  End Subroutine addInterstitial 
+  
+  
+  Subroutine removeAtom(xC, yC, zC, thresholdIn)
+    Implicit None    ! Force declaration of all variables
+! Declare private variables
+    Integer(kind=StandardInteger) :: i, j, atomsRemoved
+    Character(len=8), Dimension(1:4096)   :: labelsTemp
+    Real(kind=DoubleReal), Dimension(1:4096,1:3)   :: coordsTemp
+    Real(kind=DoubleReal), Optional :: thresholdIn
+    Real(kind=DoubleReal) :: xC, yC, zC, threshold
+    Real(kind=DoubleReal) :: xCTest, yCTest, zCTest
+! Init variables    
+    labelsTemp = BlankStringArray(labelsTemp)
+    coordsTemp = -2.1D20
+    atomsRemoved = 0
+    j = 0
+! Optional
+    threshold = 0.001D0
+    If(Present(thresholdIn))Then
+      threshold = thresholdIn
+    End If
+! Loop through atoms and remove   
+    Do i=1,pwbNatWorking  
+      xCTest = pwbAtomCoordsWorking(i,1)
+      yCTest = pwbAtomCoordsWorking(i,2)
+      zCTest = pwbAtomCoordsWorking(i,3)
+      If(abs(xCTest-xC).le.threshold.and.abs(yCTest-yC).le.threshold.and.abs(zCTest-zC).le.threshold)Then
+        atomsRemoved = atomsRemoved + 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+          Print "(A9,A8,F10.5,A1,F10.5,A1,F10.5)", " Removed ",&
+          pwbAtomLabelsWorking(i),pwbAtomCoordsWorking(i,1)," ",&
+          pwbAtomCoordsWorking(i,2)," ",pwbAtomCoordsWorking(i,3)
+        End If
+      Else  
+        j = j + 1
+        labelsTemp(j) = pwbAtomLabelsWorking(i)
+        coordsTemp(j,1) = pwbAtomCoordsWorking(i,1)
+        coordsTemp(j,2) = pwbAtomCoordsWorking(i,2)
+        coordsTemp(j,3) = pwbAtomCoordsWorking(i,3)
+      End If    
+    End Do
+    pwbNatWorking = pwbNatWorking - atomsRemoved
+    pwbAtomLabelsWorking = labelsTemp
+    pwbAtomCoordsWorking = coordsTemp
+  End Subroutine removeAtom 
+
+  
+  
 !------------------------------------------------------------------
 ! Write pwscf file 
 !------------------------------------------------------------------  
@@ -317,16 +503,21 @@ Contains
     Integer(kind=StandardInteger), Parameter :: maxFileRows = 10000000  
     Integer(kind=StandardInteger) :: i
     Real(kind=DoubleReal) :: a, b, c, cosBC, cosAC, cosAB, zero
+    Real(kind=DoubleReal) :: xC, yC, zC, xCa, yCa, zCa    
     Character(*) :: outputFileName 
-    Character(len=255) :: outputFileWrite    
+    Character(len=255) :: outputFileWrite, outputFileWriteXYZ    
+! Only write from root process    
+    If(mpiProcessID.eq.0)Then  
 ! Initialise variables
     If(pwbBatchDir(1:1).eq." ")Then      
       outputFileWrite = trim(outputDirectory)//"/"//trim(outputFileName)
       Call makeDir(trim(outputDirectory))
+      outputFileWriteXYZ = trim(outputFileWrite)//".xyz"
     Else      
       outputFileWrite = trim(outputDirectory)//"/"//trim(pwbBatchDir)//&
       "/"//trim(outputFileName)
       Call makeDir(trim(outputDirectory)//"/"//trim(pwbBatchDir))
+      outputFileWriteXYZ = trim(outputFileWrite)//".xyz"
     End If    
     zero = 0.0D0
 ! Calculate variables    
@@ -335,10 +526,10 @@ Contains
         pwbXCopy*pwbLatticeParameter
     b = 1.0D0*(sqrt(pwbUnitVectorWorking(2,1)**2+pwbUnitVectorWorking(2,2)**2+&
         pwbUnitVectorWorking(2,3)**2)*&
-        pwbXCopy*pwbLatticeParameter)/a    
+        pwbYCopy*pwbLatticeParameter)/a    
     c = 1.0D0*(sqrt(pwbUnitVectorWorking(3,1)**2+pwbUnitVectorWorking(3,2)**2+&
         pwbUnitVectorWorking(3,3)**2)*&
-        pwbXCopy*pwbLatticeParameter)/a        
+        pwbZCopy*pwbLatticeParameter)/a        
     cosBC = 1.0D0*(pwbUnitVectorWorking(2,1)*pwbUnitVectorWorking(3,1)+&
             pwbUnitVectorWorking(2,2)*pwbUnitVectorWorking(3,2)+&
             pwbUnitVectorWorking(2,3)*pwbUnitVectorWorking(3,3))/(1.0D0*b*c)
@@ -381,8 +572,8 @@ Contains
     write(103,"(A12,F12.7,A1)") "celldm(5) = ",cosAC,","
     write(103,"(A12,F12.7,A1)") "celldm(6) = ",cosAB,","
 !----Unit cell 6 parameters----! 
-    write(103,"(A)") "nat = "//TrimSpaces(intToString(pwbNat))//","
-    write(103,"(A)") "ntyp = "//TrimSpaces(intToString(pwbNtyp))//","
+    write(103,"(A)") "nat = "//TrimSpaces(intToString(pwbNatWorking))//","
+    write(103,"(A)") "ntyp = "//TrimSpaces(intToString(pwbNtypWorking))//","
     write(103,"(A)") "nbnd = "//TrimSpaces(intToString(pwbNbnd))//","
     write(103,"(A)") "ecutwfc = "//TrimSpaces(intToString(pwbEcutwfc))//","
     write(103,"(A)") "ecutrho = "//TrimSpaces(intToString(pwbEcutrho))//","
@@ -417,7 +608,7 @@ Contains
 ! Atomic Species
 !---------------------------
     write(103,"(A14)") "ATOMIC_SPECIES"  
-    Do i=1,pwbNtyp
+    Do i=1,pwbNtypWorking
       write(103,"(A8,A2,F12.7,A2,A)") SpacesRight(pwbAtomicSpeciesL(i)),"  ",&
                        pwbAtomicSpeciesDP(i),"  ",&
                        trim(pwbAtomicSpeciesPP(i))
@@ -427,7 +618,7 @@ Contains
 !---------------------------
     write(103,"(A24)") "ATOMIC_POSITIONS crystal"  
     If(pwbFixedAtoms.eq.0)Then    !don't fix atoms, set force to 1 (default)
-      Do i=1,pwbNat
+      Do i=1,pwbNatWorking
         write(103,"(A8,A1,F12.7,A1,F12.7,A1,F12.7,A1)") &
             SpacesRight(pwbAtomLabelsWorking(i))," ",&
             pwbAtomCoordsWorking(i,1)," ",&
@@ -436,7 +627,7 @@ Contains
       End Do
     End If
     If(pwbFixedAtoms.eq.1)Then    !don't fix atoms, set force to 1 (default)
-      Do i=1,pwbNat
+      Do i=1,pwbNatWorking
         write(103,"(A8,A1,F12.7,A1,F12.7,A1,F12.7,A1,F12.7,A1,F12.7,A1,F12.7,A1)") &
             trim(pwbAtomLabelsWorking(i))," ",&
             pwbAtomCoordsWorking(i,1)," ",&
@@ -453,11 +644,31 @@ Contains
       write(103,"(A18)") "K_POINTS automatic" 
       write(103,"(A)") TrimSpaces(pwbKpoints)
     End If
-!Close file
+! Close file
     close(103)  
-
-  
-    
+    End If
+!---------------------------
+! Write xyz file
+!---------------------------
+! Open output file
+    open(unit=104,file=trim(outputFileWriteXYZ))
+    write(104,"(I8)") pwbNatWorking
+    write(104,"(A18)") "XYZ File, Angstrom"
+    Do i=1,pwbNatWorking          
+! Calculate coordinate
+      xCa = pwbXCopy*pwbLatticeParameter*pwbAtomCoordsWorking(i,1)
+      yCa = pwbYCopy*pwbLatticeParameter*pwbAtomCoordsWorking(i,2)
+      zCa = pwbZCopy*pwbLatticeParameter*pwbAtomCoordsWorking(i,3)
+! Apply unit vector
+      xC = xCa*pwbUnitVectorWorking(1,1)+yCa*pwbUnitVectorWorking(1,2)+zCa*pwbUnitVectorWorking(1,3)
+      yC = xCa*pwbUnitVectorWorking(2,1)+yCa*pwbUnitVectorWorking(2,2)+zCa*pwbUnitVectorWorking(2,3)
+      zC = xCa*pwbUnitVectorWorking(3,1)+yCa*pwbUnitVectorWorking(3,2)+zCa*pwbUnitVectorWorking(3,3)      
+! Write to file
+      write(104,"(A8,F12.7,A1,F12.7,A1,F12.7)") &
+      pwbAtomLabelsWorking(i),xC," ",yC," ",zC
+    End Do  
+! Close file      
+    close(104)    
   End Subroutine writePWscfFile
   
   

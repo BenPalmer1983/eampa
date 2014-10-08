@@ -24,14 +24,17 @@ Module readEAM
   Use output
 ! Force declaration of all variables
   Implicit None
-!Privacy of variables/functions/subroutines
+! Privacy of variables/functions/subroutines
   Private    
-!Public Subroutines
+! Public Subroutines
   Public :: readEAMFile
   Public :: eamDerivatives
   Public :: setEamNodes
   Public :: setEamSpline
   Public :: eamZblHardCore
+  Public :: AddUniqueElement
+! Public functions 
+  Public :: QueryUniqueElement
   
 Contains
   Subroutine readEAMFile()
@@ -343,8 +346,10 @@ Contains
     Implicit None   ! Force declaration of all variables
 ! Private variables  
     Integer(kind=StandardInteger) :: functionCounter, i, j 
-    Integer(kind=StandardInteger) :: eamStart, eamLength, eamEnd, eamPoint
-    Integer(kind=StandardInteger) :: nodes, nodeKey
+    Integer(kind=StandardInteger) :: eamStart, eamLength, eamEnd
+    Integer(kind=StandardInteger) :: nodes, nodeKey, functionType, fixEndNode
+    Real(kind=DoubleReal) :: x, xStart, xEnd
+    Real(kind=DoubleReal), Dimension(1:3) :: yArray    
 ! Init variables    
     splineNodesKey = -1         ! reset key array
     splineNodesData = 0.0D0     ! reset node array
@@ -355,9 +360,15 @@ Contains
       If(eamKey(i,1).gt.0)Then        
         functionCounter = functionCounter + 1
         nodes = splineNodeCount(eamKey(i,3))
+        functionType = eamKey(i,3)
         eamStart = eamKey(i,4)
         eamLength = eamKey(i,5)
         eamEnd = eamKey(i,6)
+        fixEndNode = 0
+        If(functionType.eq.1.or.functionType.eq.2.or.&
+        functionType.eq.4.or.functionType.eq.5)Then
+          fixEndNode = 1
+        End If
         Do j=1,nodes
           nodeKey = nodeKey + 1
           If(j.eq.1)Then
@@ -365,51 +376,59 @@ Contains
             splineNodesData(nodeKey,2) = eamData(eamStart,2)
             splineNodesData(nodeKey,3) = eamData(eamStart,3)
             splineNodesData(nodeKey,4) = eamData(eamStart,4)
+            splineNodesData(nodeKey,5) = 1.0D0*j
+            splineNodesData(nodeKey,6) = 0.0D0     
             splineNodesKey(i,1) = eamKey(i,1)
             splineNodesKey(i,2) = eamKey(i,2)
             splineNodesKey(i,3) = eamKey(i,3)
             splineNodesKey(i,4) = nodeKey               ! Start
             splineNodesKey(i,5) = nodes                 ! Length
-            splineNodesKey(i,6) = nodeKey + nodes - 1   ! End
+            splineNodesKey(i,6) = nodeKey + nodes - 1   ! End            
           Else If(j.eq.nodes)Then
             splineNodesData(nodeKey,1) = eamData(eamEnd,1)
             splineNodesData(nodeKey,2) = eamData(eamEnd,2)
             splineNodesData(nodeKey,3) = eamData(eamEnd,3)
             splineNodesData(nodeKey,4) = eamData(eamEnd,4)
+            splineNodesData(nodeKey,5) = 1.0D0*j            ! Function node counter
+            If(fixEndNode.eq.1)Then
+              splineNodesData(nodeKey,6) = 1.0D0
+            Else              
+              splineNodesData(nodeKey,6) = 0.0D0            
+            End If
           Else
-            eamPoint = eamStart + Ceiling(1.0D0*(j-1)*(eamLength/(nodes-1)))
-            splineNodesData(nodeKey,1) = eamData(eamPoint,1)
-            splineNodesData(nodeKey,2) = eamData(eamPoint,2)
-            splineNodesData(nodeKey,3) = eamData(eamPoint,3)
-            splineNodesData(nodeKey,4) = eamData(eamPoint,4)
-          End If  
+            xStart = eamData(eamStart,1)
+            xEnd = eamData(eamEnd,1)
+            x = xStart+1.0D0*(j-1)*((xEnd-xStart)/(nodes-1))
+            yArray = PointInterp(eamData,x,eamInterpPoints,1,eamStart,eamLength)
+            splineNodesData(nodeKey,1) = x
+            splineNodesData(nodeKey,2) = yArray(1)
+            splineNodesData(nodeKey,3) = yArray(2)
+            splineNodesData(nodeKey,4) = yArray(3)
+            splineNodesData(nodeKey,5) = 1.0D0*j
+            splineNodesData(nodeKey,6) = 0.0D0     
+          End If          
+! Fix nodes below ZBL spline/core
+          If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
+            If(functionType.eq.1.and.splineNodesData(nodeKey,1).le.zblHardCore(2))Then
+              splineNodesData(nodeKey,6) = 1.0D0
+            End If
+          End If          
+          !If(mpiProcessID.eq.0)Then
+          !print *,nodeKey,splineNodesData(nodeKey,1),splineNodesData(nodeKey,2),&
+          !splineNodesData(nodeKey,3),splineNodesData(nodeKey,4),&
+          !splineNodesData(nodeKey,5),splineNodesData(nodeKey,6)
+          !End If
         End Do
       End If  
       If(functionCounter.eq.eamFunctionCount )Then
         Exit  ! Exit, all functions cycled through
       End If
     End Do  
-    !print *,eamNodesFilePath
+! Store total number of nodes   
+    splineTotalNodes = nodeKey
+! Output nodes to file    
     If(eamNodesFilePath(1:1).ne." ")Then
-      Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//Trim(eamNodesFilePath)) 
-! Loop through EAM Functions
-      functionCounter = 0      
-      Do i=1,size(splineNodesKey,1)      
-        If(splineNodesKey(i,1).gt.0)Then
-          functionCounter = functionCounter + 1
-          write(1,"(A6,I4)") "Node: ",functionCounter
-          Do j=splineNodesKey(i,4),splineNodesKey(i,6)
-            write(1,"(I4,A1,E17.10,A1,E17.10,A1,E17.10,A1,E17.10)") &
-            j," ",splineNodesData(j,1)," ",splineNodesData(j,2)," ",&
-            splineNodesData(j,3)," ",splineNodesData(j,4)
-          End Do
-          write(1,"(A1)") " "
-        End If
-        If(functionCounter.eq.eamFunctionCount)Then
-          Exit  ! Exit, all functions cycled through
-        End If
-      End Do     
-      Close(1)
+      Call outputSplineNodes(eamNodesFilePath)
     End If
   End Subroutine setEamNodes  
   
@@ -451,7 +470,40 @@ Contains
   End Subroutine setEamSpline  
     
   
-  
+  Subroutine setEamSplineOpt()
+! Force ZBL Core
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: functionCounter, i, j
+    Integer(kind=StandardInteger) :: nodes, nodeKey, nodeStart, nodeLength, nodeEnd, eamPoint
+    Real(kind=DoubleReal), Dimension(1:1001,1:4) :: splineDataPointsOpt
+! Init variables    
+    splineDataPointsOpt = 0.0D0
+! Loop through EAM functions
+    functionCounter = 0
+    nodeKey = 0
+    Do i=1,size(eamKeyOpt,1)
+      If(eamKeyOpt(i,1).gt.0)Then        
+        functionCounter = functionCounter + 1        
+        nodes = splineNodeCount(eamKeyOpt(i,3))
+! Set node start/end points
+        nodeStart = splineNodesKeyOpt(i,4)
+        nodeLength = splineNodesKeyOpt(i,5)
+        nodeEnd = splineNodesKeyOpt(i,6)
+        splineDataPointsOpt = SplineNodes(splineNodesDataOpt,1001,nodeStart,nodeEnd)        
+        Do j=1,1001
+          eamPoint = eamKeyOpt(i,4)+j-1
+          eamDataOpt(eamPoint,1) = splineDataPointsOpt(j,1)
+          eamDataOpt(eamPoint,2) = splineDataPointsOpt(j,2)
+          eamDataOpt(eamPoint,3) = splineDataPointsOpt(j,3)
+          eamDataOpt(eamPoint,4) = splineDataPointsOpt(j,4) 
+        End Do
+      End If  
+      If(functionCounter.eq.eamFunctionCount )Then
+        Exit  ! Exit, all functions cycled through
+      End If
+    End Do        
+  End Subroutine setEamSplineOpt  
   
   
   
@@ -465,53 +517,57 @@ Contains
     Real(kind=DoubleReal), Dimension(1:4) :: pointA, pointB
     Real(kind=DoubleReal), Dimension(1:6) :: splineCoeffs    
 ! Loop through EAM functions
-    functionCounter = 0
-    Do i=1,size(eamKey,1)
-      If(eamKey(i,1).gt.0)Then
-        functionCounter = functionCounter + 1
+    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
+      functionCounter = 0
+      Do i=1,size(eamKey,1)
+        If(eamKey(i,1).gt.0)Then
+          functionCounter = functionCounter + 1
 ! Pair potentials
-        If(eamKey(i,3).eq.1)Then
+          If(eamKey(i,3).eq.1)Then
 ! ZBL parameters
-          zA = elementsCharge(eamKey(i,1))
-          zB = elementsCharge(eamKey(i,2))
-          xA = zblHardCore(1)
+            zA = elementsCharge(eamKey(i,1))
+            zB = elementsCharge(eamKey(i,2))
+            xA = zblHardCore(1)
 ! Point A
-          yArray = ZblFull (xA, zA, zB)
-          pointA(1) = xA
-          pointA(2) = yArray(1)
-          pointA(3) = yArray(2)
-          pointA(4) = yArray(3)
+            yArray = ZblFull (xA, zA, zB)
+            pointA(1) = xA
+            pointA(2) = yArray(1)
+            pointA(3) = yArray(2)
+            pointA(4) = yArray(3)
 ! Point B
-          xB = zblHardCore(2)          
-          yArray = PointInterp(eamData,xB,eamInterpPoints,2,eamKey(i,4),eamKey(i,5)) 
-          pointB(1) = xB          
-          pointB(2) = yArray(1)
-          pointB(3) = yArray(2)
-          pointB(4) = yArray(3)
+            xB = zblHardCore(2)          
+            yArray = PointInterp(eamData,xB,eamInterpPoints,2,eamKey(i,4),eamKey(i,5)) 
+            pointB(1) = xB          
+            pointB(2) = yArray(1)
+            pointB(3) = yArray(2)
+            pointB(4) = yArray(3)
 ! Get spline coefficients
-          splineCoeffs = SplineAB(pointA, pointB)
+            splineCoeffs = SplineAB(pointA, pointB)
 ! Alter eamData
-          Do j=eamKey(i,4),eamKey(i,6)
-            If(eamData(j,1).lt.pointA(1))Then   ! ZBL Core
-              xA = eamData(j,1)
-              yArray = ZblFull (xA, zA, zB)
-              eamData(j,2) = yArray(1)
-              eamData(j,3) = yArray(2)
-              eamData(j,4) = yArray(3)
-            End If
-            If(eamData(j,1).ge.pointA(1).and.eamData(j,1).le.pointB(1))Then   ! Spline
-              xA = eamData(j,1)
-              eamData(j,2) = CalcPolynomial(splineCoeffs, xA, 0)
-              eamData(j,3) = CalcPolynomial(splineCoeffs, xA, 1)
-              eamData(j,4) = CalcPolynomial(splineCoeffs, xA, 2)
-            End If
-          End Do
+            Do j=eamKey(i,4),eamKey(i,6)
+              If(eamData(j,1).lt.pointA(1))Then   ! ZBL Core
+                xA = eamData(j,1)
+                yArray = ZblFull (xA, zA, zB)
+                eamData(j,2) = yArray(1)
+                eamData(j,3) = yArray(2)
+                eamData(j,4) = yArray(3)
+              End If
+              If(eamData(j,1).ge.pointA(1).and.eamData(j,1).le.pointB(1))Then   ! Spline
+                xA = eamData(j,1)
+                eamData(j,2) = CalcPolynomial(splineCoeffs, xA, 0)
+                eamData(j,3) = CalcPolynomial(splineCoeffs, xA, 1)
+                eamData(j,4) = CalcPolynomial(splineCoeffs, xA, 2)
+              End If
+            End Do
+! Store to file
+            Call outputZBL(zA, zB, pointA, pointB, splineCoeffs)
+          End If
+        End If  
+        If(functionCounter.eq.eamFunctionCount )Then
+          Exit  ! Exit, all functions cycled through
         End If
-      End If  
-      If(functionCounter.eq.eamFunctionCount )Then
-        Exit  ! Exit, all functions cycled through
-      End If
-    End Do  
+      End Do  
+    End If
   End Subroutine eamZblHardCore   
   
  

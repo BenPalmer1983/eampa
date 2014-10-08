@@ -26,6 +26,7 @@ Module maths
 ! General Maths Functions
   Public :: Factorial  
   Public :: BinomialCoefficient
+  Public :: RoundDP
 ! Polynomial Related Functions
   Public :: SolvePolynomial  
   Public :: CalcPolynomial
@@ -112,6 +113,13 @@ Contains
     c = Factorial(n)/(Factorial(n-k)*Factorial(k))
   End Function BinomialCoefficient
   
+  Function RoundDP(dpIn) RESULT (intOut) 
+! Round DP to nearest int
+    Implicit None ! Force declaration of all variables
+    Real(kind=DoubleReal) :: dpIn
+    Integer(kind=StandardInteger) :: intOut
+    intOut = Floor(dpIn+0.5D0)
+  End Function RoundDP
   
       
 !------------------------------------------------------------------------!
@@ -214,6 +222,35 @@ Contains
     End Do
  End Function DerivativePolynomial  
   
+  
+ Function MinimaPolynomial (coefficients, lower, upper) RESULT (x) 
+! Finds minima in section of polynomial
+    Implicit None  !Force declaration of all variables
+! Declare variables
+    Integer(kind=StandardInteger) :: i
+    Real(kind=DoubleReal), Dimension(:) :: coefficients
+    Real(kind=DoubleReal), Dimension(1:size(coefficients,1)-1) :: coefficientsD
+    Real(kind=DoubleReal) :: upper, lower
+    Real(kind=DoubleReal) :: x, y, xInc, minX, minY
+! Find section with minima
+    xInc = (upper-lower)/100.0D0
+    Do i=0,100
+      x = lower + i * xInc
+      y = CalcPolynomial(coefficients,x)
+      If(i.eq.0)Then
+        minX = x
+        minY = y
+      Else
+        If(y.lt.minY)Then
+          minY = y
+          minX = x
+        End If
+      End If
+    End Do
+    coefficientsD = DerivativePolynomial(coefficients)    
+! Find minimum
+    x = SolvePolynomial(coefficientsD,minX-xInc,minX+xInc) 
+ End Function MinimaPolynomial   
   
 !------------------------------------------------------------------------! 
 ! Fitting, Regression, Interpolation  
@@ -426,8 +463,7 @@ Contains
     Real(kind=DoubleReal), Dimension(:,:) :: points
     Integer(kind=StandardInteger) :: order           ! Largest poly term e.g. x3+x2+x+1 3rd order
     Real(kind=DoubleReal), Dimension(1:(order+1)) :: coefficients
-    Real(kind=DoubleReal), Dimension(1:order) :: coefficientsD
-    Real(kind=DoubleReal) :: xMin, xMax, xDiff, x
+    Real(kind=DoubleReal) :: xMin, xMax, x
     Integer(kind=StandardInteger) :: i
 ! Init values    
     x = 0.0D0 
@@ -444,14 +480,8 @@ Contains
         End If
       End If
     End Do
-    xDiff = xMax - xMin
-    xMin = xMin - 0.25D0*xDiff
-    xMax = xMax + 0.25D0*xDiff
-! Fit points
     coefficients = PolyFit(points,order)
-    coefficientsD = DerivativePolynomial(coefficients)    
-! Find minimum
-    x = SolvePolynomial(coefficientsD,xMin,xMax)     
+    x = MinimaPolynomial (coefficients, xMin, xMax)
   End Function MinPolyFit   
   
   Function InterpLagrange(x, points, derivativeIn) RESULT (output)

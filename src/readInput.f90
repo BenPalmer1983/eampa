@@ -40,6 +40,8 @@ Contains
   Character(len=255) :: fileRow
   Character(len=32) :: bufferA, bufferB, bufferC, bufferD, bufferE, bufferF
   Real(kind=DoubleReal) :: timeStartRI, timeEndRI
+  Real(kind=DoubleReal) :: dftEnergyTemp
+  Integer(kind=StandardInteger) :: dftAtomCountTemp
 ! Start Time
     Call cpu_time(timeStartRI)
 !Read in command line arguments
@@ -184,6 +186,20 @@ Contains
           print *,"Run Type: OPTIMISE POTENTIAL [FULL]"
         End If
       End If
+      If(fileRow(1:4).eq."EAMP")Then
+        optionReadEAM = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: EAM Potential Prepare"
+        End If
+      End If
+      If(fileRow(1:4).eq."TEST")Then
+        optionReadEAM = 1
+        optionMakeConf = 1
+        optionTestEAM = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: Test EAM Potential"
+        End If
+      End If
     End If
 !----------------------------------      
 ! MPI Options
@@ -221,9 +237,9 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
       Call strToIntArr(fileRow,splineNodeCount)
       splineTotalNodes = 0
-      Do j=1,size(splineNodeCount)
-        splineTotalNodes = splineTotalNodes + splineNodeCount(j)
-      End Do
+      !Do j=1,size(splineNodeCount)
+      !  splineTotalNodes = splineTotalNodes + splineNodeCount(j)
+      !End Do
     End If
     If(fileRow(1:13).eq."#EAMNODESFILE")then
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
@@ -237,8 +253,10 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
       Read(fileRow,*) eamForceZBL
     End If
-    
-    
+    If(fileRow(1:13).eq."#EAMMAKEALLOY")then
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
+      Call strToStrArr(fileRow,eamMakeAlloy)
+    End If
 !----------------------------------      
 ! Config Details
 !---------------------------------- 
@@ -271,7 +289,35 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       saveExpConfigFile = trim(adjustl(StrToUpper(fileRow)))
     End If  
-    
+!----------------------------------      
+! DFT Settings 
+!---------------------------------- 
+    If(fileRow(1:15).eq."#OPTENSTART")then
+      Do j=1,300
+        Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+        fileRow = Trim(StrToUpper(fileRow))
+        If(fileRow(1:1).eq."#")Then
+          Exit
+        Else
+          Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE, bufferF
+          Read(bufferB,*) dftEnergyTemp
+          Read(bufferD,*) dftAtomCountTemp
+          dftElement(j) = bufferA(1:2)
+          dftOptEnergy(j) = UnitConvert(dftEnergyTemp, bufferC, "EV")
+          dftOptEnergy(j) = dftOptEnergy(j)/(1.0D0*dftAtomCountTemp)      
+          Read(bufferE,*) dftEnergyTemp
+          dftCohEnergy(j) = UnitConvert(dftEnergyTemp, bufferF, "EV")
+        End If
+      End Do  
+    End If
+!----------------------------------      
+! Neighbour List Settings
+!---------------------------------- 
+    If(fileRow(1:9).eq."#NLCUTOFF")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      fileRow = trim(adjustl(StrToUpper(fileRow)))
+      Read(fileRow,*) nlCutoff
+    End If  
 !----------------------------------      
 ! Calculation options
 !----------------------------------     
@@ -285,9 +331,15 @@ Contains
       If(fileRow(1:1).eq."Y")Then
         refineEqVol = "YES"
       End If
+    End If   
+    If(fileRow(1:11).eq."#SAVEFORCES")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) saveForcesToFile 
     End If  
-    
-    
+    If(fileRow(1:7).eq."#SAVENL")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) saveNLToFile 
+    End If  
     
     
 !----------------------------------      
@@ -300,9 +352,40 @@ Contains
     If(fileRow(1:9).eq."#OPTLOOPS")Then  
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Read(fileRow,*) optLoops  
-    End If       
+    End If          
+    If(fileRow(1:9).eq."#OPTLOOPS")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) optLoops  
+    End If            
+    If(fileRow(1:7).eq."#SAOPTS")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
+      Read(bufferA,*) saTemp  
+      Read(bufferB,*) saTempLoops  
+      Read(bufferC,*) saVarLoops  
+      Read(bufferD,*) saMaxVariation
+    End If    
+    If(fileRow(1:15).eq."#VARYFIXEDNODES")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) varyFixedNodes  
+    End If  
+    If(fileRow(1:12).eq."#JUMBLENODES")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) jumbleNodesOpt  
+    End If  
+    If(fileRow(1:12).eq."#REDUCENODES")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) reduceNodes 
+    End If  
+    If(fileRow(1:12).eq."#EMBERESCALE")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) embeRescale 
+    End If  
     
     
+    
+    
+   
     
 !----------------------------------      
 ! RSS calculation options
@@ -316,7 +399,12 @@ Contains
     
 !----------------------------------      
 ! PWscf Batch Files
-!----------------------------------     
+!----------------------------------        
+    If(fileRow(1:10).eq."#PWBTYPE")then
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      fileRow = StrToUpper(fileRow)
+      pwbRunType = trim(adjustl(fileRow))
+    End If
     If(fileRow(1:10).eq."#PWBCONFIG")then
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       pwbConfigFilePath = trim(adjustl(fileRow))
@@ -325,6 +413,10 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       pwbBatchDir = trim(adjustl(fileRow))
     End If    
+    If(fileRow(1:18).eq."#PWBVARIANCESWITCH")then
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) pwbVarianceSwitch    
+    End If
     If(fileRow(1:18).eq."#PWBRANDOMVARIANCE")then
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Read(fileRow,*) bufferA, bufferB, bufferC
@@ -332,10 +424,13 @@ Contains
       Read(bufferB,*) pwbVarianceMax
       Read(bufferC,*) pwbVarianceSigma
     End If
-    
-    
-    
-    
+    If(fileRow(1:16).eq."#PWBINTERSTITIAL")then
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) bufferA, bufferB, bufferC
+      Read(bufferA,*) pwbInterstitialAtom
+      Read(bufferB,*) pwbInterstitialDetails(1)
+      Read(bufferC,*) pwbInterstitialDetails(2)
+    End If
     
   End Do
   Close(1)

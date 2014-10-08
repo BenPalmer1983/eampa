@@ -26,12 +26,14 @@ Program eampa
   Use loadData       ! load important data
   Use readinput      ! read input
   Use readEAM        ! read EAM potential file  
+  Use prepEAM        ! read EAM potential file  
   Use readConfig     ! read config file  
   Use neighbourList  ! make neighbour list 
   Use prep           ! prepare before calculations etc 
   Use calcEAM
   Use calcEval
   Use optimise
+  Use testEAM
   Use pwBatch        ! read config file  
   Use output
   Use clean
@@ -66,6 +68,7 @@ Program eampa
 ! Optional read ins
   If(optionReadEAM.eq.1)Then
     Call readEAMFile()
+    Call runPrepEAM()
   End If
   If(optionReadConf.eq.1)Then
     Call readConfigFile()
@@ -88,24 +91,21 @@ Program eampa
   End If
   
 !-------------------------------------------------------------- 
-!--- Optimise input potential functions
-  If(optionOptimise.eq.1)Then
-    Call runOptimise()
+!--- Optimise input EAM potential functions
+  If(optionTestEAM.eq.1)Then
+    Call runTestEAM()
   End If  
+  
+!-------------------------------------------------------------- 
+!--- Test input EAM potential functions  
   
   
 !-------------------------------------------------------------- 
 !--- PW Batch Files
   If(optionRunPWBatch.eq.1)Then
-    !Call runPWBatch()
+    Call runPWBatch()
   End If
   
-  
-!--------------------------------------------------------------   
-!--- Output 
-  If(optionOutput.eq.1)Then 
-    Call outputForcesFile()
-  End If
   
   
 !--------------------------------------------------------------   
@@ -119,9 +119,10 @@ Program eampa
   Call storeTime(100,programEndTime-programStartTime)    
 ! Output times
   Call outputCpuTimes()  
-  
+! Call end output to terminal 
+  Call outputEndT()
 ! Finalise MPI
   Call MPI_Finalize(error)
     
   
-End
+End Program eampa

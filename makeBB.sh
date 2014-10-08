@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir -p bin
-module swap PrgEnv-cray PrgEnv-gnu
-ftn -g -fcheck=all -Wall -mtune=native -o bin/eampa.x \
+module load /gpfs/apps/modules/apps/openmpi/v1.6.5/gcc-tm-ib/v4.8.2
+mpif90 -g -fcheck=all -Wall -mtune=native -o bin/eampa.x \
 src/kinds.f90 src/msubs.f90 src/constants.f90 \
 src/maths.f90 src/general.f90 src/units.f90 src/globals.f90  \
 src/initialise.f90 src/loadData.f90 src/output.f90 \

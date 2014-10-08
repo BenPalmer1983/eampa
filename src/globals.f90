@@ -44,6 +44,7 @@ Module globals
 ! Declare variables - run options
   Character(len=4) :: eampaRunType
   Integer(kind=StandardInteger) :: optionReadConf
+  Integer(kind=StandardInteger) :: optionMakeConf
   Integer(kind=StandardInteger) :: optionReadEAM
   Integer(kind=StandardInteger) :: optionRunPrep
   Integer(kind=StandardInteger) :: optionNeighbourList
@@ -51,6 +52,7 @@ Module globals
   Integer(kind=StandardInteger) :: optionEval
   Integer(kind=StandardInteger) :: optionEvalFull
   Integer(kind=StandardInteger) :: optionOptimise
+  Integer(kind=StandardInteger) :: optionTestEAM
   Integer(kind=StandardInteger) :: optionRunPWBatch
   Integer(kind=StandardInteger) :: optionOutput
 ! Input File - User Input
@@ -69,28 +71,44 @@ Module globals
   Integer(kind=StandardInteger) :: splineTotalNodes
   Integer(kind=StandardInteger) :: eamForceSpline
   Integer(kind=StandardInteger) :: eamForceZBL
+  Character(len=2), Dimension(1:10) :: eamMakeAlloy
 ! Config Details - User Input  
   Real(kind=DoubleReal), Dimension(1:3,1:3) :: globalConfigUnitVector
   Character(len=255) :: configFilePath
   Character(len=255) :: configFilePathT
   Character(len=255) :: saveConfigFile
   Character(len=255) :: saveExpConfigFile
+! DFT Settings  
+  Character(len=2), Dimension(1:300) :: dftElement
+  Real(kind=DoubleReal), Dimension(1:300) :: dftOptEnergy
+  Real(kind=DoubleReal), Dimension(1:300) :: dftCohEnergy
+! Neighbour List Settings 
+  Real(kind=DoubleReal) :: nlCutoff
 ! Calculation details  
   Character(len=8) :: calcEqVol  
   Character(len=3) :: refineEqVol
+  Integer(kind=StandardInteger) :: saveForcesToFile
+  Integer(kind=StandardInteger) :: saveNLToFile
 ! Optimise options  
   Real(kind=DoubleReal), Dimension(1:10) :: varyNodeOptions
   Integer(kind=StandardInteger) :: optLoops
+  Integer(kind=StandardInteger) :: reduceNodes  
+  Integer(kind=StandardInteger) :: embeRescale
 ! RSS calculation options  
-  Real(kind=DoubleReal), Dimension(1:20) :: rssWeighting  
-  
+  Real(kind=DoubleReal), Dimension(1:20) :: rssWeighting    
+  Real(kind=DoubleReal), Dimension(1:1024) :: configWeighting
 ! PW Batch Files - User Input  
+  Character(len=16) :: pwbRunType
   Character(len=255) :: pwbConfigFilePath                                          ! 255Bytes
   Character(len=255) :: pwbConfigFilePathT                                         ! 255Bytes
   Character(len=255) :: pwbBatchDir
+  Integer(kind=StandardInteger) :: pwbVarianceSwitch
   Character(len=4) :: pwbVarianceType
   Real(kind=DoubleReal) :: pwbVarianceMax
   Real(kind=DoubleReal) :: pwbVarianceSigma
+  Integer(kind=StandardInteger) :: pwbInterstitialAtom
+  Character(len=16), Dimension(1:3) :: pwbInterstitialDetails
+  
   
 !-----------------------
 ! Read EAM File + Read Configuration File    < 20MB
@@ -104,14 +122,16 @@ Module globals
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKey                     ! 1.2KB       1 atomA, 2 atomB, 3 function/al type, 4 func start, 5 func length, 6 func end
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamData                        ! 3.2MB       1 x, 2 y(x), 3 y'(x), 4 y''(x) 
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKey
-  Real(kind=DoubleReal), Dimension(1:10000,1:4) :: splineNodesData
+  Real(kind=DoubleReal), Dimension(1:10000,1:6) :: splineNodesData
   Real(kind=DoubleReal), Dimension(1:10000,1:2) :: splineNodesResponse
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyInput
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataInput
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyOpt
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataOpt
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKeyOpt
-  Real(kind=DoubleReal), Dimension(1:10000,1:4) :: splineNodesDataOpt
+  Real(kind=DoubleReal), Dimension(1:10000,1:6) :: splineNodesDataOpt
+  !Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKeyIn
+  !Real(kind=DoubleReal), Dimension(1:10000,1:4) :: splineNodesDataIn
 ! Read Configuration File  
   Integer(kind=StandardInteger) :: configCount                                     ! 4bit
   Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsI         ! 41KB        1 xcopy, 2 ycopy, 3 zcopy, 4 forces,   
@@ -128,6 +148,7 @@ Module globals
   Integer(kind=StandardInteger), Dimension(1:100000,1:1) :: configurationCoordsIG  !          1 atomID
   Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configurationCoordsRG          !       1 x, 2 y, 3 z
   Real(kind=DoubleReal), Dimension(1:1024) :: configVolume
+  Real(kind=DoubleReal), Dimension(1:1024) :: configVolumeOpt
 ! Configuration Reference/Calculated Values
   Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configRef                       !             1 Energy PA, 2 EqVol 
   Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configCalc                      !             1 Energy, 2 EqVol    (maybe)
@@ -141,8 +162,16 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEV
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEE
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEL
+  Real(kind=DoubleReal), Dimension(1:1024) :: configRefBM
+  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcBM
   Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
-  Real(kind=DoubleReal) :: totalRSS, optimumRSS
+  Real(kind=DoubleReal) :: totalRSS, optimumRSS, startRSS
+! Optimisation  
+  Real(kind=DoubleReal) :: nodeVariationAmount
+  Real(kind=DoubleReal) :: saTemp, saMaxVariation
+  Integer(kind=StandardInteger) :: saTempLoops, saVarLoops
+  Integer(kind=StandardInteger) :: varyFixedNodes
+  Integer(kind=StandardInteger) :: jumbleNodesOpt
 ! DFT Config
   Character(len=8), Dimension(1:10,1:2) :: dftReplaceLabel 
   
@@ -153,6 +182,7 @@ Module globals
   Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeys               ! 2.0MB
   Integer(kind=StandardInteger) :: neighbourListCount
   Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: neighbourListKey
+  Real(kind=DoubleReal), Dimension(1:1024,1:1) :: neighbourListKeyR
   Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListI         ! 12.0MB
   Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListR                     ! 4.0MB
   Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoords             ! 48.0MB
@@ -166,13 +196,21 @@ Module globals
 ! Calculations  
 !----------------------------------------------
   Real(kind=DoubleReal), Dimension(1:50000) :: calculationDensity
+  Real(kind=DoubleReal), Dimension(1:100000) :: pairForce
   
 !----------------------------------------------
 ! Results  
 !---------------------------------------------- 
   Real(kind=DoubleReal), Dimension(1:1024) :: calcConfigEnergies
   Real(kind=DoubleReal), Dimension(1:200000,1:3) :: calcConfigForces
-
+  
+  
+  
+!----------------------------------------------
+! EAM Testing  
+!----------------------------------------------   
+  Real(kind=DoubleReal) :: fccALat, fccEMin, fccBM
+  Real(kind=DoubleReal) :: bccALat, bccEMin, bccBM
   
   
 !----------------------------------------------
@@ -199,8 +237,8 @@ Module globals
                            pwbConvThr, pwbPress, pwbCellFactor
   Integer(kind=StandardInteger) :: pwbNstep, pwbIbrav, pwbNat, pwbNtyp, pwbEcutwfc, pwbEcutrho
   Integer(kind=StandardInteger) :: pwbNbnd, pwbFixedAtoms
-  
-  
+! PWscf working variables  
+  Integer(kind=StandardInteger) :: pwbNatWorking, pwbNtypWorking
   
   
   Private    
@@ -234,11 +272,13 @@ Module globals
   Public :: eampaRunType
   Public :: optionReadEAM
   Public :: optionReadConf
+  Public :: optionMakeConf
   Public :: optionRunPrep
   Public :: optionNeighbourList
   Public :: optionCalcEnergies
   Public :: optionEval
   Public :: optionEvalFull
+  Public :: optionTestEAM
   Public :: optionOptimise
   Public :: optionRunPWBatch
   Public :: optionOutput
@@ -256,24 +296,39 @@ Module globals
   Public :: splineTotalNodes
   Public :: eamForceSpline
   Public :: eamForceZBL
+  Public :: eamMakeAlloy
 ! Config Details - User Input   
   Public :: globalConfigUnitVector
   Public :: configFilePath, configFilePathT
   Public :: saveConfigFile, saveExpConfigFile
+! DFT Settings  
+  Public :: dftElement
+  Public :: dftOptEnergy
+  Public :: dftCohEnergy
+! Neighbour List Settings 
+  Public :: nlCutoff
 ! Calculation details  
   Public :: calcEqVol
   Public :: refineEqVol
+  Public :: saveForcesToFile, saveNLToFile
 ! Optimise options    
   Public :: varyNodeOptions
   Public :: optLoops
+  Public :: reduceNodes
+  Public :: embeRescale
 ! RSS calculation options  
   Public :: rssWeighting  
+  Public :: configWeighting
 ! PW Batch Files - User Input   
+  Public :: pwbRunType
   Public :: pwbConfigFilePath, pwbConfigFilePathT
   Public :: pwbBatchDir
+  Public :: pwbVarianceSwitch
   Public :: pwbVarianceType  
   Public :: pwbVarianceMax
   Public :: pwbVarianceSigma
+  Public :: pwbInterstitialAtom
+  Public :: pwbInterstitialDetails
 !-----------------------  
 ! Read EAM File + Read Configuration File
   Public :: elements
@@ -304,6 +359,7 @@ Module globals
   Public :: configurationCoordsKeyG, configurationCoordsIG
   Public :: configurationCoordsRG
   Public :: configVolume
+  Public :: configVolumeOpt
 ! Configuration Reference/Calculated Values
   Public :: configRef                     
   Public :: configCalc                      
@@ -316,13 +372,22 @@ Module globals
   Public :: configRefEV
   Public :: configCalcEV
   Public :: configCalcEE
-  Public :: configCalcEL
+  Public :: configCalcEL  
+  Public :: configRefBM
+  Public :: configCalcBM
   Public :: configRSS
-  Public :: totalRSS, optimumRSS
+  Public :: totalRSS, optimumRSS, startRSS
+! Optimisation  
+  Public :: nodeVariationAmount  
+  Public :: saTemp
+  Public :: saTempLoops, saVarLoops, saMaxVariation
+  Public :: varyFixedNodes
+  Public :: jumbleNodesOpt
 ! Neighbour List
   Public :: nlUniqueKeys  
   Public :: neighbourListCount  
   Public :: neighbourListKey
+  Public :: neighbourListKeyR
   Public :: neighbourListI        
   Public :: neighbourListR       
   Public :: neighbourListCoords   
@@ -333,9 +398,13 @@ Module globals
   Public :: neighbourListCoordsT 
 ! Calculations  
   Public :: calculationDensity
+  Public :: pairForce
 ! Results  
   Public :: calcConfigEnergies
   Public :: calcConfigForces
+! EAM Testing  
+  Public :: fccALat, fccEMin
+  Public :: bccALat, bccEMin
 ! DFT Config
   Public :: dftReplaceLabel 
   
@@ -362,7 +431,8 @@ Module globals
             pwbConvThr, pwbPress, pwbCellFactor
   Public :: pwbNstep, pwbIbrav, pwbNat, pwbNtyp, pwbEcutwfc, pwbEcutrho
   Public :: pwbNbnd, pwbFixedAtoms
-  
+! PWscf working variables  
+  Public :: pwbNatWorking, pwbNtypWorking  
   
   
 Contains
@@ -386,6 +456,8 @@ Contains
     cpuTimeLabels(6) = "E-F-S Calculations"
     cpuTimeLabels(7) = "Read Configs"
     cpuTimeLabels(8) = "Read User Input"
+    cpuTimeLabels(9) = "Make Configs"
+    cpuTimeLabels(10) = "Make Neighbour List"
     
     cpuTimeLabels(100) = "Program Time"
     
@@ -417,12 +489,14 @@ Contains
 ! Run options
     eampaRunType = BlankString(eampaRunType)
     optionReadConf = 0
+    optionMakeConf = 0
     optionReadEAM = 0
     optionRunPrep = 0  
     optionNeighbourList = 0
     optionCalcEnergies = 0
     optionEval = 0
     optionEvalFull = 0
+    optionTestEAM = 0
     optionOptimise = 0
     optionRunPWBatch = 0  
     optionOutput = 0    
@@ -442,27 +516,45 @@ Contains
     splineTotalNodes = 0
     eamForceSpline = 0
     eamForceZBL = 0
+    eamMakeAlloy = BlankStringArray(eamMakeAlloy)
 ! Config Details - User Input   
     globalConfigUnitVector = 0.0D0 
     configFilePath = BlankString(configFilePath)
     configFilePathT = BlankString(configFilePathT)
     saveConfigFile = BlankString(saveConfigFile)
     saveExpConfigFile = BlankString(saveExpConfigFile)    
+! DFT Settings  
+    dftElement = BlankStringArray(dftElement)
+    dftOptEnergy = 0.0D0
+    dftCohEnergy = 0.0D0
+! Neighbour List Settings 
+    nlCutoff = -1.0D0
 ! Calculation details  
     calcEqVol = BlankString(calcEqVol)    
-    refineEqVol = "NO "    
+    refineEqVol = "NO "     
+    saveForcesToFile = 0
+    saveNLToFile = 0    
 ! Optimise options    
     varyNodeOptions = 0.0D0 
     optLoops = 1
+    saTemp = 0.0D0
+    saTempLoops = 0
+    saVarLoops = 0
+    reduceNodes = 0
 ! RSS calculation options  
-    rssWeighting = 0  
+    rssWeighting = 0.0D0
+    configWeighting = 1.0D0
 ! PW Batch Files - User Input   
+    pwbRunType = BlankString(pwbRunType)
     pwbConfigFilePath = BlankString(pwbConfigFilePath)
     pwbConfigFilePathT = BlankString(pwbConfigFilePathT)
     pwbBatchDir = BlankString(pwbBatchDir)
+    pwbVarianceSwitch = 0
     pwbVarianceType = BlankString(pwbVarianceType)
     pwbVarianceMax = 0.0D0
     pwbVarianceSigma = 0.0D0
+    pwbInterstitialAtom = 0
+    pwbInterstitialDetails = BlankStringArray(pwbInterstitialDetails)
 ! Read EAM + Config    
     elements = "ZZ"
     elementsCount = 0
@@ -502,6 +594,7 @@ Contains
     configurationCoordsIG = 0
     configurationCoordsRG = 0.0D0
     configVolume = 0.0D0
+    configVolumeOpt = -2.1D0
 ! Configuration Reference/Calculated Values
     configRef = -2.1D20                    
     configCalc = -2.1D20                      
@@ -515,13 +608,26 @@ Contains
     configCalcEV = -2.1D20      
     configCalcEE = -2.1D20     
     configCalcEL = -2.1D20  
+    configRefBM = -2.1D20
+    configCalcBM = -2.1D20
     configRSS = 0.0D0
     totalRSS = 0.0D0
     optimumRSS = 0.0D0
+    startRSS = 0.0D0
+! Optimisation  
+    nodeVariationAmount = 0.0D0    
+    saTemp = 100.0D0
+    saTempLoops = 10
+    saVarLoops = 100
+    saMaxVariation = 0.0D0
+    varyFixedNodes = 0
+    jumbleNodesOpt = 0
+    embeRescale = 0
 ! Neighbour List
     nlUniqueKeys = 0
     neighbourListCount = 0
     neighbourListKey = 0
+    neighbourListKeyR = 0.0D0
     neighbourListI = 0
     neighbourListR = 0.0D0
     neighbourListCoords = 0.0D0
@@ -532,6 +638,7 @@ Contains
     neighbourListCoordsT = 0.0D0 
 ! Calculation
     calculationDensity = 0.0D0
+    pairForce = 0.0D0
 ! Results  
     calcConfigEnergies = 0.0D0
     calcConfigForces = 0.0D0
@@ -548,6 +655,8 @@ Contains
     pwbAtomicSpeciesL = "#BLANK##"
     pwbAtomicSpeciesPP = "#BLANK##"
     pwbAtomicSpeciesDP = -2.1D20
+    pwbAtomLabelsWorking = BlankStringArray(pwbAtomLabelsWorking)
+    pwbAtomCoordsWorking = -2.1D20
 !Default pwscf file values, text
     pwbRestartMode = "from_scratch"
     pwbCalculation = "scf"
@@ -583,6 +692,9 @@ Contains
     pwbEcutrho = 320
 !Fixed atoms in coords
     pwbFixedAtoms = 0    
+! Working variables    
+    pwbNatWorking = 0
+    pwbNtypWorking  = 0 
     
     
     

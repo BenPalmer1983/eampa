@@ -28,9 +28,11 @@ Module neighbourList
   Private    
 ! Public Subroutines
   Public :: makeNeighbourList
+  Public :: clearNeighbourList
   
 Contains
   Subroutine makeNeighbourList()
+! Make neighbour list of all atom pairs for all configs where separation is .le. rcutoff
     Implicit None   ! Force declaration of all variables
 ! Private variables    
     Integer(kind=StandardInteger) :: configID, coordStart, coordLength, coordEnd
@@ -41,11 +43,14 @@ Contains
     Real(kind=DoubleReal) :: rCutoffSq
     Real(kind=DoubleReal) :: aLat, xShift, yShift, zShift
     Real(kind=DoubleReal) :: xA, xB, yA, yB, zA, zB, xdSq, ydSq, zdSq, rdSq
+    Real(kind=DoubleReal) :: rMin, rMax 
 ! Start time
     Call cpu_time(timeStart)
 ! Init variables
     neighbourListCount = 0
     configStart = 1
+    rMin = 2.0D21
+    rMax = -2.0D21
 ! Loop through configurations     
     Do configID=1,configCount
 ! Init looping variables   
@@ -56,12 +61,15 @@ Contains
       coordStart = configurationCoordsKeyG(configID,1)
       coordLength = configurationCoordsKeyG(configID,2)
       coordEnd = configurationCoordsKeyG(configID,3)
-      rCutoffSq = configurationsR(configID,11)**2
+      If(nlCutoff.lt.0.0D0)Then
+        rCutoffSq = configurationsR(configID,11)**2
+      Else
+        rCutoffSq = nlCutoff**2
+      End If      
       xCopy = configurationsI(configID,1) 
       yCopy = configurationsI(configID,2) 
       zCopy = configurationsI(configID,3) 
       aLat = configurationsR(configID,1)   
-      nlUniqueKeys = 0    
 !loop through Atom B 3x3x3
       Do l=-1,1
         Do m=-1,1
@@ -133,8 +141,18 @@ Contains
                             neighbourListCoords(neighbourListCount,12) = &
                                                   (zB-zA)/neighbourListR(neighbourListCount)    
                     ! Tally atom separation
+                    
                             asKey = Ceiling(neighbourListR(neighbourListCount)*100)
+                            If(asKey.lt.1)Then
+                              asKey = 1
+                            End If
                             atomSeparationSpread(asKey) = atomSeparationSpread(asKey) + 1
+                            If(neighbourListR(neighbourListCount).lt.rMin)Then
+                              rMin = neighbourListR(neighbourListCount)
+                            End If  
+                            If(neighbourListR(neighbourListCount).gt.rMax)Then
+                              rMax = neighbourListR(neighbourListCount)
+                            End If  
                           End If
                         End If
                       End If
@@ -150,24 +168,56 @@ Contains
       neighbourListKey(configID,1) = configStart      
       neighbourListKey(configID,2) = configLength      
       neighbourListKey(configID,3) = configStart+configLength-1
+      neighbourListKeyR(configID,1) = rCutoffSq**0.5D0 
       configStart = configStart + configLength
     End Do  ! End loop configs
 ! Save summary to output file
-    Call outputNLSummary()    
-! Save tally to file    
-    Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"nlSeparation.dat",&
-    status="old",position="append",action="write") 
-    Do n=1,size(atomSeparationSpread,1)
-      Write(1,"(I8,A1,F6.3,A1,I8)") n," ",1.0D0*(n/100.0D0)," ",atomSeparationSpread(n)
-    End Do
-    Close(1)
+    Call outputNLSummary()   
+    Call outputNLSummaryT()    
+! Output NL separation to file    
+    Call outputNLSeparationFile()
+! Output entire neighbour list to file
+    If(saveNLToFile.eq.1)Then
+      Call outputNLFile()
+    End If  
+! Output min max atom separation
+    Call outputNLMinMaxT(rMin,rMax)  ! To terminal
+    Call outputNLMinMax(rMin,rMax)  ! To output file
 ! End time
     Call cpu_time(timeEnd)
 ! Record time taken to make neighbour list
     Call outputTimeTaken("Neighbour List",timeEnd-timeStart)
+    Call storeTime(10,timeEnd-timeStart) 
   End Subroutine makeNeighbourList 
-
-  
-  
+!-------------------------------------------
+  Subroutine clearNeighbourList()
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i, j, k
+    If(configCount.gt.0)Then
+! Clear data
+    Do i=1,configCount
+      Do j=neighbourListKey(i,1),neighbourListKey(i,3)
+        If(neighbourListKey(i,1).gt.0.and.neighbourListKey(i,3).gt.0)Then
+          neighbourListR(j) = 0.0D0        
+          Do k=1,6
+            neighbourListI(j,k) = 0
+          End Do
+          Do k=1,12
+            neighbourListCoords(j,k) = 0.0D0
+          End Do  
+        End If
+      End Do  
+    End Do
+! Clear keys
+    Do i=1,configCount
+      Do j=1,3
+        neighbourListKey(i,j) = 0
+      End Do
+    End Do  
+! Reset counter    
+    neighbourListCount = 0
+    End If
+  End Subroutine clearNeighbourList 
   
 End Module neighbourList  

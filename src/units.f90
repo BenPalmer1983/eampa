@@ -170,7 +170,7 @@ Contains
 ! Volume
 !-------------------------
 !Volumes - input factor - convert to meters cubed
-    If(inputUnit(1:4).eq."M3  ")Then
+  If(inputUnit(1:4).eq."M3  ")Then
     factorInput = 1.0D0
   End If
     If(inputUnit(1:4).eq."ANG3")Then
@@ -187,7 +187,7 @@ Contains
 ! Stresses
 !-------------------------
 !Stresses - input factor - convert to Pa
-    If(inputUnit(1:6).eq."RYBOH3")Then
+  If(inputUnit(1:6).eq."RYBOH3")Then
     factorInput = 1.471050658D13
   End If
     If(inputUnit(1:4).eq."PA  ")Then

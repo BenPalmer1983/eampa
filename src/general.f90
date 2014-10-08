@@ -22,7 +22,7 @@ Module general
   Public :: swapArrayRows1D, swapArrayRows2D
   Public :: extractArrayColumnDP, extractArrayColumnInt
   Public :: makeDir, rmFile, rmDir, randFileName, tempFileName
-  Public :: strToIntArr, strToDPArr
+  Public :: strToIntArr, strToDPArr, strToStrArr
 !Public functions
   Public :: dpToString, intToString
   Public :: GetClockTime
@@ -311,6 +311,52 @@ Contains
       End If
     End Do
   End Subroutine strToDPArr
+  
+  Subroutine strToStrArr(stringIn,strArr) 
+! Take space separated integers and convert to array
+    Implicit None   ! Force declaration of all variables
+! Declare private variables
+    Integer(kind=StandardInteger) :: i, j, k
+    Character(*), Dimension(:) :: strArr
+    Character(*) :: stringIn
+    Character(len(stringIn)) :: stringPrep
+    Character(Len(strArr)) :: tempString
+! Prepare input string
+    stringIn = Trim(Adjustl(stringIn))
+    stringPrep = BlankString(stringPrep)
+! One space only
+    j = 0
+    Do i=1,len(stringIn) 
+      If(i.eq.1)Then    
+        j = j + 1
+        stringPrep(j:j) = stringIn(i:i)
+      Else  
+        If(ichar(stringIn(i:i)).eq.32.and.ichar(stringIn(i-1:i-1)).eq.32)Then
+          ! Do not add
+        Else
+          j = j + 1
+          stringPrep(j:j) = stringIn(i:i)
+        End If
+      End If  
+    End Do
+    tempString = BlankString(tempString)
+    j = 0
+    k = 0
+    Do i=1,len(stringPrep)
+      If(ichar(stringPrep(i:i)).eq.32)Then  !Space
+        j = 0
+        k = k + 1
+        strArr(k) = tempString
+        tempString = BlankString(tempString)
+        If(ichar(stringPrep(i+1:i+1)).eq.32)Then 
+          Exit
+        End If
+      Else 
+        j = j + 1
+        tempString(j:j) = stringPrep(i:i)
+      End If
+    End Do
+  End Subroutine strToStrArr
   
     
 !------------------------------------------------------------------------!

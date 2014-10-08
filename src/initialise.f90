@@ -137,7 +137,7 @@ contains
       close(999)
     End If
 !save output file name
-    outputFileForces = trim(outputDirectory)//"/"//"outputForces.dat"
+    outputFileForces = trim(outputDirectory)//"/"//"forces.dat"
 !Create output file
     If(mpiProcessID.eq.0)Then
     open(unit=989,file=trim(outputFileForces))

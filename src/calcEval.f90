@@ -55,8 +55,9 @@ Contains
 ! Full evaluation options
     If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF")Then
 ! Run bulk property calculations
-      Call calcEquilibrium()
-    
+      Call calcEquilibrium()  
+      Call calcBM()
+          
     End If
    
 ! Calculate RSS between reference and calculated values
@@ -97,34 +98,51 @@ Contains
     totalRSS = 0.0D0
 ! Loop through configs    
     Do configID=1,configCount
-! Energy RSS
+! Energy RSS - all atoms
       If(configCalcEnergies(configID).gt.-2.0D20.and.configRefEnergies(configID).gt.-2.0D20)Then
         configRSS(configID,1) = rssWeighting(1)*&
         (configCalcEnergies(configID)-&
         configRefEnergies(configID)*configurationCoordsKeyG(configID,2))**2
+        configRSS(configID,1) = configWeighting(configID)*configRSS(configID,1)
       End If
-! Force RSS  
+! Force RSS - all atoms
       fsKey = configurationCoordsKeyG(configID,1)
       feKey = configurationCoordsKeyG(configID,3)
-      !If(configRefForces(fsKey,1).gt.-2.0D20.and.configCalcForces(fsKey,1).gt.-2.0D20)Then    
-      !  Do i=fsKey,feKey
-      !    configRSS(configID,2) = configRSS(configID,2) + &
-      !    (configRefForces(i,1)-configCalcForces(i,1))**2 + &
-      !    (configRefForces(i,2)-configCalcForces(i,2))**2 + &
-      !    (configRefForces(i,3)-configCalcForces(i,3))**2
-      !  End Do
-      !  configRSS(configID,2) = rssWeighting(2)*configRSS(configID,2)
-      !  print *,configRSS(configID,2),rssWeighting(2)
-      !End If
+      If(configRefForces(fsKey,1).gt.-2.0D20.and.configCalcForces(fsKey,1).gt.-2.0D20)Then    
+        Do i=fsKey,feKey
+          configRSS(configID,2) = configRSS(configID,2) + &
+          (configRefForces(i,1)-configCalcForces(i,1))**2 + &
+          (configRefForces(i,2)-configCalcForces(i,2))**2 + &
+          (configRefForces(i,3)-configCalcForces(i,3))**2
+        End Do
+        configRSS(configID,2) = rssWeighting(2)*configRSS(configID,2)
+        configRSS(configID,2) = configWeighting(configID)*configRSS(configID,2)
+      End If
+! Stress - volume of atoms     
+      If(configRefStresses(configID,1).gt.-2.0D20.and.configCalcStresses(configID,1).gt.-2.0D20)Then    
+        Do i=1,9
+          configRSS(configID,3) = configRSS(configID,3) + &
+          (configCalcStresses(configID,i)-configRefStresses(configID,i))**2
+        End Do
+        configRSS(configID,3) = rssWeighting(3)*configRSS(configID,3)
+        configRSS(configID,3) = configWeighting(configID)*configRSS(configID,3)
+      End If
 ! Eq Vol RSS      
       If(configCalcEV(configID).gt.-2.0D20.and.configRefEV(configID).gt.-2.0D20)Then
         configRSS(configID,4) = rssWeighting(4)*&
         (configCalcEV(configID)-configRefEV(configID))**2
+        configRSS(configID,4) = configWeighting(configID)*configRSS(configID,4)
+      End If  
+! Bulk Modulus RSS      
+      If(configCalcBM(configID).gt.-2.0D20.and.configRefBM(configID).gt.-2.0D20)Then
+        configRSS(configID,5) = rssWeighting(5)*&
+        (configCalcBM(configID)-configRefBM(configID))**2
+        configRSS(configID,5) = configWeighting(configID)*configRSS(configID,5)
       End If      
     End Do
     
     
-
+    
 
     
     

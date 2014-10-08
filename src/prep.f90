@@ -66,7 +66,14 @@ Contains
     Else !none  
       !do nothing
     End If
-    
+! Bulk modulus calculations    
+    Do i=1,configCount
+      If(configRefBM(i).gt.-2.0D20)Then
+        j = j + 1
+        processMap(i,3) = mod(j-1,mpiProcessCount)
+      End If
+    End Do
+! Output to file
     Call outputProcessMap()
   End Subroutine setProcessMap
   

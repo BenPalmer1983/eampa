@@ -257,6 +257,10 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
       Call strToStrArr(fileRow,eamMakeAlloy)
     End If
+    If(fileRow(1:13).eq."#EAMFILETYPE")then
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
+     Read(fileRow,*) eamFileType
+    End If
 !----------------------------------      
 ! Config Details
 !---------------------------------- 

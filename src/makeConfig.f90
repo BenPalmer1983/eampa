@@ -30,10 +30,11 @@ Module makeConfig
   Public :: makeConfigFile
   
 Contains
-  Subroutine makeConfigFile(makeOption)
+  Subroutine makeConfigFile(makeOption, aLatIn)
     Implicit None   ! Force declaration of all variables
 ! Private variables    
     Integer(kind=StandardInteger) :: makeOption
+    Real(kind=DoubleReal) :: aLatIn
     Real(kind=DoubleReal) :: timeStartMC, timeEndMC
 ! Start Time
     Call cpu_time(timeStartMC)  
@@ -57,13 +58,12 @@ Contains
       Close(140)    
 ! Make FCC for lattice parameter testing
       If(makeOption.eq.1)Then
-        Call makeFCC(2.5D0,6.5D0,3,3,3)
+        Call makeFCC(aLatIn,6.5D0,3,3,3)
       End If   
 ! Make BCC for lattice parameter testing
       If(makeOption.eq.2)Then
-        Call makeBCC(2.5D0,6.5D0,4,4,4)
-      End If
-    
+        Call makeBCC(aLatIn,6.5D0,4,4,4)
+      End If    
     End If  
 ! Synch MPI processes    
     Call M_synchProcesses()     

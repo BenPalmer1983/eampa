@@ -72,6 +72,7 @@ Module globals
   Integer(kind=StandardInteger) :: eamForceSpline
   Integer(kind=StandardInteger) :: eamForceZBL
   Character(len=2), Dimension(1:10) :: eamMakeAlloy
+  Integer(kind=StandardInteger) :: eamFileType
 ! Config Details - User Input  
   Real(kind=DoubleReal), Dimension(1:3,1:3) :: globalConfigUnitVector
   Character(len=255) :: configFilePath
@@ -209,9 +210,9 @@ Module globals
 !----------------------------------------------
 ! EAM Testing  
 !----------------------------------------------   
-  Real(kind=DoubleReal) :: fccALat, fccEMin, fccBM
-  Real(kind=DoubleReal) :: bccALat, bccEMin, bccBM
-  
+  Real(kind=DoubleReal) :: fccALat, fccEMin, fccVolMin, fccBM
+  Real(kind=DoubleReal) :: bccALat, bccEMin, bccVolMin, bccBM
+  Real(kind=DoubleReal), Dimension(1:10) :: fccEC, bccEC
   
 !----------------------------------------------
 ! PWscf Batch File Globals  
@@ -297,6 +298,7 @@ Module globals
   Public :: eamForceSpline
   Public :: eamForceZBL
   Public :: eamMakeAlloy
+  Public :: eamFileType
 ! Config Details - User Input   
   Public :: globalConfigUnitVector
   Public :: configFilePath, configFilePathT
@@ -403,8 +405,9 @@ Module globals
   Public :: calcConfigEnergies
   Public :: calcConfigForces
 ! EAM Testing  
-  Public :: fccALat, fccEMin
-  Public :: bccALat, bccEMin
+  Public :: fccALat, fccEMin, fccVolMin, fccBM
+  Public :: bccALat, bccEMin, bccVolMin, bccBM
+  Public :: fccEC, bccEC
 ! DFT Config
   Public :: dftReplaceLabel 
   
@@ -517,6 +520,7 @@ Contains
     eamForceSpline = 0
     eamForceZBL = 0
     eamMakeAlloy = BlankStringArray(eamMakeAlloy)
+    eamFileType = 1
 ! Config Details - User Input   
     globalConfigUnitVector = 0.0D0 
     configFilePath = BlankString(configFilePath)
@@ -642,6 +646,17 @@ Contains
 ! Results  
     calcConfigEnergies = 0.0D0
     calcConfigForces = 0.0D0
+! EAM Testing  
+    fccALat = 0.0D0
+    fccEMin = 0.0D0
+    fccVolMin = 0.0D0
+    fccBM = 0.0D0
+    bccALat = 0.0D0
+    bccEMin = 0.0D0
+    bccVolMin = 0.0D0
+    bccBM = 0.0D0
+    fccEC = -2.1D20
+    bccEC = -2.1D20
 ! DFT Config
     dftReplaceLabel = BlankString2DArray(dftReplaceLabel)
   

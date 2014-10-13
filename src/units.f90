@@ -190,10 +190,10 @@ Contains
   If(inputUnit(1:6).eq."RYBOH3")Then
     factorInput = 1.471050658D13
   End If
-    If(inputUnit(1:4).eq."PA  ")Then
+  If(inputUnit(1:4).eq."PA  ")Then
     factorInput = 1.0D0
   End If
-    If(inputUnit(1:4).eq."GPA ")Then
+  If(inputUnit(1:4).eq."GPA ")Then
     factorInput = 1.0D9
   End If
     If(inputUnit(1:5).eq."EVAN3")Then

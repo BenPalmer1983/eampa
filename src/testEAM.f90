@@ -32,7 +32,6 @@ Contains
 ! Tests the EAM potential
     Implicit None   ! Force declaration of all variables
 ! Private variables    
-    Real(kind=DoubleReal) :: aLatMin, eMin
 ! Print out
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"---------------------------------------------------------------------"
@@ -40,110 +39,104 @@ Contains
       print *,"---------------------------------------------------------------------"
     End If
 !--------------------------------------------
-! Lattice parameters
+! Lattice parameters + Bulk Modulus
 !--------------------------------------------    
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"FCC aLat" 
     End If
 ! FCC
-! Make FCC configuration and calculate alat
-    Call makeConfigFile(1)
-! Read in configuration file
-    Call readConfigFile()
-    Call clearNeighbourList() 
-    Call makeNeighbourList()    
+    Call makeConfigFile(1,2.50D0)      ! Make FCC configuration and calculate alat
+    Call readConfigFile()              ! Read in configuration file
+    Call clearNeighbourList()          ! Clear existing neighbour list
+    Call makeNeighbourList()           ! Make new neighbour list
 ! Estimate FCC lattice parameter
-    Call estimateALat(aLatMin, eMin)    
-! Save
-    fccALat = aLatMin
-    fccEMin = eMin
-    Call outputALat("FCC:", fccALat, fccEMin)
+    Call estimateALat(fccALat, fccEMin, fccVolMin, fccBM) 
+    Call outputALat("FCC:", fccALat, fccEMin, fccVolMin, fccBM)
+    Call outputALatT("FCC:", fccALat, fccEMin, fccVolMin, fccBM)
 ! BCC    
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"BCC aLat" 
     End If
 ! Make BCC configuration and calculate alat
-    Call makeConfigFile(2)
+    Call makeConfigFile(2,2.50D0)
 ! Read in configuration file
     Call readConfigFile()
     Call clearNeighbourList() 
     Call makeNeighbourList()    
 ! Estimate BCC lattice parameter
-    Call estimateALat(aLatMin, eMin)    
-! Save
-    bccALat = aLatMin  
-    bccEMin = eMin 
-    Call outputALat("BCC:", bccALat, bccEMin)     
+    Call estimateALat(bccALat, bccEMin, bccVolMin, bccBM)    
+    Call outputALat("BCC:", bccALat, bccEMin, bccVolMin, bccBM)    
+    Call outputALatT("BCC:", bccALat, bccEMin, bccVolMin, bccBM)   
 !--------------------------------------------
-! Bulk modulus
+! Elastic Constants
 !--------------------------------------------   
-! Update lattice parameter for FCC   
-    configurationsR(1,1) = fccALat
-    Call makeConfigFile(1)  ! Make FCC
-    Call readConfigFile()
-    Call clearNeighbourList() 
-    Call makeNeighbourList()    
+! FCC
+    Call makeConfigFile(1,fccALat)     ! Make with optimised lattice parameter
+    Call readConfigFile()              ! Read in configuration file
+    Call clearNeighbourList()          ! Clear existing neighbour list
+    Call makeNeighbourList()           ! Make new neighbour list    
+! Calculate elastic constants    
+    Call calcSpecificEC(1, fccALat, fccVolMin, fccBM, fccEC)
+! BCC
+    Call makeConfigFile(1,bccALat)     ! Make with optimised lattice parameter
+    Call readConfigFile()              ! Read in configuration file
+    Call clearNeighbourList()          ! Clear existing neighbour list
+    Call makeNeighbourList()           ! Make new neighbour list    
+! Calculate elastic constants    
+    Call calcSpecificEC(1, bccALat, bccVolMin, bccBM, bccEC)
 
-    
-! Update lattice parameter for BCC   
-    configurationsR(1,1) = bccALat
-    Call makeConfigFile(2)  ! Make BCC
-    Call readConfigFile()
-    Call clearNeighbourList() 
-    Call makeNeighbourList()    
 
-    
-    
-    
-    
-  
-! Clear neighbour list
-! Make neighbour list   
+!--------------------------------------------
+! Output
+!--------------------------------------------   
+    Call outputTestingSummary() 
+    Call outputTestingSummaryT()
 
-    !If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-    !  print *,"Total Spline Nodes: ",splineTotalNodes
-    !End If
-! Start Time
-    !Call cpu_time(timeStartOpt)
-
-    
     
   End Subroutine runTestEAM
   
   
-  Subroutine estimateALat(aLatMin, eMin)
+  Subroutine estimateALat(aLatMin, eMin, volumeMin, bm)
 ! Assumes just 1 config - estimates alat
+! ONLY CALCULATES ON CONFIGID 1
     Implicit None   ! Force declaration of all variables
 ! Private variables       
-    Integer(kind=StandardInteger) :: i, j, minPoint, sPoint, ePoint
-    Real(kind=DoubleReal) :: aLatIn, aLatTest, configEnergy
-    Real(kind=DoubleReal) :: pairEnergy, embeddingEnergy, eMin, aLatNew, aLatMin
-    Real(kind=DoubleReal), Dimension(1:65,1:4) :: dataPoints
+    Integer(kind=StandardInteger) :: i, j, minPoint, sPoint, ePoint, configID
+    Real(kind=DoubleReal) :: aLatIn, aLatTest, configEnergy, volume, bm
+    Real(kind=DoubleReal) :: pairEnergy, embeddingEnergy, eMin, aLatNew, aLatMin, volumeMin
+    Real(kind=DoubleReal), Dimension(1:65,1:5) :: dataPoints
     Real(kind=DoubleReal), Dimension(1:12,1:2) :: dataPointsFit
     Real(kind=DoubleReal), Dimension(1:4) :: coefficients
+    Real(kind=DoubleReal), Dimension(1:5) :: coefficientsBM
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsDBM
+    Real(kind=DoubleReal), Dimension(1:3) :: coefficientsDDBM    
 ! Init variables    
+    configID = 1
     dataPoints = -2.1D20
     eMin = 2.1D20
     aLatMin = 0.0d0
 ! Starting aLat
-    aLatIn = configurationsR(1,1)
+    aLatIn = configurationsR(configID,1)
 ! Save starting neighbour list    
-    Call saveConfigNL(1)    
+    Call saveConfigNL(configID)    
 ! First attempt
 ! loop through lattice parameters
     Do i=1,65
 ! Load original neighbour list    
-      Call loadConfigNL(1)
+      Call loadConfigNL(configID)
 ! Set testing alat
       aLatTest = 2.4D0 + (i * 0.1D0)
-      Call changeALat(1, aLatIn, aLatTest)
+      Call changeALat(configID, aLatIn, aLatTest)
+! Calculate volume      
+      Call calcVol(configID, aLatTest, volume)
 ! Calculate energy
-      Call calcEnergy(1, configEnergy, 0, pairEnergy, embeddingEnergy)
+      Call calcEnergy(configID, configEnergy, 0, pairEnergy, embeddingEnergy)
 ! Store data points      
       dataPoints(i,1) = aLatTest
-      dataPoints(i,2) = configEnergy/(1.0D0*configurationCoordsKeyG(1,2))
-      dataPoints(i,3) = pairEnergy/(1.0D0*configurationCoordsKeyG(1,2))
-      dataPoints(i,4) = embeddingEnergy/(1.0D0*configurationCoordsKeyG(1,2))
+      dataPoints(i,2) = configEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+      dataPoints(i,3) = pairEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+      dataPoints(i,4) = embeddingEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+      dataPoints(i,5) = volume
 ! Store minimum
       If(dataPoints(i,2).lt.eMin)Then
         eMin = dataPoints(i,2)
@@ -167,18 +160,22 @@ Contains
       Call loadConfigNL(1)
 ! Set testing alat
       aLatTest = aLatNew + (j * 0.01D0)
-      Call changeALat(1, aLatIn, aLatTest)
+      Call changeALat(configID, aLatIn, aLatTest)
+! Calculate volume      
+      Call calcVol(configID, aLatTest, volume)
 ! Calculate energy
-      Call calcEnergy(1, configEnergy, 0, pairEnergy, embeddingEnergy)
+      Call calcEnergy(configID, configEnergy, 0, pairEnergy, embeddingEnergy)
 ! Store data points      
       dataPoints(i,1) = aLatTest
-      dataPoints(i,2) = configEnergy/(1.0D0*configurationCoordsKeyG(1,2))
-      dataPoints(i,3) = pairEnergy/(1.0D0*configurationCoordsKeyG(1,2))
-      dataPoints(i,4) = embeddingEnergy/(1.0D0*configurationCoordsKeyG(1,2))
+      dataPoints(i,2) = configEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+      dataPoints(i,3) = pairEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+      dataPoints(i,4) = embeddingEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+      dataPoints(i,5) = volume/(1.0D0*configurationCoordsKeyG(configID,2))
 ! Store minimum
       If(dataPoints(i,2).lt.eMin)Then
         eMin = dataPoints(i,2)
         aLatMin = dataPoints(i,1)
+        volumeMin = dataPoints(i,5)
         minPoint = i
       End If      
     End Do    
@@ -195,6 +192,8 @@ Contains
       sPoint = 19
       ePoint = 30
     End If
+! Lattice parameter
+    dataPointsFit = 0.0D0
     j = 0
     Do i=sPoint,ePoint
       j = j + 1
@@ -205,13 +204,32 @@ Contains
     aLatMin = MinPolyFit(dataPointsFit,3)    
     coefficients = PolyFit(dataPointsFit,3)
     eMin = CalcPolynomial(coefficients,aLatMin)
+! Volume
+    dataPointsFit = 0.0D0
+    j = 0
+    Do i=sPoint,ePoint
+      j = j + 1
+      dataPointsFit(j,1) = dataPoints(i,5)
+      dataPointsFit(j,2) = dataPoints(i,2)
+      If(mpiProcessID.eq.0)Then
+      print *,j,dataPointsFit(j,1),dataPointsFit(j,2)
+      End If
+    End Do  
+    volumeMin = MinPolyFit(dataPointsFit,3)  
 ! Output minimum to terminal
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      print *,"Min alat attempt 2: ",aLatMin,eMin
+      print *,"Min alat attempt 2: ",aLatMin,eMin,volumeMin
     End If     
+! Calculate bulk modulus from second fit data points 
+    coefficientsBM = PolyFit(dataPointsFit,4)
+    coefficientsDBM = DerivativePolynomial(coefficientsBM)
+    coefficientsDDBM = DerivativePolynomial(coefficientsDBM)
+    bm = CalcPolynomial (coefficientsDDBM, volumeMin, 0)    
+    bm = volumeMin * bm
+    bm = UnitConvert(bm,"EVAN3","GPA")     
   End Subroutine estimateALat
   
-  
+
   
   
   
@@ -281,7 +299,49 @@ Contains
         neighbourListCoords(i,j) = neighbourListCoordsT(i,j)
       End Do
     End Do 
-  End Subroutine loadConfigNL
+  End Subroutine loadConfigNL  
+  
+  Subroutine calcVol(configID, aLat, volume)
+! Apply a distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables   
+    Integer(kind=StandardInteger) :: configID
+    Integer(kind=StandardInteger) :: xCopy, yCopy, zCopy
+    Real(kind=DoubleReal) :: aLat, volume
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: superCellVectors,configUnitVector
+    !Integer(kind=StandardInteger) :: i, keyS, keyE
+! Init variables
+    xCopy = configurationsI(configID,1) 
+    yCopy = configurationsI(configID,2) 
+    zCopy = configurationsI(configID,3) 
+! Config unit vector    
+    configUnitVector(1,1) = configurationsR(configID,21) 
+    configUnitVector(1,2) = configurationsR(configID,22) 
+    configUnitVector(1,3) = configurationsR(configID,23) 
+    configUnitVector(2,1) = configurationsR(configID,24) 
+    configUnitVector(2,2) = configurationsR(configID,25) 
+    configUnitVector(2,3) = configurationsR(configID,26) 
+    configUnitVector(3,1) = configurationsR(configID,27) 
+    configUnitVector(3,2) = configurationsR(configID,28) 
+    configUnitVector(3,3) = configurationsR(configID,29) 
+! set the supercell vector    
+    superCellVectors = 0.0D0
+    superCellVectors(1,1) = 1.0D0*aLat*xCopy
+    superCellVectors(2,2) = 1.0D0*aLat*yCopy
+    superCellVectors(3,3) = 1.0D0*aLat*zCopy
+! apply config unit vector to supercell    
+    superCellVectors = MatMul(configUnitVector,superCellVectors)
+! calculate volume    
+    volume = TripleProductSq(superCellVectors)
+  End Subroutine calcVol  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
 End Module testEAM

@@ -32,6 +32,7 @@ Module bulkProperties
   Public :: calcBP
   Public :: calcEquilibrium
   Public :: calcBM
+  Public :: calcSpecificEC
   
 Contains
   
@@ -253,30 +254,239 @@ Contains
     bm = UnitConvert(bm,"EVAN3","GPA")  
   End Subroutine calcSpecificBM 
   
+  
+    
+  Subroutine calcSpecificEC(configID, eqALat, eqVol, bm, elasticConstants)
+! Calculate the elastic constants
+    Implicit None   ! Force declaration of all variables
+! Private variables   
+    Integer(kind=StandardInteger) :: configID
+    Integer(kind=StandardInteger) :: i, j   
+    Real(kind=DoubleReal), Dimension(1:7,1:2) :: dataPoints
+    Real(kind=DoubleReal), Dimension(1:13,1:2) :: dataPointsD
+    Real(kind=DoubleReal), Dimension(1:3) :: polyCoeffs  
+    Real(kind=DoubleReal), Dimension(1:10) :: elasticConstants
+    Real(kind=DoubleReal) :: configEnergy, eqVol, bm, scVol 
+    Real(kind=DoubleReal) :: aLatTemp, eqALat, aLatFactor    
+    Real(kind=DoubleReal) :: tetraQuadTerm, orthoQuadTerm, monoQuadTerm
+    Real(kind=DoubleReal) :: cAA, cAB, cDD, cAA_AB
+! Init variables    
+    scVol = eqVol * configurationCoordsKeyG(configID,2)
+    elasticConstants = -2.1D20
+! Store original neighbour list to reload   
+    Call saveConfigNL(configID)         
+! Store original lattice parameter to reload
+    aLatTemp = configurationsR(configID,1)
+    aLatFactor = eqALat/aLatTemp
+! Apply strains - Tetragonal
+    j = 0
+    Do i=-3,3
+      If(i.gt.-3)Then
+        Call loadConfigNL(configID)
+      End If 
+      j = j + 1
+      Call tetragonalDistortion(configID, (i*0.001D0), aLatFactor)
+      Call calcEnergy(configID, configEnergy, 0)
+      dataPoints(j,1) = i*0.001D0
+      dataPoints(j,2) = configEnergy      
+      !If(mpiProcessID.eq.0)Then
+      !  print *,j,dataPoints(j,1),dataPoints(j,2)
+      !End If
+    End Do  
+    Call loadConfigNL(configID)
+! Fit polynomial
+    polyCoeffs = PolyFit(dataPoints,2)
+    tetraQuadTerm = polyCoeffs(3)
+! Apply strains - Orthorhombic
+    j = 0
+    Do i=0,6
+      If(i.gt.0)Then
+        Call loadConfigNL(configID)
+      End If 
+      j = j + 1
+      Call orthogonalDistortion(configID, (i*0.001D0), aLatFactor)
+      Call calcEnergy(configID, configEnergy, 0)
+      dataPoints(j,1) = i*0.001D0
+      dataPoints(j,2) = configEnergy    
+    End Do  
+    Call loadConfigNL(configID)
+! Fit polynomial
+    Do i=1,7
+      If(i.eq.1)Then
+        dataPointsD(7,1) = dataPoints(1,1)
+        dataPointsD(7,2) = dataPoints(1,2)
+      Else  
+        dataPointsD(6+i,1) = dataPoints(i,1)
+        dataPointsD(8-i,1) = -1.0D0*dataPoints(i,1)
+        dataPointsD(6+i,2) = dataPoints(i,2)
+        dataPointsD(8-i,2) = dataPoints(i,2)
+      End If
+    End Do
+    !Do i=1,13
+    !  If(mpiProcessID.eq.0)Then
+    !    print *,i,dataPointsD(i,1),dataPointsD(i,2)
+    !  End If
+    !End Do
+    polyCoeffs = PolyFit(dataPointsD,2)
+    orthoQuadTerm = polyCoeffs(3)
+! Apply strains - Monoclinic
+    j = 0
+    Do i=0,6
+      If(i.gt.0)Then
+        Call loadConfigNL(configID)
+      End If 
+      j = j + 1
+      Call monoclinicDistortion(configID, (i*0.001D0), aLatFactor)
+      Call calcEnergy(configID, configEnergy, 0)
+      dataPoints(j,1) = i*0.001D0
+      dataPoints(j,2) = configEnergy    
+    End Do  
+    Call loadConfigNL(configID)
+! Fit polynomial
+    Do i=1,7
+      If(i.eq.1)Then
+        dataPointsD(7,1) = dataPoints(1,1)
+        dataPointsD(7,2) = dataPoints(1,2)
+      Else  
+        dataPointsD(6+i,1) = dataPoints(i,1)
+        dataPointsD(8-i,1) = -1.0D0*dataPoints(i,1)
+        dataPointsD(6+i,2) = dataPoints(i,2)
+        dataPointsD(8-i,2) = dataPoints(i,2)
+      End If
+    End Do
+    !Do i=1,13
+      !If(mpiProcessID.eq.0)Then
+      !  print *,i,dataPointsD(i,1),dataPointsD(i,2)
+      !End If
+    !End Do
+    polyCoeffs = PolyFit(dataPoints,2)
+    monoQuadTerm = polyCoeffs(3)
+! Calculate elastic constants
+    cAA_AB = (tetraQuadTerm/(3*scVol)+orthoQuadTerm/(scVol))/2
+    cAA_AB = UnitConvert(cAA_AB,"EVAN3","GPA") 
+    cAB = (3.0D0*bm-cAA_AB)/3.0D0
+    cAA = 3.0D0*bm-2.0D0*cAB
+    cDD = (2*monoQuadTerm)/scVol 
+    cDD = UnitConvert(cDD,"EVAN3","GPA")                          !C44   
+! Store results
+    elasticConstants(1) = cAA 
+    elasticConstants(2) = cAB 
+    elasticConstants(3) = cDD 
+  End Subroutine calcSpecificEC 
+  
+  
+  
+  
+  
 !------------------------------------------------
 ! Distortion + NL subroutines
-!------------------------------------------------ 
+!------------------------------------------------   
   
-  
-  Subroutine isotropicDistortion(configID, distortionAmount)
+  Subroutine isotropicDistortion(configID, distortionAmount, factorIn)
 ! Apply an isotropic distortion to the neighbour list
     Implicit None   ! Force declaration of all variables
 ! Private variables    
     Integer(kind=StandardInteger) :: configID 
-    Real(kind=DoubleReal) :: distortionAmount
+    Real(kind=DoubleReal) :: distortionAmount, factor
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion    
+    Real(kind=DoubleReal), Optional :: factorIn
+! Optional input    
+    factor = 1.0D0
+    If(Present(factorIn))Then
+      factor = factorIn 
+    End If
 ! set distortion matrix
-    distortion(1,1) = 1.0D0+distortionAmount
+    distortion(1,1) = factor*(1.0D0+distortionAmount)
     distortion(1,2) = 0.0D0
     distortion(1,3) = 0.0D0
     distortion(2,1) = 0.0D0
-    distortion(2,2) = 1.0D0+distortionAmount
+    distortion(2,2) = factor*(1.0D0+distortionAmount)
     distortion(2,3) = 0.0D0
     distortion(3,1) = 0.0D0
     distortion(3,2) = 0.0D0
-    distortion(3,3) = 1.0D0+distortionAmount
+    distortion(3,3) = factor*(1.0D0+distortionAmount)
     Call applyDistortionNL(configID, distortion, 1)  
   End Subroutine isotropicDistortion
+  
+  Subroutine tetragonalDistortion(configID, distortionAmount, factorIn)
+! Apply an isotropic distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: configID 
+    Real(kind=DoubleReal) :: distortionAmount, factor
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion    
+    Real(kind=DoubleReal), Optional :: factorIn
+! Optional input    
+    factor = 1.0D0
+    If(Present(factorIn))Then
+      factor = factorIn 
+    End If
+! set distortion matrix
+    distortion(1,1) = factor*(1.0D0+distortionAmount)
+    distortion(1,2) = 0.0D0
+    distortion(1,3) = 0.0D0
+    distortion(2,1) = 0.0D0
+    distortion(2,2) = factor*(1.0D0+distortionAmount)
+    distortion(2,3) = 0.0D0
+    distortion(3,1) = 0.0D0
+    distortion(3,2) = 0.0D0
+    distortion(3,3) = factor*((1.0D0+distortionAmount)**(-2.0D0))
+    Call applyDistortionNL(configID, distortion, 1)  
+  End Subroutine tetragonalDistortion
+  
+  Subroutine orthogonalDistortion(configID, distortionAmount, factorIn)
+! Apply an isotropic distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: configID 
+    Real(kind=DoubleReal) :: distortionAmount, factor
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion    
+    Real(kind=DoubleReal), Optional :: factorIn
+! Optional input    
+    factor = 1.0D0
+    If(Present(factorIn))Then
+      factor = factorIn 
+    End If
+! set distortion matrix
+    distortion(1,1) = factor*(1.0D0+distortionAmount)
+    distortion(1,2) = 0.0D0
+    distortion(1,3) = 0.0D0
+    distortion(2,1) = 0.0D0
+    distortion(2,2) = factor*(1.0D0-distortionAmount)
+    distortion(2,3) = 0.0D0
+    distortion(3,1) = 0.0D0
+    distortion(3,2) = 0.0D0
+    distortion(3,3) = factor*(1.0D0+(distortionAmount**2)/(1.0D0-distortionAmount**(2.0D0)))
+    Call applyDistortionNL(configID, distortion, 1)  
+  End Subroutine orthogonalDistortion
+  
+  Subroutine monoclinicDistortion(configID, distortionAmount, factorIn)
+! Apply an isotropic distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: configID 
+    Real(kind=DoubleReal) :: distortionAmount, factor
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion    
+    Real(kind=DoubleReal), Optional :: factorIn
+! Optional input    
+    factor = 1.0D0
+    If(Present(factorIn))Then
+      factor = factorIn 
+    End If
+! set distortion matrix
+    distortion(1,1) = factor*1.0D0
+    distortion(1,2) = factor*0.5D0*distortionAmount
+    distortion(1,3) = 0.0D0
+    distortion(2,1) = factor*0.5D0*distortionAmount
+    distortion(2,2) = factor*1.0D0
+    distortion(2,3) = 0.0D0
+    distortion(3,1) = 0.0D0
+    distortion(3,2) = 0.0D0
+    distortion(3,3) = factor*(1.0D0+(distortionAmount**2)/(4.0D0-distortionAmount**(2.0D0)))
+    Call applyDistortionNL(configID, distortion, 1)  
+  End Subroutine monoclinicDistortion
+  
+  
   
   Subroutine applyDistortionNL(configID, distortion, typeCalc)
 ! Apply a distortion to the neighbour list
@@ -285,6 +495,7 @@ Contains
     Integer(kind=StandardInteger) :: configID, typeCalc, distOption
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion
     Integer(kind=StandardInteger) :: i, j, arrayCheck, keyS, keyE
+    Real(kind=DoubleReal) :: xCA, yCA, zCA, xCB, yCB, zCB
 ! Init variables
     keyS = neighbourListKey(configID,1)
     keyE = neighbourListKey(configID,3)
@@ -316,6 +527,46 @@ Contains
       End Do
     Else
 ! Non isotropic/energy-force-stress calculations         
+      Do i=keyS,keyE
+! Apply distortion vector - Point A
+        xCA = neighbourListCoords(i,1)*distortion(1,1)+&
+              neighbourListCoords(i,2)*distortion(1,2)+&
+              neighbourListCoords(i,3)*distortion(1,3)
+        yCA = neighbourListCoords(i,1)*distortion(2,1)+&
+              neighbourListCoords(i,2)*distortion(2,2)+&
+              neighbourListCoords(i,3)*distortion(2,3)
+        zCA = neighbourListCoords(i,1)*distortion(3,1)+&
+              neighbourListCoords(i,2)*distortion(3,2)+&
+              neighbourListCoords(i,3)*distortion(3,3)
+        neighbourListCoords(i,1) = xCA     
+        neighbourListCoords(i,2) = yCA      
+        neighbourListCoords(i,3) = zCA       
+! Apply distortion vector - Point A
+        xCB = neighbourListCoords(i,4)*distortion(1,1)+&
+              neighbourListCoords(i,5)*distortion(1,2)+&
+              neighbourListCoords(i,6)*distortion(1,3)
+        yCB = neighbourListCoords(i,4)*distortion(2,1)+&
+              neighbourListCoords(i,5)*distortion(2,2)+&
+              neighbourListCoords(i,6)*distortion(2,3)
+        zCB = neighbourListCoords(i,4)*distortion(3,1)+&
+              neighbourListCoords(i,5)*distortion(3,2)+&
+              neighbourListCoords(i,6)*distortion(3,3)
+        neighbourListCoords(i,4) = xCB     
+        neighbourListCoords(i,5) = yCB      
+        neighbourListCoords(i,6) = zCB      
+! Store differences        
+        neighbourListCoords(i,7) = neighbourListCoords(i,4) - neighbourListCoords(i,1)    
+        neighbourListCoords(i,8) = neighbourListCoords(i,5) - neighbourListCoords(i,2)   
+        neighbourListCoords(i,9) = neighbourListCoords(i,6) - neighbourListCoords(i,3)   
+! Store separation
+        neighbourListR(i) = (neighbourListCoords(i,7)**2 + &
+                            neighbourListCoords(i,8)**2 + &
+                            neighbourListCoords(i,9)**2)**0.5
+! Store directon magnitudes
+        neighbourListCoords(i,10) = neighbourListCoords(i,7)/neighbourListR(i)
+        neighbourListCoords(i,11) = neighbourListCoords(i,8)/neighbourListR(i)
+        neighbourListCoords(i,12) = neighbourListCoords(i,9)/neighbourListR(i)
+      End Do
     End If
   End Subroutine applyDistortionNL
   

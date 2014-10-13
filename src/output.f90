@@ -43,11 +43,14 @@ Module output
   Public :: outputEmbeRescale
   Public :: outputALatTest
   Public :: outputALat
+  Public :: outputTestingSummary
 ! Public Subroutines - Output to terminal
   Public :: outputConfigSummaryT
   Public :: outputNLSummaryT
   Public :: outputEndT
   Public :: outputNLMinMaxT
+  Public :: outputALatT
+  Public :: outputTestingSummaryT
   
 Contains
 
@@ -252,6 +255,38 @@ Contains
       Close(115)
     End If
   End Subroutine outputSplineNodes
+  
+  Subroutine outputData(fileName, dataPoints)
+! Output neighbour list to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i
+    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
+    Character(*) :: fileName
+! Only on root process
+    If(mpiProcessID.eq.0)Then   
+      Open(UNIT=201,FILE=Trim(outputDirectory)//"/"//Trim(fileName))
+      Do i=1,size(dataPoints,1)
+        If(dataPoints(i,1).lt.-2.0D20)Then
+          Exit
+        End If
+        If(size(dataPoints,1).eq.2)Then
+          write(201,"(E17.10,E17.10)") dataPoints(i,1),dataPoints(i,2)
+        End If
+        If(size(dataPoints,1).eq.3)Then
+          write(201,"(E17.10,E17.10,E17.10)") dataPoints(i,1),&
+          dataPoints(i,2),dataPoints(i,3)
+        End If
+        If(size(dataPoints,1).eq.4)Then
+          write(201,"(E17.10,E17.10,E17.10,E17.10)") dataPoints(i,1),&
+          dataPoints(i,2),dataPoints(i,3),dataPoints(i,4)
+        End If
+      End Do  
+      Close(201)
+    End If
+  End Subroutine outputData
+    
+    
   
 !---------------------------------------------------------------------------------------------------
 ! Save to output file
@@ -520,18 +555,20 @@ Contains
     End If  
   End Subroutine outputALatTest 
         
-  Subroutine outputALat(textIn, aLatResult, minEnergyResult)
+  Subroutine outputALat(textIn, aLatResult, minEnergyResult, minVolResult, bmResult)
 ! Saves the eam file to the output directory
     Implicit None   ! Force declaration of all variables
 ! Private variables    
-    Real(kind=DoubleReal) :: aLatResult, minEnergyResult
+    Real(kind=DoubleReal) :: aLatResult, minEnergyResult, minVolResult, bmResult
     Character(*) :: textIn
 ! Print out
     If(mpiProcessID.eq.0)Then
       open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
       status="old",position="append",action="write")         
-      write(999,"(A32)") "Lattice Parameter/Min Energy"
-      write(999,"(A32,F12.6,A2,F12.6)") textIn, aLatResult, "  ", minEnergyResult
+      write(999,"(A32)") textIn
+      write(999,"(A32,F12.6,A2,F12.6)") "Lattice Parameter/Min Energy:   ", aLatResult, "  ", minEnergyResult
+      write(999,"(A32,F12.6,A2,F12.6)") "Opt Vol/Min Energy:             ", minVolResult, "  ", minEnergyResult
+      write(999,"(A32,F12.6)")          "Bulk Modulus:                   ", bmResult
       Close(999)
     End If  
   End Subroutine outputALat 
@@ -546,8 +583,33 @@ Contains
 ! Print out
     If(mpiProcessID.eq.0)Then
       open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
-      status="old",position="append",action="write")         
-      write(999,"(A32)") "Lattice Parameter/Min Energy"
+      status="old",position="append",action="write")   
+      write(999,"(A64)") "----------------------------------------------------------------"      
+      write(999,"(A64)") "                     EAM Testing Results                        "
+      write(999,"(A64)") "----------------------------------------------------------------"     
+      write(999,"(A64)") "                                                                "  
+      write(999,"(A64)") "FCC:                                                            "
+      write(999,"(A20,F12.6)") "Alat:               ",fccALat
+      write(999,"(A20,F12.6)") "Min Energy:         ",fccEMin
+      write(999,"(A20,F12.6)") "Opt Volume:         ",fccVolMin
+      write(999,"(A20,F12.6)") "Bulk Modulus:       ",fccBM
+      write(999,"(A20,F12.6)") "C11:                ",fccEC(1)
+      write(999,"(A20,F12.6)") "C12:                ",fccEC(2)
+      write(999,"(A20,F12.6)") "C44:                ",fccEC(3) 
+      write(999,"(A64)") "                                                                "  
+      write(999,"(A64)") "BCC:                                                            "
+      write(999,"(A20,F12.6)") "Alat:               ",bccALat
+      write(999,"(A20,F12.6)") "Min Energy:         ",bccEMin
+      write(999,"(A20,F12.6)") "Opt Volume:         ",bccVolMin
+      write(999,"(A20,F12.6)") "Bulk Modulus:       ",bccBM
+      write(999,"(A20,F12.6)") "C11:                ",bccEC(1)
+      write(999,"(A20,F12.6)") "C12:                ",bccEC(2)
+      write(999,"(A20,F12.6)") "C44:                ",bccEC(3)    
+      write(999,"(A64)") "                                                                "  
+      write(999,"(A64)") "----------------------------------------------------------------"   
+      
+      
+      
       write(999,"(F12.6,A2,F12.6)") aLatResult, "  ", minEnergyResult
       Close(999)
     End If  
@@ -617,5 +679,63 @@ Contains
     End If
   End Subroutine outputNLMinMaxT 
   
+  
+  Subroutine outputALatT(textIn, aLatResult, minEnergyResult, minVolResult, bmResult)
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Real(kind=DoubleReal) :: aLatResult, minEnergyResult, minVolResult, bmResult
+    Character(*) :: textIn
+! Print out
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+      print *," "
+      Print *, textIn
+      Print *, "Lattice Parameter(ang)/Min Energy(eV):   ", aLatResult, "  ", minEnergyResult
+      Print *, "Opt Vol (ang3)/Min Energy(eV):           ", minVolResult, "  ", minEnergyResult
+      Print *, "Bulk Modulus(GPa):                       ", bmResult  
+      print *," "
+    End If  
+  End Subroutine outputALatT
+  
+    
+  Subroutine outputTestingSummaryT()
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Real(kind=DoubleReal) :: aLatResult, minEnergyResult
+! Print out
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+      status="old",position="append",action="write")   
+      print "(A64)","----------------------------------------------------------------"      
+      print "(A64)","                     EAM Testing Results                        "
+      print "(A64)","----------------------------------------------------------------"     
+      print "(A64)","                                                                "  
+      print "(A64)","FCC:                                                            "
+      print "(A20,F12.6)","Alat:               ",fccALat
+      print "(A20,F12.6)","Min Energy:         ",fccEMin
+      print "(A20,F12.6)","Opt Volume:         ",fccVolMin
+      print "(A20,F12.6)","Bulk Modulus:       ",fccBM
+      print "(A20,F12.6)","C11:                ",fccEC(1)
+      print "(A20,F12.6)","C12:                ",fccEC(2)
+      print "(A20,F12.6)","C44:                ",fccEC(3) 
+      print "(A64)","                                                                "  
+      print "(A64)","BCC:                                                            "
+      print "(A20,F12.6)","Alat:               ",bccALat
+      print "(A20,F12.6)","Min Energy:         ",bccEMin
+      print "(A20,F12.6)","Opt Volume:         ",bccVolMin
+      print "(A20,F12.6)","Bulk Modulus:       ",bccBM
+      print "(A20,F12.6)","C11:                ",bccEC(1)
+      print "(A20,F12.6)","C12:                ",bccEC(2)
+      print "(A20,F12.6)","C44:                ",bccEC(3)    
+      print "(A64)","                                                                "  
+      print "(A64)","----------------------------------------------------------------"   
+      
+      
+      
+      write(999,"(F12.6,A2,F12.6)") aLatResult, "  ", minEnergyResult
+      Close(999)
+    End If  
+  End Subroutine outputTestingSummaryT
   
 End Module output  

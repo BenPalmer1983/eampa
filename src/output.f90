@@ -44,6 +44,7 @@ Module output
   Public :: outputALatTest
   Public :: outputALat
   Public :: outputTestingSummary
+  Public :: outputCleanupList
 ! Public Subroutines - Output to terminal
   Public :: outputConfigSummaryT
   Public :: outputNLSummaryT
@@ -614,6 +615,29 @@ Contains
       Close(999)
     End If  
   End Subroutine outputTestingSummary 
+  
+  
+  Subroutine outputCleanupList()
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: i
+    Character(len=512) :: testLine
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+      status="old",position="append",action="write")   
+      write(999,"(A32)") "Cleaning temporary files:       "
+      Do i=1,100
+        testLine = fileCleanupList(i)
+        If(testLine(1:1).eq." ")Then       
+          Exit
+        Else  
+          write(999,"(A)") adjustl(trim(testLine))
+        End If
+      End Do  
+      Close(999)   
+    End If
+  End Subroutine outputCleanupList 
   
     
 !---------------------------------------------------------------------------------------------------

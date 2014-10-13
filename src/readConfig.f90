@@ -131,6 +131,9 @@ Contains
     End Do
     Close(2)
     Close(1)
+! Add files to clean
+    Call fileToClean(configFilePathT)
+    Call fileToClean(configFilePathTA)
   End Subroutine prepFile 
   
   
@@ -253,6 +256,7 @@ Contains
     Close(1)
 ! Add files to clean
     Call fileToClean(configFilePathT)
+    Call fileToClean(configFilePathTA)
     Call fileToClean(configFilePathTB)
     Call fileToClean(configFilePathTC)
     Call fileToClean(configFilePathTDFT)

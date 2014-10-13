@@ -21,6 +21,7 @@ Module clean
   Use initialise
   Use loadData  
   Use globals
+  Use output
 ! Force declaration of all variables
   Implicit None
 !Privacy of variables/functions/subroutines
@@ -52,15 +53,15 @@ Contains
     Character(len=512) :: testLine
 ! Clean files on root process only
     If(mpiProcessID.eq.0)Then
+      Call outputCleanupList()
       Do i=1,100
         testLine = fileCleanupList(i)
         If(testLine(1:1).eq." ")Then       
           Exit
         Else  
-          !Call rmFile(testLine)
+          Call rmFile(testLine)
         End If
-      End Do 
-    
+      End Do     
     End If
   End Subroutine cleanFiles
   

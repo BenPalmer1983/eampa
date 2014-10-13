@@ -94,6 +94,7 @@ Contains
 ! Open config file
     Open(UNIT=140,FILE=Trim(tempDirectory)//"/automatedConfig.conf",&
     status="old",position="append",action="write")  
+    Call fileToClean(Trim(tempDirectory)//"/automatedConfig.conf")
     Do i=1,elementsCount
       If(elements(i).ne."ZZ")Then
 ! Write header

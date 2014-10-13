@@ -316,17 +316,22 @@ Contains
 ! Private variables    
     Character(len=255) :: eamFilePathC 
     Integer(kind=StandardInteger), Parameter :: maxFileRows = 10000000 
-    Integer(kind=StandardInteger) :: ios, i, j, k, n  
+    Integer(kind=StandardInteger) :: ios, i, j, k, n, points, rowPoints  
     Integer(kind=StandardInteger) :: rowCount
     Character(len=255) :: fileRow
-    Character(len=128) :: bufferA, bufferB, bufferC, bufferD, bufferE
+    Character(len=128) :: bufferA, bufferB, bufferC, bufferD, bufferE, bufferF
     Integer(kind=StandardInteger) :: elementTypeCount, elementZ
     Integer(kind=StandardInteger) :: nrho, nr, potentialLinesRho, potentialLinesR
     Real(kind=DoubleReal) :: drho, dr, cutoff
     Real(kind=DoubleReal) :: radius, rho, tempDouble
-    Character(len=2), Dimension( : ), Allocatable ::  functionElements      
+    Real(kind=DoubleReal) :: rStart, rEnd, rInc
+    Real(kind=DoubleReal) :: x, y     
+    Character(len=2), Dimension(1:300) :: functionElements   
+! Init variables
+    functionElements = "ZZ"    
 ! Set converted eam potential file name
-    eamFilePathC = Trim(eamFilePath)//".pot"
+    eamFilePathC = Trim(tempDirectory)//"/"//Trim(eamFilePath)//".pot"
+    Call fileToClean(eamFilePathC)
 !--------------------  
 ! LAMMPS
 !--------------------    
@@ -347,7 +352,6 @@ Contains
           rowCount = rowCount + 1
           If(rowCount.eq.1)Then
             Read(fileRow,*) elementTypeCount    
-            Allocate(functionElements(1:elementTypeCount))
           End If
           If(rowCount.eq.2)Then
             Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE
@@ -574,6 +578,120 @@ Contains
             End Do
           End If
         End If        
+      End Do
+      Close(1)
+      Close(2)
+    End If
+!--------------------  
+! DLPOLY
+!--------------------    
+    If(eamFileType.eq.3.and.mpiProcessID.eq.0)Then    ! DLPOLY file type
+!open output potential file (write to)
+      Open(UNIT=2,FILE=trim(eamFilePathC)) 
+!open DLPOLY input potential file (read from)
+      Open(UNIT=1,FILE=trim(eamFilePath)) 
+      Do i=1,maxFileRows 
+!Read in line
+        Read(1,"(A255)",IOSTAT=ios) fileRow
+!break out if end of file
+        If (ios /= 0) then
+          EXIT 
+        End If        
+        If(fileRow(1:1).ne."#")Then   
+! PAIR function        
+          If(StrToUpper(fileRow(1:4)).eq."PAIR".or.&
+          StrToUpper(fileRow(1:4)).eq."DENS".or.&
+          StrToUpper(fileRow(1:4)).eq."EMBE")Then  
+            If(StrToUpper(fileRow(1:4)).eq."PAIR")Then             
+              Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE, bufferF
+              Read(bufferD,*) points
+              n = Ceiling(points / 4.0D0)
+              Read(bufferE,*) rStart 
+              Read(bufferF,*) rEnd
+              rInc = (rEnd-rStart)/(points-1)   
+              x = rStart            
+              write(2,"(A8,A2,A4,A2)") "PAIR    ",bufferB,"    ",bufferC
+            End If  
+            If(StrToUpper(fileRow(1:4)).eq."DENS")Then             
+              Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE
+              Read(bufferC,*) points
+              n = Ceiling(points / 4.0D0)
+              Read(bufferD,*) rStart 
+              Read(bufferE,*) rEnd
+              rInc = (rEnd-rStart)/(points-1)   
+              x = rStart            
+              write(2,"(A8,A2)") "DENS    ",bufferB
+            End If 
+            If(StrToUpper(fileRow(1:4)).eq."EMBE")Then             
+              Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE
+              Read(bufferC,*) points
+              n = Ceiling(points / 4.0D0)
+              Read(bufferD,*) rStart 
+              Read(bufferE,*) rEnd
+              rInc = (rEnd-rStart)/(points-1)   
+              x = rStart            
+              write(2,"(A8,A2)") "EMBE    ",bufferB
+            End If  
+            Do j=1,n              
+              Read(1,"(A255)",IOSTAT=ios) fileRow
+              If(j.lt.n)Then
+                Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
+                Read(bufferA,*) y
+                write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                x = x + rInc
+                Read(bufferB,*) y
+                write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                x = x + rInc
+                Read(bufferC,*) y
+                write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                x = x + rInc
+                Read(bufferD,*) y
+                write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                x = x + rInc                
+              Else
+                rowPoints = points-((n-1)*4)
+                If(rowPoints.eq.4)Then
+                  Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
+                  Read(bufferA,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                  x = x + rInc
+                  Read(bufferB,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                  x = x + rInc
+                  Read(bufferC,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                  x = x + rInc
+                  Read(bufferD,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                End If
+                If(rowPoints.eq.3)Then
+                  Read(fileRow,*) bufferA, bufferB, bufferC
+                  Read(bufferA,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                  x = x + rInc
+                  Read(bufferB,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                  x = x + rInc
+                  Read(bufferC,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                End If
+                If(rowPoints.eq.2)Then
+                  Read(fileRow,*) bufferA, bufferB
+                  Read(bufferA,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                  x = x + rInc
+                  Read(bufferB,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                End If
+                If(rowPoints.eq.1)Then
+                  Read(fileRow,*) bufferA
+                  Read(bufferA,*) y
+                  write(2,"(E24.16E3,A2,E24.16E3)") x,"  ",y
+                End If
+              End If
+            End Do
+          End If
+        End If
       End Do
       Close(1)
       Close(2)

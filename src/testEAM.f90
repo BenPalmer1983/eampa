@@ -76,14 +76,14 @@ Contains
     Call clearNeighbourList()          ! Clear existing neighbour list
     Call makeNeighbourList()           ! Make new neighbour list    
 ! Calculate elastic constants    
-    Call calcSpecificEC(1, fccALat, fccVolMin, fccBM, fccEC)
+    Call calcSpecificEC(1, fccALat, fccVolMin, fccBM, fccEC, -1)
 ! BCC
     Call makeConfigFile(1,bccALat)     ! Make with optimised lattice parameter
     Call readConfigFile()              ! Read in configuration file
     Call clearNeighbourList()          ! Clear existing neighbour list
     Call makeNeighbourList()           ! Make new neighbour list    
 ! Calculate elastic constants    
-    Call calcSpecificEC(1, bccALat, bccVolMin, bccBM, bccEC)
+    Call calcSpecificEC(1, bccALat, bccVolMin, bccBM, bccEC, -1)
 
 
 !--------------------------------------------
@@ -107,6 +107,7 @@ Contains
     Real(kind=DoubleReal), Dimension(1:65,1:5) :: dataPoints
     Real(kind=DoubleReal), Dimension(1:12,1:2) :: dataPointsFit
     Real(kind=DoubleReal), Dimension(1:4) :: coefficients
+    Real(kind=DoubleReal), Dimension(1:5) :: coefficientsV
     Real(kind=DoubleReal), Dimension(1:5) :: coefficientsBM
     Real(kind=DoubleReal), Dimension(1:4) :: coefficientsDBM
     Real(kind=DoubleReal), Dimension(1:3) :: coefficientsDDBM    
@@ -120,63 +121,100 @@ Contains
 ! Save starting neighbour list    
     Call saveConfigNL(configID)    
 ! First attempt
+!---------------------------------------------
 ! loop through lattice parameters
-    Do i=1,65
+    Do i=1,27
+      If(mpiProcessID.eq.mod(i-1,mpiProcessCount))Then   ! Split between multiple processes
 ! Load original neighbour list    
-      Call loadConfigNL(configID)
+        Call loadConfigNL(configID)
 ! Set testing alat
-      aLatTest = 2.4D0 + (i * 0.1D0)
-      Call changeALat(configID, aLatIn, aLatTest)
+        aLatTest = 2.25D0 + (i * 0.25D0)
+        Call changeALat(configID, aLatIn, aLatTest)
 ! Calculate volume      
-      Call calcVol(configID, aLatTest, volume)
+        Call calcVol(configID, aLatTest, volume)
 ! Calculate energy
-      Call calcEnergy(configID, configEnergy, 0, pairEnergy, embeddingEnergy)
+        Call calcEnergy(configID, configEnergy, 0, pairEnergy, embeddingEnergy)
 ! Store data points      
-      dataPoints(i,1) = aLatTest
-      dataPoints(i,2) = configEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
-      dataPoints(i,3) = pairEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
-      dataPoints(i,4) = embeddingEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
-      dataPoints(i,5) = volume
+        dataPoints(i,1) = aLatTest
+        dataPoints(i,2) = configEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        dataPoints(i,3) = pairEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        dataPoints(i,4) = embeddingEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        dataPoints(i,5) = volume
+      End If
+    End Do
+! Collect and distribute data array   
+    Call M_collDouble2D(dataPoints)    
+    Call M_distDouble2D(dataPoints)
 ! Store minimum
+    Do i=1,27
       If(dataPoints(i,2).lt.eMin)Then
         eMin = dataPoints(i,2)
         aLatMin = dataPoints(i,1)
+        minPoint = i
       End If
     End Do
 ! Output points
     Call outputALatTest(dataPoints)
+! Make fitting points array
+    sPoint = minPoint - 5
+    ePoint = minPoint + 6
+    If(sPoint.lt.1)Then
+      sPoint = 1
+      ePoint = 12
+    End If
+    If(ePoint.gt.27)Then
+      sPoint = 16
+      ePoint = 27
+    End If
+! Lattice parameter
+    dataPointsFit = 0.0D0
+    j = 0
+    Do i=sPoint,ePoint
+      j = j + 1
+      dataPointsFit(j,1) = dataPoints(i,1)
+      dataPointsFit(j,2) = dataPoints(i,2)
+    End Do    
+! Fit points and find minimum
+    aLatMin = MinPolyFit(dataPointsFit,3)   
 ! Output minimum to terminal
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"Min alat attempt 1: ",aLatMin
     End If 
 ! Second attempt
+!---------------------------------------------
     eMin = 2.1D20 
     dataPoints = -2.1D20   
     aLatNew = aLatMin
 ! loop through lattice parameters
-    Do i=1,30
-      j = i-15
+    Do i=1,27
+      If(mpiProcessID.eq.mod(i-1,mpiProcessCount))Then   ! Split between multiple processes
+        j = i-13
 ! Load original neighbour list    
-      Call loadConfigNL(1)
+        Call loadConfigNL(1)
 ! Set testing alat
-      aLatTest = aLatNew + (j * 0.01D0)
-      Call changeALat(configID, aLatIn, aLatTest)
+        aLatTest = aLatNew + (j * 0.03D0)
+        Call changeALat(configID, aLatIn, aLatTest)
 ! Calculate volume      
-      Call calcVol(configID, aLatTest, volume)
+        Call calcVol(configID, aLatTest, volume)
 ! Calculate energy
-      Call calcEnergy(configID, configEnergy, 0, pairEnergy, embeddingEnergy)
+        Call calcEnergy(configID, configEnergy, 0, pairEnergy, embeddingEnergy)
 ! Store data points      
-      dataPoints(i,1) = aLatTest
-      dataPoints(i,2) = configEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
-      dataPoints(i,3) = pairEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
-      dataPoints(i,4) = embeddingEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
-      dataPoints(i,5) = volume/(1.0D0*configurationCoordsKeyG(configID,2))
+        dataPoints(i,1) = aLatTest
+        dataPoints(i,2) = configEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        dataPoints(i,3) = pairEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        dataPoints(i,4) = embeddingEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        dataPoints(i,5) = volume/(1.0D0*configurationCoordsKeyG(configID,2))
+      End If
+    End Do
+! Collect and distribute data array   
+    Call M_collDouble2D(dataPoints)    
+    Call M_distDouble2D(dataPoints)
 ! Store minimum
+    Do i=1,27
       If(dataPoints(i,2).lt.eMin)Then
         eMin = dataPoints(i,2)
         aLatMin = dataPoints(i,1)
         volumeMin = dataPoints(i,5)
-        minPoint = i
       End If      
     End Do    
 ! Output points
@@ -188,9 +226,9 @@ Contains
       sPoint = 1
       ePoint = 12
     End If
-    If(ePoint.gt.30)Then
-      sPoint = 19
-      ePoint = 30
+    If(ePoint.gt.27)Then
+      sPoint = 16
+      ePoint = 27
     End If
 ! Lattice parameter
     dataPointsFit = 0.0D0
@@ -201,9 +239,9 @@ Contains
       dataPointsFit(j,2) = dataPoints(i,2)
     End Do    
 ! Fit points and find minimum
-    aLatMin = MinPolyFit(dataPointsFit,3)    
+    aLatMin = MinPolyFit(dataPointsFit,3)       
     coefficients = PolyFit(dataPointsFit,3)
-    eMin = CalcPolynomial(coefficients,aLatMin)
+    eMin = CalcPolynomial(coefficients,aLatMin)    
 ! Volume
     dataPointsFit = 0.0D0
     j = 0
@@ -211,11 +249,9 @@ Contains
       j = j + 1
       dataPointsFit(j,1) = dataPoints(i,5)
       dataPointsFit(j,2) = dataPoints(i,2)
-      If(mpiProcessID.eq.0)Then
-      print *,j,dataPointsFit(j,1),dataPointsFit(j,2)
-      End If
-    End Do  
-    volumeMin = MinPolyFit(dataPointsFit,3)  
+    End Do       
+    volumeMin = MinPolyFit(dataPointsFit,4)   
+    coefficientsV = PolyFit(dataPointsFit,4)
 ! Output minimum to terminal
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"Min alat attempt 2: ",aLatMin,eMin,volumeMin

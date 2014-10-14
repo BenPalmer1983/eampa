@@ -471,7 +471,6 @@ Module msubs
 !------------------------------
 
   Subroutine M_collDouble2D(sendIn, selectedProcessIn, startKeyIn, endKeyIn)
-  !Subroutine M_collDouble1D(sendIn, startKeyIn, endKeyIn)
 ! Collects 1D dp array from  workers back to root
     Implicit None   ! Force declaration of all variables
 ! Private variables

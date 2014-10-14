@@ -548,8 +548,8 @@ Contains
       write(999,"(A32)") "--------------------------------"
       Do i=1,size(datapoints,1)
         If(datapoints(i,1).gt.-2.0D20)Then
-          write(999,"(F16.8,F16.8,F16.8,F16.8)") &
-          datapoints(i,1),datapoints(i,2),datapoints(i,3),datapoints(i,4)        
+          write(999,"(F16.8,F16.8,F16.8,F16.8,F16.8)") &
+          datapoints(i,1),datapoints(i,2),datapoints(i,3),datapoints(i,4),datapoints(i,5)         
         End If
       End Do
       Close(999)

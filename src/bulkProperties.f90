@@ -256,13 +256,14 @@ Contains
   
   
     
-  Subroutine calcSpecificEC(configID, eqALat, eqVol, bm, elasticConstants)
+  Subroutine calcSpecificEC(configID, eqALat, eqVol, bm, elasticConstants, threadsIn)
 ! Calculate the elastic constants
     Implicit None   ! Force declaration of all variables
 ! Private variables   
     Integer(kind=StandardInteger) :: configID
     Integer(kind=StandardInteger) :: i, j   
-    Real(kind=DoubleReal), Dimension(1:7,1:2) :: dataPoints
+    Real(kind=DoubleReal), Dimension(1:30,1:2) :: dataPoints
+    Real(kind=DoubleReal), Dimension(1:7,1:2) :: dataPointsS
     Real(kind=DoubleReal), Dimension(1:13,1:2) :: dataPointsD
     Real(kind=DoubleReal), Dimension(1:3) :: polyCoeffs  
     Real(kind=DoubleReal), Dimension(1:10) :: elasticConstants
@@ -270,98 +271,159 @@ Contains
     Real(kind=DoubleReal) :: aLatTemp, eqALat, aLatFactor    
     Real(kind=DoubleReal) :: tetraQuadTerm, orthoQuadTerm, monoQuadTerm
     Real(kind=DoubleReal) :: cAA, cAB, cDD, cAA_AB
+    Integer(kind=StandardInteger), Dimension(1:30,1:2) :: calculationList
+    Real(kind=DoubleReal), Dimension(1:30) :: calculationListR
+    Integer(kind=StandardInteger) :: threads
+    Integer(kind=StandardInteger), Optional :: threadsIn
+!-------------
+! Start
+!-------------    
+! Optional arguments    
+    threads = 1    ! Number of threads to use
+    If(Present(threadsIn))Then
+      threads = threadsIn
+    End If
+    If(threads.gt.mpiProcessCount.or.threads.lt.1)Then
+      threads = mpiProcessCount
+    End If
 ! Init variables    
     scVol = eqVol * configurationCoordsKeyG(configID,2)
     elasticConstants = -2.1D20
+    calculationList = 0
+    calculationListR = 0.0D0
+    dataPoints = 0.0D0
+    dataPointsS = 0.0D0
+    dataPointsD = 0.0D0
 ! Store original neighbour list to reload   
     Call saveConfigNL(configID)         
 ! Store original lattice parameter to reload
     aLatTemp = configurationsR(configID,1)
     aLatFactor = eqALat/aLatTemp
-! Apply strains - Tetragonal
-    j = 0
-    Do i=-3,3
-      If(i.gt.-3)Then
-        Call loadConfigNL(configID)
-      End If 
+!-------------
+! Set up calculations
+!-------------
+! Unperturbed/Unstrained 
+    Do i=1,1
+      calculationList(i,1) = 1
+      calculationList(i,2) = 0
+      calculationListR(i) = 0.0D0    
+    End Do
+! Tetragonal strain
+    j = -3   
+    Do i=2,4
+      calculationList(i,1) = 2
+      calculationList(i,2) = j
+      calculationListR(i) = j*0.001D0
       j = j + 1
-      Call tetragonalDistortion(configID, (i*0.001D0), aLatFactor)
-      Call calcEnergy(configID, configEnergy, 0)
-      dataPoints(j,1) = i*0.001D0
-      dataPoints(j,2) = configEnergy      
-      !If(mpiProcessID.eq.0)Then
-      !  print *,j,dataPoints(j,1),dataPoints(j,2)
-      !End If
-    End Do  
-    Call loadConfigNL(configID)
-! Fit polynomial
-    polyCoeffs = PolyFit(dataPoints,2)
-    tetraQuadTerm = polyCoeffs(3)
-! Apply strains - Orthorhombic
-    j = 0
-    Do i=0,6
-      If(i.gt.0)Then
-        Call loadConfigNL(configID)
-      End If 
+    End Do
+    j = 1   
+    Do i=5,7
+      calculationList(i,1) = 2
+      calculationList(i,2) = j
+      calculationListR(i) = j*0.001D0
       j = j + 1
-      Call orthogonalDistortion(configID, (i*0.001D0), aLatFactor)
-      Call calcEnergy(configID, configEnergy, 0)
-      dataPoints(j,1) = i*0.001D0
-      dataPoints(j,2) = configEnergy    
-    End Do  
-    Call loadConfigNL(configID)
-! Fit polynomial
-    Do i=1,7
-      If(i.eq.1)Then
-        dataPointsD(7,1) = dataPoints(1,1)
-        dataPointsD(7,2) = dataPoints(1,2)
-      Else  
-        dataPointsD(6+i,1) = dataPoints(i,1)
-        dataPointsD(8-i,1) = -1.0D0*dataPoints(i,1)
-        dataPointsD(6+i,2) = dataPoints(i,2)
-        dataPointsD(8-i,2) = dataPoints(i,2)
+    End Do
+! Orthorhombic strain
+    j = 1
+    Do i=8,13
+      calculationList(i,1) = 3
+      calculationList(i,2) = j
+      calculationListR(i) = j*0.001D0
+      j = j + 1
+    End Do
+! Monoclinic strain
+    j = 1
+    Do i=14,19
+      calculationList(i,1) = 4
+      calculationList(i,2) = j
+      calculationListR(i) = j*0.001D0
+      j = j + 1
+    End Do
+!-------------
+! Run calculations - split between processes
+!-------------
+    Do i=1,19
+      If(mpiProcessID.eq.mod(i-1,threads))Then   ! Split between multiple processes      
+! Load neighbour list    
+        Call loadConfigNL(configID)
+        If(calculationList(i,1).eq.1)Then                 ! No strain
+          Call calcEnergy(configID, configEnergy, 0)
+          dataPoints(i,1) = 0.0D0
+          dataPoints(i,2) = configEnergy  
+        End If
+        If(calculationList(i,1).eq.2)Then                 ! Tetragonal strain
+          Call tetragonalDistortion(configID, calculationListR(i), aLatFactor)      
+          Call calcEnergy(configID, configEnergy, 0)
+          dataPoints(i,1) = calculationListR(i)
+          dataPoints(i,2) = configEnergy  
+        End If
+        If(calculationList(i,1).eq.3)Then                 ! Orthorhombic strain
+          Call orthogonalDistortion(configID, calculationListR(i), aLatFactor)      
+          Call calcEnergy(configID, configEnergy, 0)
+          dataPoints(i,1) = calculationListR(i)
+          dataPoints(i,2) = configEnergy  
+        End If
+        If(calculationList(i,1).eq.4)Then                 ! Monoclinic strain
+          Call monoclinicDistortion(configID, calculationListR(i), aLatFactor)      
+          Call calcEnergy(configID, configEnergy, 0)
+          dataPoints(i,1) = calculationListR(i)
+          dataPoints(i,2) = configEnergy  
+        End If
       End If
     End Do
-    !Do i=1,13
-    !  If(mpiProcessID.eq.0)Then
-    !    print *,i,dataPointsD(i,1),dataPointsD(i,2)
-    !  End If
-    !End Do
+! Collect and distribute data array   
+    If(threads.gt.1)Then
+      Call M_collDouble2D(dataPoints)    
+      Call M_distDouble2D(dataPoints)  
+    End If      
+!-------------
+! Fit polynomials to 3 data sets
+!-------------   
+! Tetragonal strain      2-4,1,5-7
+    Do i=1,3
+      dataPointsS(i,1) = dataPoints(i+1,1)
+      dataPointsS(i,2) = dataPoints(i+1,2)
+    End Do
+    dataPointsS(4,1) = dataPoints(1,1) 
+    dataPointsS(4,2) = dataPoints(1,2) 
+    Do i=5,7
+      dataPointsS(i,1) = dataPoints(i,1)
+      dataPointsS(i,2) = dataPoints(i,2)
+    End Do
+! Fit polynomial
+    polyCoeffs = PolyFit(dataPointsS,2)
+    tetraQuadTerm = polyCoeffs(3)    
+! Orthorhombic strain    8-13,1,8-13
+    Do i=1,6
+      dataPointsD(i,1) = (-1.0D0)*dataPoints(i+7,1)
+      dataPointsD(i,2) = dataPoints(i+7,2)
+    End Do
+    dataPointsD(7,1) = dataPoints(1,1) 
+    dataPointsD(7,2) = dataPoints(1,2)   
+    Do i=1,6
+      dataPointsD(i+7,1) = dataPoints(i+7,1)
+      dataPointsD(i+7,2) = dataPoints(i+7,2)
+    End Do
+! Fit polynomial
     polyCoeffs = PolyFit(dataPointsD,2)
     orthoQuadTerm = polyCoeffs(3)
-! Apply strains - Monoclinic
-    j = 0
-    Do i=0,6
-      If(i.gt.0)Then
-        Call loadConfigNL(configID)
-      End If 
-      j = j + 1
-      Call monoclinicDistortion(configID, (i*0.001D0), aLatFactor)
-      Call calcEnergy(configID, configEnergy, 0)
-      dataPoints(j,1) = i*0.001D0
-      dataPoints(j,2) = configEnergy    
-    End Do  
-    Call loadConfigNL(configID)
-! Fit polynomial
-    Do i=1,7
-      If(i.eq.1)Then
-        dataPointsD(7,1) = dataPoints(1,1)
-        dataPointsD(7,2) = dataPoints(1,2)
-      Else  
-        dataPointsD(6+i,1) = dataPoints(i,1)
-        dataPointsD(8-i,1) = -1.0D0*dataPoints(i,1)
-        dataPointsD(6+i,2) = dataPoints(i,2)
-        dataPointsD(8-i,2) = dataPoints(i,2)
-      End If
+! Monoclinic strain    14-19,1,14-19
+    Do i=1,6
+      dataPointsD(i,1) = (-1.0D0)*dataPoints(i+13,1)
+      dataPointsD(i,2) = dataPoints(i+13,2)
     End Do
-    !Do i=1,13
-      !If(mpiProcessID.eq.0)Then
-      !  print *,i,dataPointsD(i,1),dataPointsD(i,2)
-      !End If
-    !End Do
-    polyCoeffs = PolyFit(dataPoints,2)
-    monoQuadTerm = polyCoeffs(3)
+    dataPointsD(7,1) = dataPoints(1,1) 
+    dataPointsD(7,2) = dataPoints(1,2)   
+    Do i=1,6
+      dataPointsD(i+7,1) = dataPoints(i+13,1)
+      dataPointsD(i+7,2) = dataPoints(i+13,2)
+    End Do
+! Fit polynomial
+    polyCoeffs = PolyFit(dataPointsD,2)
+    monoQuadTerm = polyCoeffs(3)    
+!-------------    
 ! Calculate elastic constants
+!-------------
     cAA_AB = (tetraQuadTerm/(3*scVol)+orthoQuadTerm/(scVol))/2
     cAA_AB = UnitConvert(cAA_AB,"EVAN3","GPA") 
     cAB = (3.0D0*bm-cAA_AB)/3.0D0

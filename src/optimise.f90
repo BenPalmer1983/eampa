@@ -12,7 +12,8 @@ Module optimise
   Use loadData 
   Use output   
   Use readEAM
-  Use calcEAM  
+  Use calcEAM 
+  Use testEAM 
   Use calcEval  
   Use bulkProperties 
 
@@ -205,12 +206,16 @@ Contains
       Print *,"Optimisation time: ",(timeEndOpt-timeStartOpt)
     End If
     
-    
 !---------------------------------    
 ! Analyse potential
-!---------------------------------    
-    eampaRunType(1:4) = "EVAF"
-    Call calcBP(1)
+!--------------------------------- 
+ 
+    Call runTestAnalysis()
+
+
+   
+    !eampaRunType(1:4) = "EVAF"
+    !Call calcBP(1)
     
     
   End Subroutine runOptimise

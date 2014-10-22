@@ -38,6 +38,10 @@ Module maths
   Public :: InterpLagrange      !find y(x) or y'(x) using lagrange interp from set of x-y
   Public :: PointInterp         !y(x) from large set of data x-y, finds region and uses lagrange interp
   Public :: CalcResidualSquareSum
+  Public :: MurnFit
+  Public :: MurnRSS
+  Public :: BirchMurnFit
+  Public :: BirchMurnRSS
 ! Vector Functions  
   Public :: CrossProduct
   Public :: DotProduct
@@ -484,6 +488,220 @@ Contains
     x = MinimaPolynomial (coefficients, xMin, xMax)
   End Function MinPolyFit   
   
+  Function MurnFit(points, varianceIn, loopsIn, refinementsIn) RESULT (coefficients)
+! Fit Murnaghan EoS to data
+    Implicit None  !Force declaration of all variables
+! Declare variables
+    Integer(kind=StandardInteger) :: i, n, pointToVary
+    !Real(kind=DoubleReal) :: energyMin, volOpt, bm, bmP, randDouble
+    Real(kind=DoubleReal) :: randDouble, varyAmount, optRSS, testRSS, loopFactor
+    Real(kind=DoubleReal), Dimension(:,:) :: points
+    Real(kind=DoubleReal), Dimension(1:3) :: coefficientsQ
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficients  ! E0, V0, B0, B'0
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsTemp  ! E0, V0, B0, B'0
+    Real(kind=DoubleReal), optional :: varianceIn
+    Integer(kind=StandardInteger), optional :: loopsIn, refinementsIn
+    Real(kind=DoubleReal) :: variance
+    Integer(kind=StandardInteger) :: loops, refinements
+! Optional argument variables    
+    variance = 0.01D0
+    loops = 1000
+    refinements = 5
+    If(present(varianceIn))Then
+      variance = varianceIn
+    End If 
+    If(present(loopsIn))Then
+      loops = loopsIn
+    End If 
+    If(present(refinementsIn))Then
+      refinements = refinementsIn
+    End If 
+! Quadratic fit  (as a starting point)    
+    coefficientsQ = PolyFit(points,2)
+! Random number    
+    Call RANDOM_NUMBER(randDouble)
+! Starting values for fit    
+    coefficients(2) = (-1.0D0*coefficientsQ(2))/(2.0D0*coefficientsQ(3))    !V0
+    coefficients(1) = coefficientsQ(3)*coefficients(2)**2+&                 !E0
+                      coefficientsQ(2)*coefficients(2)+&      
+                      coefficientsQ(1)
+    coefficients(3) = 2.0D0 * coefficientsQ(3) * coefficients(2)            !B0
+    coefficients(4) = 2.0D0 + 2.0D0 * randDouble                            !B'0
+! Starting RSS    
+    optRSS = MurnRSS(points,coefficients)
+! Adjust points
+    Do n=0,refinements
+      loopFactor = exp(-0.5D0*n)
+      Do i=1,loops
+        pointToVary = mod(i-1,4)+1      
+        coefficientsTemp = coefficients
+        Call RANDOM_NUMBER(randDouble)
+        varyAmount = variance*2.0D0*(-0.5D0+randDouble)*loopFactor
+        coefficientsTemp(pointToVary) = &
+        (1.0D0 + varyAmount)*coefficientsTemp(pointToVary)
+        testRSS = MurnRSS(points,coefficientsTemp)
+        If(testRSS.lt.optRSS)Then
+          optRSS = testRSS
+          coefficients = coefficientsTemp
+          If(optRSS.lt.1.0D-5)Then
+            Exit
+          End If
+        End If
+      End Do  
+      If(optRSS.lt.1.0D-5)Then
+        Exit
+      End If
+    End Do 
+  End Function MurnFit  
+  
+  Function MurnCalc(volume,coefficients) RESULT (energy)  
+! Calculate energy from volume using Murnaghan EoS
+    Implicit None  !Force declaration of all variables
+! Declare variables  
+    Real(kind=DoubleReal) :: volume, energy
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficients
+! Calculate energy
+    energy = coefficients(1) + &
+             ((coefficients(3)*volume)/coefficients(4))*&
+             (((coefficients(2)/volume)**coefficients(4))/&
+             (coefficients(4)-1)+1.0D0)-&
+             ((coefficients(2)*coefficients(3))/(coefficients(4)-1.0D0))
+  End Function MurnCalc  
+  
+  Function MurnRSS(points,coefficients) RESULT (rss)    
+! Fit Murnaghan EoS to data
+    Implicit None  !Force declaration of all variables
+! Declare variables  
+    Integer(kind=StandardInteger) :: i
+    Real(kind=DoubleReal), Dimension(:,:) :: points
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficients
+    Real(kind=DoubleReal) :: volume, energy, energyC, rss
+! calculate RSS
+    rss = 0.0D0
+    Do i=1,size(points,1)
+      volume = points(i,1)
+      energy = points(i,2)
+      energyC = MurnCalc(volume,coefficients)
+      rss = rss + (energyC-energy)**2
+    End Do
+  End Function MurnRSS  
+  
+  
+  
+  Function BirchMurnFit(points, varianceIn, loopsIn, refinementsIn, coeffsIn) RESULT (coefficients)
+! Fit Murnaghan EoS to data
+    Implicit None  !Force declaration of all variables
+! Declare variables
+    Integer(kind=StandardInteger) :: i, n, pointToVary
+    !Real(kind=DoubleReal) :: energyMin, volOpt, bm, bmP, randDouble
+    Real(kind=DoubleReal) :: randDouble, varyAmount, optRSS, testRSS, loopFactor
+    Real(kind=DoubleReal), Dimension(:,:) :: points
+    Real(kind=DoubleReal), Dimension(1:3) :: coefficientsQ
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficients  ! E0, V0, B0, B'0
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsTemp  ! E0, V0, B0, B'0  
+    Real(kind=DoubleReal), optional :: varianceIn
+    Integer(kind=StandardInteger), optional :: loopsIn, refinementsIn
+    Real(kind=DoubleReal), Dimension(1:4), optional :: coeffsIn
+    Real(kind=DoubleReal) :: variance
+    Integer(kind=StandardInteger) :: loops, refinements
+! Optional argument variables    
+    variance = 0.01D0
+    loops = 1000
+    refinements = 5
+    If(present(varianceIn))Then
+      variance = varianceIn
+    End If 
+    If(present(loopsIn))Then
+      loops = loopsIn
+    End If 
+    If(present(refinementsIn))Then
+      refinements = refinementsIn
+    End If 
+! Init variables
+    loopFactor = 1.0D0    
+! Starting point
+    If(Present(coeffsIn))Then
+      coefficients = coeffsIn
+    Else
+! Quadratic fit  (as a starting point)    
+      coefficientsQ = PolyFit(points,2)
+! Random number    
+      Call RANDOM_NUMBER(randDouble)
+! Starting values for fit    
+      coefficients(2) = (-1.0D0*coefficientsQ(2))/(2.0D0*coefficientsQ(3))    !V0
+      coefficients(1) = coefficientsQ(3)*coefficients(2)**2+&                 !E0
+                      coefficientsQ(2)*coefficients(2)+&      
+                      coefficientsQ(1)
+      coefficients(3) = 2.0D0 * coefficientsQ(3) * coefficients(2)            !B0
+      coefficients(4) = 2.0D0 + 2.0D0 * randDouble                            !B'0
+    End If  
+! Starting RSS    
+    optRSS = BirchMurnRSS(points,coefficients)
+! Adjust points - second pass
+    Do n=0,refinements
+      loopFactor = exp(-0.5D0*n)
+      Do i=1,loops  
+        If(n.lt.3)Then
+          pointToVary = mod(i-1,3)+1 
+        Else
+          pointToVary = mod(i-1,4)+1 
+        End If
+        coefficientsTemp = coefficients
+        Call RANDOM_NUMBER(randDouble)
+        varyAmount = variance*2.0D0*(-0.5D0+randDouble)*loopFactor
+        coefficientsTemp(pointToVary) = &
+        (1.0D0 + varyAmount)*coefficientsTemp(pointToVary)
+        testRSS = BirchMurnRSS(points,coefficientsTemp)
+        If(testRSS.lt.optRSS)Then
+          optRSS = testRSS
+          coefficients = coefficientsTemp
+          If(optRSS.lt.1.0D-7)Then
+            Exit
+          End If
+        End If
+      End Do  
+      If(optRSS.lt.1.0D-7)Then
+        Exit
+      End If
+    End Do  
+  End Function BirchMurnFit  
+  
+  Function BirchMurnCalc(volume,coefficients) RESULT (energy)  
+! Calculate energy from volume using Murnaghan EoS
+    Implicit None  !Force declaration of all variables
+! Declare variables  
+    Real(kind=DoubleReal) :: volume, energy, eta
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficients    ! E0, V0, B0, B'0
+! Calculate energy
+    eta = (volume/coefficients(2))**(1.0D0/3.0D0)
+    energy = coefficients(1) + &
+             ((9.0D0*coefficients(3)*coefficients(2))/(16.0D0))*&
+             ((eta**2-1.0D0)**2)*&
+             (6.0D0+coefficients(4)*(eta**2-1.0D0)-4.0D0*eta**2)             
+  End Function BirchMurnCalc 
+  
+  Function BirchMurnRSS(points,coefficients) RESULT (rss)    
+! Fit Murnaghan EoS to data
+    Implicit None  !Force declaration of all variables
+! Declare variables  
+    Integer(kind=StandardInteger) :: i
+    Real(kind=DoubleReal), Dimension(:,:) :: points
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficients    ! E0, V0, B0, B'0
+    Real(kind=DoubleReal) :: volume, energy, energyC, rss
+! calculate RSS
+    rss = 0.0D0
+    Do i=1,size(points,1)
+      volume = points(i,1)
+      energy = points(i,2)
+      energyC = BirchMurnCalc(volume,coefficients)
+      rss = rss + (energyC-energy)**2
+    End Do
+  End Function BirchMurnRSS  
+
+  
+  
+! Interpolation  
+  
   Function InterpLagrange(x, points, derivativeIn) RESULT (output)
 ! Calculates y(x) or y'(x) using Lagrange interpolation
     Implicit None  !Force declaration of all variables
@@ -738,6 +956,10 @@ Contains
     End If 
   
   End Function PointInterp
+  
+  
+  
+  
   
 !------------------------------------------------------------------------!
 ! Spline Functions

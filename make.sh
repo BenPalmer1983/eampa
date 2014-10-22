@@ -7,7 +7,7 @@ src/maths.f90 src/general.f90 src/units.f90 src/globals.f90  \
 src/initialise.f90 src/loadData.f90 src/output.f90 \
 src/readInput.f90 src/readEAM.f90 src/makeConfig.f90 src/readConfig.f90  \
 src/neighbourList.f90 src/prepEAM.f90 src/prep.f90  \
-src/calcEAM.f90 src/bulkProperties.f90 src/calcEval.f90 src/testEAM.f90  \
+src/calcEAM.f90 src/bulkProperties.f90 src/testEAM.f90 src/calcEval.f90  \
 src/optimise.f90  \
 src/pwBatch.f90 src/clean.f90  \
 src/eampa.f90

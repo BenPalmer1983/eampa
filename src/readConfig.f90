@@ -31,14 +31,27 @@ Module readConfig
   Public :: generateCoords
   
 Contains
-  Subroutine readConfigFile()
+  Subroutine readConfigFile(resetVarsIn,readIDFromIn)
     Implicit None   ! Force declaration of all variables
 ! Private variables    
+    Integer(kind=StandardInteger), optional :: resetVarsIn, readIDFromIn
+    Integer(kind=StandardInteger) :: resetVars, readIDFrom
     Real(kind=DoubleReal) :: timeStartRC, timeEndRC
+! Optional variables    
+    resetVars = 0                   ! Whether to clear out the config variables/arrays or not
+    If(present(resetVarsIn))Then
+      resetVars = resetVarsIn
+    End If
+    readIDFrom = 1                  ! Which ID config to read into
+    If(present(readIDFromIn))Then
+      readIDFrom = readIDFromIn
+    End If
 ! Start Time
     Call cpu_time(timeStartRC) 
 ! Clear config arrays
-    Call resetConfigVars()
+    If(resetVars.eq.1)Then
+      Call resetConfigVars()
+    End If  
 ! Prepare the temporary config file
     If(mpiProcessID.eq.0)Then
       Call prepFile()   
@@ -49,19 +62,23 @@ Contains
 ! Send temp file name to all processes
     Call M_distChar(configFilePathT)
 ! Read the temporary config file
-    Call readFile() 
+    Call readFile(readIDFrom) 
 ! Generate co-ordinates   
-    Call generateCoords()
+    Call generateCoords(readIDFrom)
 ! Synch MPI processes    
     Call M_synchProcesses()
 ! Output summary of config to the output file
-    Call outputConfigSummaryT()  
+    If(readIDFrom.eq.1)Then
+      Call outputConfigSummaryT()  
+    End If  
 ! Output files
     If(mpiProcessID.eq.0)Then
       Call outputConfigFiles()   
     End If   
 ! Synch MPI processes    
     Call M_synchProcesses() 
+! Remove file
+    Call rmFile(configFilePathT)
 ! End Time
     Call cpu_time(timeEndRC)        
 ! Store Time    
@@ -105,7 +122,7 @@ Contains
     configFilePathTA = Trim(configFilePathT)//".temp.conf"
 ! Output to Terminal
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      Print *,"Reading user config file ",trim(configFilePath)
+      !Print *,"Reading user config file ",trim(configFilePath)
     End If  
 ! Read EAM file and make new temp EAM pot file
     Open(UNIT=1,FILE=Trim(configFilePath)) 
@@ -131,9 +148,6 @@ Contains
     End Do
     Close(2)
     Close(1)
-! Add files to clean
-    Call fileToClean(configFilePathT)
-    Call fileToClean(configFilePathTA)
   End Subroutine prepFile 
   
   
@@ -200,7 +214,6 @@ Contains
     End Do  
     Close(2)
     Close(1)
-    
 ! Loop through DFT files    
     Open(UNIT=1,FILE=Trim(configFilePathTC))
     Do i=1,maxFileRows   
@@ -254,21 +267,33 @@ Contains
       End If
     End Do
     Close(1)
+! Remove unnecessary files    
+    Call rmFile(configFilePathTA)
+    Call rmFile(configFilePathTB)
+    Call rmFile(configFilePathTC)
+    Call rmFile(configFilePathTDFT)
+    
 ! Add files to clean
-    Call fileToClean(configFilePathT)
-    Call fileToClean(configFilePathTA)
-    Call fileToClean(configFilePathTB)
-    Call fileToClean(configFilePathTC)
-    Call fileToClean(configFilePathTDFT)
+    !Call fileToClean(configFilePathT)
+    !Call fileToClean(configFilePathTA)
+    !Call fileToClean(configFilePathTB)
+    !Call fileToClean(configFilePathTC)
+    !Call fileToClean(configFilePathTDFT)
+    !Call rmFile(configFilePathT)
+    !Call rmFile(configFilePathTA)
+    !Call rmFile(configFilePathTB)
+    !Call rmFile(configFilePathTC)
+    !Call rmFile(configFilePathTDFT)
   End Subroutine readDFTFiles 
   
   
-  Subroutine readFile()
+  Subroutine readFile(readIDFrom)
 ! Reads in the Config potential from the temporary Config file
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Integer(kind=StandardInteger), Parameter :: maxFileRows = 10000000 
     Integer(kind=StandardInteger) :: ios, i, coordStart, coordLength
+    Integer(kind=StandardInteger) :: configID, readIDFrom
     Character(len=255) :: fileRow
     Character(len=64) :: bufferA, bufferB, bufferC, bufferD, bufferE, bufferF, bufferG
 ! Initialise variables
@@ -280,8 +305,24 @@ Contains
     bufferE = BlankString(bufferE) 
     bufferF = BlankString(bufferF) 
     bufferG = BlankString(bufferG)  
-    coordStart = 1  
-    coordLength = 0   
+    configID = readIDFrom-1
+    configCountRI = 0
+! coord start point
+    If(readIDFrom.eq.1)Then
+      coordCount = 0
+      coordStart = 1  
+      coordLength = 0 
+    Else
+      If(configCount.eq.0)Then
+        coordCount = 0
+        coordStart = 1  
+        coordLength = 0 
+      Else
+        coordCount = configurationCoordsKey(configCount,3)
+        coordStart = configurationCoordsKey(configCount,3)+1
+        coordLength = 0 
+      End If  
+    End If    
 ! Read Config file and make new temp Config pot file
     Open(UNIT=1,FILE=Trim(configFilePathT)) 
     Do i=1,maxFileRows 
@@ -293,48 +334,49 @@ Contains
       End If 
       fileRow = Trim(Adjustl(fileRow))
       If(fileRow(1:4).eq."#NEW")Then
-        configCount = configCount + 1        
+        configID = configID + 1      
+        configCountRI = configCountRI + 1        
       End If
 ! Reals/Doubles
       If(fileRow(1:3).eq."#LP")Then
         Read(fileRow,*) bufferA, bufferB
-        Read(bufferB,*) configurationsR(configCount,1)       
+        Read(bufferB,*) configurationsR(configID,1)       
       End If
       If(fileRow(1:2).eq."#X")Then
         Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
-        Read(bufferB,*) configurationsR(configCount,2)   
-        Read(bufferC,*) configurationsR(configCount,3)    
-        Read(bufferD,*) configurationsR(configCount,4)        
+        Read(bufferB,*) configurationsR(configID,2)   
+        Read(bufferC,*) configurationsR(configID,3)    
+        Read(bufferD,*) configurationsR(configID,4)        
       End If
       If(fileRow(1:2).eq."#Y")Then
         Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
-        Read(bufferB,*) configurationsR(configCount,5)   
-        Read(bufferC,*) configurationsR(configCount,6)    
-        Read(bufferD,*) configurationsR(configCount,7)        
+        Read(bufferB,*) configurationsR(configID,5)   
+        Read(bufferC,*) configurationsR(configID,6)    
+        Read(bufferD,*) configurationsR(configID,7)        
       End If
       If(fileRow(1:2).eq."#Z")Then
         Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
-        Read(bufferB,*) configurationsR(configCount,8)   
-        Read(bufferC,*) configurationsR(configCount,9)    
-        Read(bufferD,*) configurationsR(configCount,10)        
+        Read(bufferB,*) configurationsR(configID,8)   
+        Read(bufferC,*) configurationsR(configID,9)    
+        Read(bufferD,*) configurationsR(configID,10)        
       End If
       If(fileRow(1:3).eq."#RC")Then
         Read(fileRow,*) bufferA, bufferB
-        Read(bufferB,*) configurationsR(configCount,11)       
+        Read(bufferB,*) configurationsR(configID,11)       
       End If
 ! Integers
       If(fileRow(1:3).eq."#CC")Then
         Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
-        Read(bufferB,*) configurationsI(configCount,1)    
-        Read(bufferC,*) configurationsI(configCount,2)   
-        Read(bufferD,*) configurationsI(configCount,3)  
+        Read(bufferB,*) configurationsI(configID,1)    
+        Read(bufferC,*) configurationsI(configID,2)   
+        Read(bufferD,*) configurationsI(configID,3)  
       End If      
       If(fileRow(1:2).eq."#F")Then    
         Read(fileRow,*) bufferA, bufferB    
         If(bufferB(1:1).eq."Y")Then
-          configurationsI(configCount,4) = 1
+          configurationsI(configID,4) = 1
         Else
-          configurationsI(configCount,4) = 0
+          configurationsI(configID,4) = 0
         End If
       End If
 ! Co-ordinates
@@ -349,7 +391,7 @@ Contains
           Read(bufferC,*) configurationCoordsR(coordCount,2)
           Read(bufferD,*) configurationCoordsR(coordCount,3)
 ! Read in forces  
-          If(configurationsI(configCount,4).eq.1)Then
+          If(configurationsI(configID,4).eq.1)Then
             Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE, bufferF, bufferG
             Read(bufferE,*) configurationForcesR(coordCount,1)
             Read(bufferF,*) configurationForcesR(coordCount,2)
@@ -360,67 +402,72 @@ Contains
 ! Read in configuration weighting
       If(fileRow(1:3).eq."#CW")Then
         Read(fileRow,*) bufferA, bufferB
-        Read(bufferB,*) configWeighting(configCount)    
+        Read(bufferB,*) configWeighting(configID)    
       End If  
 ! Read in energy
       If(fileRow(1:4).eq."#EPA")Then
         Read(fileRow,*) bufferA, bufferB, bufferC
-        Read(bufferB,*) configRef(configCount,1)    
-        configRef(configCount,1) = UnitConvert(configRef(configCount,1),bufferC,"EV")
-        configRefEnergies(configCount) = configRef(configCount,1)  ! Also store in energies array
+        Read(bufferB,*) configRef(configID,1)    
+        configRef(configID,1) = UnitConvert(configRef(configID,1),bufferC,"EV")
+        configRefEnergies(configID) = configRef(configID,1)  ! Also store in energies array
       End If    
 ! Read in EqVol
       If(fileRow(1:3).eq."#EV")Then
         Read(fileRow,*) bufferA, bufferB, bufferC
-        Read(bufferB,*) configRef(configCount,2)    
-        configRef(configCount,2) = UnitConvert(configRef(configCount,2),bufferC,"ANG3")
-        configRefEV(configCount) = configRef(configCount,2)  ! Also store in eqvol array
+        Read(bufferB,*) configRef(configID,2)    
+        configRef(configID,2) = UnitConvert(configRef(configID,2),bufferC,"ANG3")
+        configRefEV(configID) = configRef(configID,2)  ! Also store in eqvol array
       End If   
 ! Read in Bulk Modulus
       If(fileRow(1:3).eq."#BM")Then
         Read(fileRow,*) bufferA, bufferB, bufferC
-        Read(bufferB,*) configRefBM(configCount)    
-        configRefBM(configCount) = UnitConvert(configRefBM(configCount),bufferC,"GPA")
+        Read(bufferB,*) configRefBM(configID)    
+        configRefBM(configID) = UnitConvert(configRefBM(configID),bufferC,"GPA")
       End If       
 ! Read in stresses
       If(fileRow(1:3).eq."#SX")Then
         Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
-        Read(bufferB,*) configRefStresses(configCount,1)    
-        Read(bufferC,*) configRefStresses(configCount,2)   
-        Read(bufferD,*) configRefStresses(configCount,3)  
+        Read(bufferB,*) configRefStresses(configID,1)    
+        Read(bufferC,*) configRefStresses(configID,2)   
+        Read(bufferD,*) configRefStresses(configID,3)  
       End If
       If(fileRow(1:3).eq."#SY")Then
         Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
-        Read(bufferB,*) configRefStresses(configCount,4)    
-        Read(bufferC,*) configRefStresses(configCount,5)   
-        Read(bufferD,*) configRefStresses(configCount,6)  
+        Read(bufferB,*) configRefStresses(configID,4)    
+        Read(bufferC,*) configRefStresses(configID,5)   
+        Read(bufferD,*) configRefStresses(configID,6)  
       End If
       If(fileRow(1:3).eq."#SZ")Then
         Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
-        Read(bufferB,*) configRefStresses(configCount,7)    
-        Read(bufferC,*) configRefStresses(configCount,8)   
-        Read(bufferD,*) configRefStresses(configCount,9)  
+        Read(bufferB,*) configRefStresses(configID,7)    
+        Read(bufferC,*) configRefStresses(configID,8)   
+        Read(bufferD,*) configRefStresses(configID,9)  
       End If
 ! End - store start/length/end coord list      
       If(fileRow(1:4).eq."#END")Then
-        configurationCoordsKey(configCount,1) = coordStart
-        configurationCoordsKey(configCount,2) = coordLength
-        configurationCoordsKey(configCount,3) = coordStart+coordLength-1
+        configurationCoordsKey(configID,1) = coordStart
+        configurationCoordsKey(configID,2) = coordLength
+        configurationCoordsKey(configID,3) = coordStart+coordLength-1
         coordStart = coordStart + coordLength
         coordLength = 0
       End If
     End Do
     Close(1) 
+! Number of configurations read in
+    If(readIDFrom.eq.1)Then   !If configs read into slot 1 upwards, count as total configs
+      configCount = configCountRI
+    End If    
   End Subroutine readFile 
   
 
   
   
-  Subroutine generateCoords()
+  Subroutine generateCoords(readIDFrom)
 ! Saves the eam file to the output directory
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: i, j, coordStart, coordEnd
+    Integer(kind=StandardInteger) :: readIDFrom
+    Integer(kind=StandardInteger) :: i, j, coordStart, coordEnd, coordLast
     Integer(kind=StandardInteger) :: coordStartG, coordLengthG
     Integer(kind=StandardInteger) :: x, y, z, xCopy, yCopy, zCopy
     Real(kind=DoubleReal) :: aLat
@@ -435,11 +482,31 @@ Contains
     yCopy = 0
     zCopy = 0
     aLat = 0.0D0
-    coordCountG = 0
-    coordLengthG = 0
-    coordStartG = 1
+! coord start point
+    If(readIDFrom.eq.1)Then
+      coordCountG = 0
+      coordLengthG = 0
+      coordStartG = 1
+    Else  
+      If(configCount.eq.0)Then
+        coordCountG = 0
+        coordLengthG = 0
+        coordStartG = 1
+      Else
+        coordLast = 0
+        Do i=1,(readIDFrom-1)
+          If(coordLast.lt.configurationCoordsKeyG(i,3))Then
+            coordLast = configurationCoordsKeyG(i,3)
+          End If  
+        End Do
+        coordCountG = coordLast   
+        coordLengthG = 0   
+        coordStartG = coordLast+1
+      End If  
+    End If  
 ! Loop through configurations
-    Do i=1,configCount
+    !print *,readIDFrom,(readIDFrom+configCountRI-1)
+    Do i=readIDFrom,(readIDFrom+configCountRI-1)
 ! Set config variables    
       coordStart = configurationCoordsKey(i,1)
       coordEnd = configurationCoordsKey(i,3)
@@ -497,7 +564,7 @@ Contains
           End Do
         End Do
       End Do
-! Store coord key
+! Store coord key      
       configurationCoordsKeyG(i,1) = coordStartG
       configurationCoordsKeyG(i,2) = coordLengthG
       configurationCoordsKeyG(i,3) = coordStartG+coordLengthG-1      
@@ -511,7 +578,13 @@ Contains
       End Do  
       configVolume(i) = TripleProductSq(configVolVector)
     End Do    
-    
+! Count total configurations
+    configCountT = 0
+    Do i=1,1024
+      If(configurationCoordsKeyG(i,1).gt.0)Then
+        configCountT = configCountT + 1
+      End If
+    End Do  
   End Subroutine generateCoords 
   
   

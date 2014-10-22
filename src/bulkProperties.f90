@@ -277,7 +277,9 @@ Contains
     Integer(kind=StandardInteger), Optional :: threadsIn
 !-------------
 ! Start
-!-------------    
+!-------------  
+! Synch processes
+    Call M_synchProcesses()
 ! Optional arguments    
     threads = 1    ! Number of threads to use
     If(Present(threadsIn))Then
@@ -343,10 +345,11 @@ Contains
 ! Run calculations - split between processes
 !-------------
     Do i=1,19
+      Call loadConfigNL(configID)
       If(mpiProcessID.eq.mod(i-1,threads))Then   ! Split between multiple processes      
 ! Load neighbour list    
-        Call loadConfigNL(configID)
         If(calculationList(i,1).eq.1)Then                 ! No strain
+          Call isotropicDistortion(configID, 0.0D0, aLatFactor)
           Call calcEnergy(configID, configEnergy, 0)
           dataPoints(i,1) = 0.0D0
           dataPoints(i,2) = configEnergy  
@@ -372,10 +375,12 @@ Contains
       End If
     End Do
 ! Collect and distribute data array   
+    !print *,"no strain a ",configID, dataPoints(1,2)   
     If(threads.gt.1)Then
       Call M_collDouble2D(dataPoints)    
       Call M_distDouble2D(dataPoints)  
-    End If      
+    End If     
+    !print *,"no strain b ",configID, dataPoints(1,2)   
 !-------------
 ! Fit polynomials to 3 data sets
 !-------------   
@@ -393,10 +398,15 @@ Contains
 ! Fit polynomial
     polyCoeffs = PolyFit(dataPointsS,2)
     tetraQuadTerm = polyCoeffs(3)    
+    !If(mpiProcessID.eq.0)Then
+    !  Do i=1,7
+    !    print *,dataPointsS(i,1),dataPointsS(i,2)
+    !  End Do    
+    !End If
 ! Orthorhombic strain    8-13,1,8-13
     Do i=1,6
-      dataPointsD(i,1) = (-1.0D0)*dataPoints(i+7,1)
-      dataPointsD(i,2) = dataPoints(i+7,2)
+      dataPointsD(i,1) = (-1.0D0)*dataPoints(14-i,1)
+      dataPointsD(i,2) = dataPoints(14-i,2)
     End Do
     dataPointsD(7,1) = dataPoints(1,1) 
     dataPointsD(7,2) = dataPoints(1,2)   
@@ -407,10 +417,15 @@ Contains
 ! Fit polynomial
     polyCoeffs = PolyFit(dataPointsD,2)
     orthoQuadTerm = polyCoeffs(3)
+    !If(mpiProcessID.eq.0)Then
+    !  Do i=1,13
+    !    print *,dataPointsD(i,1),dataPointsD(i,2)
+    !  End Do    
+    !End If
 ! Monoclinic strain    14-19,1,14-19
     Do i=1,6
-      dataPointsD(i,1) = (-1.0D0)*dataPoints(i+13,1)
-      dataPointsD(i,2) = dataPoints(i+13,2)
+      dataPointsD(i,1) = (-1.0D0)*dataPoints(20-i,1)
+      dataPointsD(i,2) = dataPoints(20-i,2)
     End Do
     dataPointsD(7,1) = dataPoints(1,1) 
     dataPointsD(7,2) = dataPoints(1,2)   
@@ -420,7 +435,12 @@ Contains
     End Do
 ! Fit polynomial
     polyCoeffs = PolyFit(dataPointsD,2)
-    monoQuadTerm = polyCoeffs(3)    
+    monoQuadTerm = polyCoeffs(3)  
+    !If(mpiProcessID.eq.0)Then
+    !  Do i=1,13
+    !    print *,dataPointsD(i,1),dataPointsD(i,2)
+    !  End Do    
+    !End If
 !-------------    
 ! Calculate elastic constants
 !-------------

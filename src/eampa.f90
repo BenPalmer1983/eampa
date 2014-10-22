@@ -92,13 +92,15 @@ Program eampa
   
 !-------------------------------------------------------------- 
 !--- Optimise input EAM potential functions
-  If(optionTestEAM.eq.1)Then
-    Call runTestEAM()
+  If(optionOptimise.eq.1)Then
+    Call runOptimise()
   End If  
   
 !-------------------------------------------------------------- 
 !--- Test input EAM potential functions  
-  
+  If(optionTestEAM.eq.1)Then
+    Call runTestAnalysis()
+  End If  
   
 !-------------------------------------------------------------- 
 !--- PW Batch Files

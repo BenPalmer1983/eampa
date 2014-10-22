@@ -31,28 +31,61 @@ Module neighbourList
   Public :: clearNeighbourList
   
 Contains
-  Subroutine makeNeighbourList()
+  Subroutine makeNeighbourList(configIDStartIn,configIDEndIn,forcePrintIn)
 ! Make neighbour list of all atom pairs for all configs where separation is .le. rcutoff
     Implicit None   ! Force declaration of all variables
 ! Private variables    
     Integer(kind=StandardInteger) :: configID, coordStart, coordLength, coordEnd
-    Integer(kind=StandardInteger) :: atomA, atomB, nlKey, neighbourListCount, asKey
+    Integer(kind=StandardInteger) :: atomA, atomB, nlKey, neighbourListCount, asKey, lastNLC
     Integer(kind=StandardInteger) :: configStart, configLength
     Integer(kind=StandardInteger) :: xCopy, yCopy, zCopy
-    Integer(kind=StandardInteger) :: l, m, n
+    Integer(kind=StandardInteger) :: i, l, m, n
     Real(kind=DoubleReal) :: rCutoffSq
     Real(kind=DoubleReal) :: aLat, xShift, yShift, zShift
     Real(kind=DoubleReal) :: xA, xB, yA, yB, zA, zB, xdSq, ydSq, zdSq, rdSq
     Real(kind=DoubleReal) :: rMin, rMax 
+    Integer(kind=StandardInteger), optional :: configIDStartIn, configIDEndIn, forcePrintIn
+    Integer(kind=StandardInteger) :: configIDStart, configIDEnd, forcePrint
+    configIDStart = 1                   ! Starting configID
+    If(present(configIDStartIn))Then
+      configIDStart = configIDStartIn
+    End If
+    configIDEnd = 1024                   ! Ending configID
+    If(present(configIDEndIn))Then
+      configIDEnd = configIDEndIn
+    End If
+    forcePrint = 0                   ! Ending configID
+    If(present(forcePrintIn))Then
+      forcePrint = forcePrintIn
+    End If
 ! Start time
     Call cpu_time(timeStart)
-! Init variables
+! Init variables    
     neighbourListCount = 0
     configStart = 1
     rMin = 2.0D21
     rMax = -2.0D21
+! Prepare NL key array - clear all above configIDStart
+    Do i=configIDStart,1024
+      neighbourListKey(i,1) = 0
+      neighbourListKey(i,2) = 0
+      neighbourListKey(i,3) = 0
+    End Do
+    If(configIDStart.gt.1)Then
+      lastNLC = 0
+      Do i=1,configIDStart
+        If(lastNLC.lt.neighbourListKey(i,3))Then
+          lastNLC = neighbourListKey(i,3)
+        End If
+      End Do
+      neighbourListCount = lastNLC
+      configStart = lastNLC+1    
+    End If
+    !print *,"NL",configStart
 ! Loop through configurations     
-    Do configID=1,configCount
+    Do configID=configIDStart,configIDEnd
+! Check config is there    
+    If(configurationCoordsKeyG(configID,1).gt.0)Then
 ! Init looping variables   
       atomA = 0
       atomB = 0
@@ -170,19 +203,24 @@ Contains
       neighbourListKey(configID,3) = configStart+configLength-1
       neighbourListKeyR(configID,1) = rCutoffSq**0.5D0 
       configStart = configStart + configLength
+    End If   
     End Do  ! End loop configs
+    If(configIDStart.eq.1.or.forcePrint.eq.1)Then
 ! Save summary to output file
-    Call outputNLSummary()   
-    Call outputNLSummaryT()    
+      Call outputNLSummary()   
+      Call outputNLSummaryT()  
+    !End If  
+    !If(configIDStart.eq.1)Then  
 ! Output NL separation to file    
-    Call outputNLSeparationFile()
+      Call outputNLSeparationFile()
 ! Output entire neighbour list to file
-    If(saveNLToFile.eq.1)Then
-      Call outputNLFile()
-    End If  
+      If(saveNLToFile.eq.1)Then
+        Call outputNLFile()
+      End If  
 ! Output min max atom separation
-    Call outputNLMinMaxT(rMin,rMax)  ! To terminal
-    Call outputNLMinMax(rMin,rMax)  ! To output file
+      Call outputNLMinMaxT(rMin,rMax)  ! To terminal
+      Call outputNLMinMax(rMin,rMax)  ! To output file
+    End If  
 ! End time
     Call cpu_time(timeEnd)
 ! Record time taken to make neighbour list
@@ -219,5 +257,35 @@ Contains
     neighbourListCount = 0
     End If
   End Subroutine clearNeighbourList 
+!------------------------------------------- 
+  Subroutine storeCNL()
+    Implicit None   ! Force declaration of all variables 
+! Private variables
+    neighbourListCountInput = neighbourListCount
+    neighbourListKeyInput = neighbourListKey
+    neighbourListKeyRInput = neighbourListKeyR
+    neighbourListIInput = neighbourListI
+    neighbourListRInput = neighbourListR
+    neighbourListCoordsInput = neighbourListCoords
+    configCountInput = configCount                             
+    configurationsIInput = configurationsI  
+    configurationsRInput = configurationsR    
+    coordCountInput = coordCount                                     
+    configurationCoordsKeyInput = configurationCoordsKey 
+    configurationCoordsIInput = configurationCoordsI
+    configurationCoordsRInput = configurationCoordsR       
+    configurationForcesRInput = configurationForcesR       
+    coordCountGInput = coordCountG                                  
+    configurationCoordsKeyGInput = configurationCoordsKeyG
+    configurationCoordsIGInput = configurationCoordsIG
+    configurationCoordsRGInput = configurationCoordsRG       
+    configVolumeInput = configVolume
+    configRefInput = configRef         
+    configRefForcesInput = configRefForces
+    configRefStressesInput = configRefStresses
+    configRefEnergiesInput = configRefEnergies
+    configRefEVInput = configRefEV     
+    configRefBMInput = configRefBM
+  End Subroutine storeCNL 
   
 End Module neighbourList  

@@ -322,6 +322,13 @@ Contains
       fileRow = trim(adjustl(StrToUpper(fileRow)))
       Read(fileRow,*) nlCutoff
     End If  
+    If(fileRow(1:13).eq."#NLTESTCUTOFF")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      fileRow = trim(adjustl(StrToUpper(fileRow)))
+      Read(fileRow,*) nlTestCutoff
+    End If  
+    
+    
 !----------------------------------      
 ! Calculation options
 !----------------------------------     
@@ -385,11 +392,7 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Read(fileRow,*) embeRescale 
     End If  
-    
-    
-    
-    
-   
+       
     
 !----------------------------------      
 ! RSS calculation options
@@ -398,6 +401,20 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Call strToDPArr(fileRow,rssWeighting)      
     End If  
+       
+    
+!----------------------------------      
+! Testing Reference Data
+!----------------------------------     
+    If(fileRow(1:7).eq."#FCCREF")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Call strToDPArr(fileRow,fccReferenceValues)      
+    End If  
+    
+    
+    
+    
+    
     
     
     

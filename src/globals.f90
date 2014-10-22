@@ -35,6 +35,8 @@ Module globals
 ! System Variables  
   Real(kind=DoubleReal) :: largeArraySize
   Integer(kind=StandardInteger), Dimension(1:1024,1:10) :: processMap
+! Parameters
+  Integer(kind=StandardInteger), Parameter :: maxConfigs = 1024
   
 !-----------------------  
 ! Default variables
@@ -84,7 +86,8 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:300) :: dftOptEnergy
   Real(kind=DoubleReal), Dimension(1:300) :: dftCohEnergy
 ! Neighbour List Settings 
-  Real(kind=DoubleReal) :: nlCutoff
+  Real(kind=DoubleReal) :: nlCutoff       ! Standard calculations
+  Real(kind=DoubleReal) :: nlTestCutoff   ! Test calculations
 ! Calculation details  
   Character(len=8) :: calcEqVol  
   Character(len=3) :: refineEqVol
@@ -134,7 +137,7 @@ Module globals
   !Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKeyIn
   !Real(kind=DoubleReal), Dimension(1:10000,1:4) :: splineNodesDataIn
 ! Read Configuration File  
-  Integer(kind=StandardInteger) :: configCount                                     ! 4bit
+  Integer(kind=StandardInteger) :: configCount, configCountT, configCountRI                      ! 4bit
   Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsI         ! 41KB        1 xcopy, 2 ycopy, 3 zcopy, 4 forces,   
   Real(kind=DoubleReal), Dimension(1:1024,1:30) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 BM   21-29 configUnitVector
 ! Input coords and forces
@@ -193,6 +196,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRT                     ! 5.0MB
   Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoordsT             ! 60.0MB
   
+  
 !----------------------------------------------
 ! Calculations  
 !----------------------------------------------
@@ -210,9 +214,19 @@ Module globals
 !----------------------------------------------
 ! EAM Testing  
 !----------------------------------------------   
-  Real(kind=DoubleReal) :: fccALat, fccEMin, fccVolMin, fccBM
-  Real(kind=DoubleReal) :: bccALat, bccEMin, bccVolMin, bccBM
+  Real(kind=DoubleReal), Dimension(1:12) :: fccReferenceValues, bccReferenceValues
+  Real(kind=DoubleReal), Dimension(1:12) :: fccCalcValues, bccCalcValues
+  Real(kind=DoubleReal) :: fccALat, fccEMin, fccVolMin, fccBM, fccBMP
+  Real(kind=DoubleReal) :: bccALat, bccEMin, bccVolMin, bccBM, bccBMP
   Real(kind=DoubleReal), Dimension(1:10) :: fccEC, bccEC
+  Real(kind=DoubleReal) :: fccALatMurn, fccEMinMurn, fccVolMinMurn, fccBMMurn, fccBMPMurn
+  Real(kind=DoubleReal) :: bccALatMurn, bccEMinMurn, bccVolMinMurn, bccBMMurn, bccBMPMurn
+  Real(kind=DoubleReal) :: fccALatBirchMurn, fccEMinBirchMurn, fccVolMinBirchMurn, fccBMBirchMurn, fccBMPBirchMurn
+  Real(kind=DoubleReal) :: bccALatBirchMurn, bccEMinBirchMurn, bccVolMinBirchMurn, bccBMBirchMurn, bccBMPBirchMurn
+  Real(kind=DoubleReal), Dimension(1:10) :: fccECMurn, bccECMurn
+  Integer(kind=StandardInteger) :: printTestingData, outputTestingData
+  Real(kind=DoubleReal) :: testingRSS
+  Integer(kind=StandardInteger) :: testingFitChoice  ! 1 Murn, 2 BirchMurn
   
 !----------------------------------------------
 ! PWscf Batch File Globals  
@@ -241,6 +255,35 @@ Module globals
 ! PWscf working variables  
   Integer(kind=StandardInteger) :: pwbNatWorking, pwbNtypWorking
   
+!----------------------------------------------
+! Input Config Neighbour List  
+!----------------------------------------------
+  Integer(kind=StandardInteger) :: neighbourListCountInput
+  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: neighbourListKeyInput
+  Real(kind=DoubleReal), Dimension(1:1024,1:1) :: neighbourListKeyRInput
+  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIInput
+  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRInput
+  Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoordsInput
+  Integer(kind=StandardInteger) :: configCountInput                              
+  Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsIInput   
+  Real(kind=DoubleReal), Dimension(1:1024,1:30) :: configurationsRInput      
+  Integer(kind=StandardInteger) :: coordCountInput                                      
+  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKeyInput   
+  Integer(kind=StandardInteger), Dimension(1:50000,1:1) :: configurationCoordsIInput  
+  Real(kind=DoubleReal), Dimension(1:50000,1:3) :: configurationCoordsRInput         
+  Real(kind=DoubleReal), Dimension(1:50000,1:3) :: configurationForcesRInput         
+  Integer(kind=StandardInteger) :: coordCountGInput                                    
+  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKeyGInput 
+  Integer(kind=StandardInteger), Dimension(1:100000,1:1) :: configurationCoordsIGInput 
+  Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configurationCoordsRGInput        
+  Real(kind=DoubleReal), Dimension(1:1024) :: configVolumeInput
+  Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configRefInput          
+  Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configRefForcesInput  
+  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configRefStressesInput
+  Real(kind=DoubleReal), Dimension(1:1024) :: configRefEnergiesInput
+  Real(kind=DoubleReal), Dimension(1:1024) :: configRefEVInput      
+  Real(kind=DoubleReal), Dimension(1:1024) :: configRefBMInput
+  
   
   Private    
 !-----------------------
@@ -265,6 +308,7 @@ Module globals
 ! System Variables  
   Public :: largeArraySize
   Public :: processMap
+  Public :: maxConfigs
 ! Default variables
   Public :: eamFunctionTypes 
 ! Set defaults - debug options  
@@ -309,6 +353,7 @@ Module globals
   Public :: dftCohEnergy
 ! Neighbour List Settings 
   Public :: nlCutoff
+  Public :: nlTestCutoff
 ! Calculation details  
   Public :: calcEqVol
   Public :: refineEqVol
@@ -352,7 +397,7 @@ Module globals
   Public :: splineNodesKeyOpt
   Public :: splineNodesDataOpt
 ! Read Configuration File 
-  Public :: configCount
+  Public :: configCount, configCountT, configCountRI
   Public :: configurationsI, configurationsR
   Public :: coordCount
   Public :: configurationCoordsKey, configurationCoordsI
@@ -405,9 +450,19 @@ Module globals
   Public :: calcConfigEnergies
   Public :: calcConfigForces
 ! EAM Testing  
-  Public :: fccALat, fccEMin, fccVolMin, fccBM
-  Public :: bccALat, bccEMin, bccVolMin, bccBM
+  Public :: fccReferenceValues, bccReferenceValues
+  Public :: fccCalcValues, bccCalcValues
+  Public :: fccALat, fccEMin, fccVolMin, fccBM, fccBMP
+  Public :: bccALat, bccEMin, bccVolMin, bccBM, bccBMP
   Public :: fccEC, bccEC
+  Public :: fccALatMurn, fccEMinMurn, fccVolMinMurn, fccBMMurn, fccBMPMurn
+  Public :: bccALatMurn, bccEMinMurn, bccVolMinMurn, bccBMMurn, bccBMPMurn
+  Public :: fccALatBirchMurn, fccEMinBirchMurn, fccVolMinBirchMurn, fccBMBirchMurn, fccBMPBirchMurn
+  Public :: bccALatBirchMurn, bccEMinBirchMurn, bccVolMinBirchMurn, bccBMBirchMurn, bccBMPBirchMurn
+  Public :: fccECMurn, bccECMurn
+  Public :: printTestingData, outputTestingData
+  Public :: testingRSS
+  Public :: testingFitChoice
 ! DFT Config
   Public :: dftReplaceLabel 
   
@@ -436,6 +491,33 @@ Module globals
   Public :: pwbNbnd, pwbFixedAtoms
 ! PWscf working variables  
   Public :: pwbNatWorking, pwbNtypWorking  
+  
+! Input Config Neighbour List  
+  Public :: neighbourListCountInput
+  Public :: neighbourListKeyInput
+  Public :: neighbourListKeyRInput
+  Public :: neighbourListIInput
+  Public :: neighbourListRInput
+  Public :: neighbourListCoordsInput
+  Public :: configCountInput                              
+  Public :: configurationsIInput   
+  Public :: configurationsRInput      
+  Public :: coordCountInput                                      
+  Public :: configurationCoordsKeyInput   
+  Public :: configurationCoordsIInput  
+  Public :: configurationCoordsRInput         
+  Public :: configurationForcesRInput         
+  Public :: coordCountGInput                                    
+  Public :: configurationCoordsKeyGInput 
+  Public :: configurationCoordsIGInput 
+  Public :: configurationCoordsRGInput        
+  Public :: configVolumeInput
+  Public :: configRefInput          
+  Public :: configRefForcesInput  
+  Public :: configRefStressesInput
+  Public :: configRefEnergiesInput
+  Public :: configRefEVInput      
+  Public :: configRefBMInput
   
   
 Contains
@@ -586,6 +668,8 @@ Contains
     splineNodesDataOpt = 0.0D0
 ! Read Configuration File 
     configCount = 0
+    configCountT = 0
+    configCountRI = 0
     configurationsI = 0
     configurationsR = 0.0D0
     coordCount = 0
@@ -647,16 +731,49 @@ Contains
     calcConfigEnergies = 0.0D0
     calcConfigForces = 0.0D0
 ! EAM Testing  
+    fccReferenceValues = -2.1D20
+    bccReferenceValues = -2.1D20
+    fccCalcValues = -2.1D20
+    bccCalcValues = -2.1D20
     fccALat = 0.0D0
     fccEMin = 0.0D0
     fccVolMin = 0.0D0
     fccBM = 0.0D0
+    fccBMP = 0.0D0
     bccALat = 0.0D0
     bccEMin = 0.0D0
     bccVolMin = 0.0D0
     bccBM = 0.0D0
+    bccBMP = 0.0D0
     fccEC = -2.1D20
     bccEC = -2.1D20
+    fccALatMurn = 0.0D0
+    fccEMinMurn = 0.0D0
+    fccVolMinMurn = 0.0D0
+    fccBMMurn = 0.0D0
+    fccBMPMurn = 0.0D0
+    bccALatMurn = 0.0D0
+    bccEMinMurn = 0.0D0
+    bccVolMinMurn = 0.0D0
+    bccBMMurn = 0.0D0
+    bccBMPMurn = 0.0D0
+    fccALatBirchMurn = 0.0D0
+    fccEMinBirchMurn = 0.0D0
+    fccVolMinBirchMurn = 0.0D0
+    fccBMBirchMurn = 0.0D0    
+    fccBMPBirchMurn = 0.0D0
+    bccALatBirchMurn = 0.0D0
+    bccEMinBirchMurn = 0.0D0
+    bccVolMinBirchMurn = 0.0D0
+    bccBMBirchMurn = 0.0D0
+    bccBMPBirchMurn = 0.0D0
+    fccECMurn = -2.1D20
+    bccECMurn = -2.1D20
+    
+    printTestingData = 0
+    outputTestingData = 0
+    testingRSS = 0.0D0
+    testingFitChoice = 1
 ! DFT Config
     dftReplaceLabel = BlankString2DArray(dftReplaceLabel)
   

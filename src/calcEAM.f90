@@ -77,8 +77,6 @@ Contains
     Call cpu_time(energyTimeEnd)
 ! Record time taken to make neighbour list
     Call outputTimeTaken("E-F-S Calc Configs",energyTimeEnd-energyTimeStart)      
-    
-
   End Subroutine calcEnergies 
   
   
@@ -146,7 +144,11 @@ Contains
       End Do  
     End If
 ! Multiple processes per energy calculation
-    processesPerEnergy = Floor(1.0D0*(mpiProcessCount/configCount))
+    If(configCount.gt.0)Then
+      processesPerEnergy = Floor(1.0D0*(mpiProcessCount/configCount))
+    Else
+      processesPerEnergy = 1
+    End If
     primaryProcess = processMap(configID,1)
     procArrayEmbe = 0
 ! Set embe energy calc start-end array

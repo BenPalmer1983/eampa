@@ -24,6 +24,7 @@ Module calcEval
   Use readEAM
   Use calcEAM  
   Use bulkProperties  
+  Use testEAM
   Use output
 ! Force declaration of all variables
   Implicit None
@@ -49,24 +50,19 @@ Contains
 ! Private variables      
     Real(kind=DoubleReal) :: timeStartEval, timeEndEval
 ! Start time
-    Call cpu_time(timeStartEval)    
-! Run energy/force/stress calculations
-    Call calcEnergies()  
+    Call cpu_time(timeStartEval)      
+! Run energy/force/stress calculations 
+    Call calcEnergies()      ! Calculate energies, stresses and forces of input configurations
 ! Full evaluation options
     If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF")Then
-! Run bulk property calculations
-      Call calcEquilibrium()  
-      Call calcBM()
-          
+      Call runTestEAM()        ! Calculate pulk properties for FCC and BCC
     End If
-   
-! Calculate RSS between reference and calculated values
-    Call calcRSS()
+    Call calcRSS()           ! Calculate RSS of stresses, forces and energies
 ! Output to terminal
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      print *,"RSS: ",totalRSS
-    End If
-    
+      print *,"RSS: ",totalRSS,testingRSS,(totalRSS+testingRSS)
+    End If    
+    totalRSS = totalRSS + testingRSS
 ! Output evaluate results to output file
     Call outputEvaluate()  
 ! End time
@@ -126,26 +122,8 @@ Contains
         End Do
         configRSS(configID,3) = rssWeighting(3)*configRSS(configID,3)
         configRSS(configID,3) = configWeighting(configID)*configRSS(configID,3)
-      End If
-! Eq Vol RSS      
-      If(configCalcEV(configID).gt.-2.0D20.and.configRefEV(configID).gt.-2.0D20)Then
-        configRSS(configID,4) = rssWeighting(4)*&
-        (configCalcEV(configID)-configRefEV(configID))**2
-        configRSS(configID,4) = configWeighting(configID)*configRSS(configID,4)
-      End If  
-! Bulk Modulus RSS      
-      If(configCalcBM(configID).gt.-2.0D20.and.configRefBM(configID).gt.-2.0D20)Then
-        configRSS(configID,5) = rssWeighting(5)*&
-        (configCalcBM(configID)-configRefBM(configID))**2
-        configRSS(configID,5) = configWeighting(configID)*configRSS(configID,5)
-      End If      
+      End If    
     End Do
-    
-    
-    
-
-    
-    
 ! Total RSS
     xSize = size(configRSS,1)
     ySize = size(configRSS,2)
@@ -155,20 +133,7 @@ Contains
         totalRSS = totalRSS + configRSS(i,j)
         configRSS(i,ySize) = configRSS(i,ySize) + configRSS(i,j)
       End Do
-    End Do
-! Print out results    
-    If(mpiProcessID.eq.0)Then
-      Do i=1,configCount
-        !print *,"Config: ",i,configRSS(i,ySize)
-      End Do
-    End If
-    
-    !configRef = -2.1D20                    
-    !configCalc = -2.1D20                      
-    !configRefForces = -2.1D20               
-    !configCalcForces = -2.1D20
-    !configRefStresses = -2.1D20
-    !configCalcStresses = -2.1D20      
+    End Do 
   End Subroutine calcRSS 
   
 !------------------------------------------------------------------------!

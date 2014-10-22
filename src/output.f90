@@ -183,29 +183,26 @@ Contains
     If(mpiProcessID.eq.0)Then   
   ! Save tally to file    
       Open(UNIT=114,FILE=Trim(outputDirectory)//"/"//"nlFile.dat") 
-      Do i=1,size(neighbourListKey,1)
+      Do i=1,maxConfigs
+        If(neighbourListKey(i,1).gt.0)Then
         Write(114,"(A20,I8)") "Configuration:      ",i
         nlStart = neighbourListKey(i,1)
         nlLength = neighbourListKey(i,2)
         nlEnd = neighbourListKey(i,3)
-        If(nlStart.lt.1)Then
-          Exit
-        End If
         Do j=nlStart,nlEnd
           idA = neighbourListI(j,1)
           idB = neighbourListI(j,2)
           keyA = neighbourListI(j,3)
           keyB = neighbourListI(j,4)
-          keyAB = neighbourListI(j,5)
-      
+          keyAB = neighbourListI(j,5)      
           Write(114,"(I5,A1,A2,A1,A2,A1,I5,A1,I5,A1,I5,A3,F8.4,A3,F8.4,A1,F8.4,A1,F8.4,A3,F8.4,A1,F8.4,A1,F8.4)") &
           j," ",elements(idA)," ",elements(idB)," ",&
           keyA," ",keyB," ",keyAB," | ",&
           neighbourListR(j)," | ",&
           neighbourListCoords(j,7)," ",neighbourListCoords(j,8)," ",neighbourListCoords(j,9)," | ",&
-          neighbourListCoords(j,10)," ",neighbourListCoords(j,11)," ",neighbourListCoords(j,12)
-        
+          neighbourListCoords(j,10)," ",neighbourListCoords(j,11)," ",neighbourListCoords(j,12)        
         End Do
+        End If
       End Do
       Close(114)
     End If  
@@ -305,9 +302,11 @@ Contains
       write(999,"(A1)") ""
       write(999,"(A22)") "Neighbour List Summary"
       write(999,"(A32)") "Start   End     Length  Rcutoff "
-      Do i=1,configCount
-        write(999,"(I8,I8,I8,F12.6)") neighbourListKey(i,1),&
-        neighbourListKey(i,3),neighbourListKey(i,2),neighbourListKeyR(i,1)
+      Do i=1,maxConfigs
+        If(neighbourListKey(i,1).gt.0)Then
+          write(999,"(I8,I8,I8,F12.6)") neighbourListKey(i,1),&
+          neighbourListKey(i,3),neighbourListKey(i,2),neighbourListKeyR(i,1)
+        End If  
       End Do
       write(999,"(A1)") ""
       Close(999)
@@ -332,7 +331,8 @@ Contains
       "Calc Eq Ene  ","Calc Eq LatF ","Ref BM       ","Calc BM      ",&
       "RSS          "
       totalAtoms = 0
-      Do configID=1,configCount
+      Do configID=1,maxConfigs      
+        If(configurationCoordsKeyG(configID,1).gt.0)Then
         write(999,&
         "(I4,A1,I4,A1,I6,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1)"&
         ) &
@@ -348,11 +348,13 @@ Contains
         configRefBM(configID)," ",& 
         configCalcBM(configID)," ",& 
         configRSS(configID,size(configRSS,2))," "  
-        totalAtoms = totalAtoms + configurationCoordsKeyG(configID,2)       
+        totalAtoms = totalAtoms + configurationCoordsKeyG(configID,2)     
+        End If        
       End Do
       write(999,"(A5,A5,A10)") &
       "Cfg  ","Proc ","Stresses  "
-      Do configID=1,configCount
+      Do configID=1,maxConfigs      
+        If(configurationCoordsKeyG(configID,1).gt.0)Then
         write(999,&
         "(I4,A1,I4,A1,I6,A14,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6)"&
         ) &
@@ -369,6 +371,7 @@ Contains
         configCalcStresses(configID,1),configCalcStresses(configID,2),configCalcStresses(configID,3),&
         configCalcStresses(configID,4),configCalcStresses(configID,5),configCalcStresses(configID,6),&
         configCalcStresses(configID,7),configCalcStresses(configID,8),configCalcStresses(configID,9)        
+        End If
       End Do      
       write(999,"(A36,I8)")  "Total atoms:                        ",totalAtoms
       write(999,"(A36,E12.4)") "Total RSS all configurations:       ",totalRSS
@@ -418,8 +421,10 @@ Contains
       write(999,"(A64)") "                         Process Map                            "
       write(999,"(A64)") "----------------------------------------------------------------"
       write(999,"(A64)") "MapID  Ener  EV                                                 "
-      Do i=1,configCount
-        write(999,"(I6,I6,I6)") i,processMap(i,1),processMap(i,2)        
+      Do i=1,maxConfigs
+        If(neighbourListKey(i,1).gt.0)Then
+          write(999,"(I6,I6,I6)") i,processMap(i,1),processMap(i,2)       
+        End If          
       End Do
       Close(999)
     End If    
@@ -590,10 +595,10 @@ Contains
       write(999,"(A64)") "----------------------------------------------------------------"     
       write(999,"(A64)") "                                                                "  
       write(999,"(A64)") "FCC:                                                            "
-      write(999,"(A20,F12.6)") "Alat:               ",fccALat
-      write(999,"(A20,F12.6)") "Min Energy:         ",fccEMin
-      write(999,"(A20,F12.6)") "Opt Volume:         ",fccVolMin
-      write(999,"(A20,F12.6)") "Bulk Modulus:       ",fccBM
+      write(999,"(A20,F12.6,A3,F12.6,A1)") "Alat:               ",fccALatMurn,"  (",fccALat,")"
+      write(999,"(A20,F12.6,A3,F12.6,A1)") "Min Energy:         ",fccEMinMurn,"  (",fccEMin,")"
+      write(999,"(A20,F12.6,A3,F12.6,A1)") "Opt Volume:         ",fccVolMinMurn,"  (",fccVolMin,")"
+      write(999,"(A20,F12.6,A3,F12.6,A1)") "Bulk Modulus:       ",fccBMMurn,"  (",fccBM,")"
       write(999,"(A20,F12.6)") "C11:                ",fccEC(1)
       write(999,"(A20,F12.6)") "C12:                ",fccEC(2)
       write(999,"(A20,F12.6)") "C44:                ",fccEC(3) 
@@ -602,7 +607,7 @@ Contains
       write(999,"(A20,F12.6)") "Alat:               ",bccALat
       write(999,"(A20,F12.6)") "Min Energy:         ",bccEMin
       write(999,"(A20,F12.6)") "Opt Volume:         ",bccVolMin
-      write(999,"(A20,F12.6)") "Bulk Modulus:       ",bccBM
+      write(999,"(A20,F12.6,A3,F12.6,A1)") "Bulk Modulus:       ",bccBMMurn,"  (",bccBM,")"
       write(999,"(A20,F12.6)") "C11:                ",bccEC(1)
       write(999,"(A20,F12.6)") "C12:                ",bccEC(2)
       write(999,"(A20,F12.6)") "C44:                ",bccEC(3)    
@@ -652,11 +657,15 @@ Contains
 ! Print out
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       Print *, "Configuration Summary"
-      Do i=1,configCount
-        Print "(A9,I4,A1,I8,A1,I8,A1,F8.5,A1,I4,A1,I4,A1,I4,A1,F12.6)",&
-        "  Config ",i," ",configurationCoordsKeyG(i,1)," ",configurationCoordsKeyG(i,2),&
-        " ",configurationsR(i,1)," ",configurationsI(i,1)," ",configurationsI(i,2),&
-        " ",configurationsI(i,3)," ",configVolume(i) 
+      Print *, "Count: ",configCount,configCountT
+      Do i=1,1024
+        If(configurationCoordsKeyG(i,1).gt.0)Then
+          Print "(A9,I4,A1,I8,A1,I8,A1,I8,A1,F8.5,A1,I4,A1,I4,A1,I4,A1,F12.6)",&
+          "  Config ",i," ",configurationCoordsKeyG(i,1),&
+          " ",configurationCoordsKeyG(i,3)," ",configurationCoordsKeyG(i,2),&
+          " ",configurationsR(i,1)," ",configurationsI(i,1)," ",configurationsI(i,2),&
+          " ",configurationsI(i,3)," ",configVolume(i) 
+        End If  
       End Do
     End If
   End Subroutine outputConfigSummaryT 
@@ -669,10 +678,12 @@ Contains
 ! Only on root process
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then   
       print *,"Neighbour List Summary"
-      print *,"Start   End     Length  Rcutoff "
-      Do i=1,configCount
-        print "(A1,I8,I8,I8,F12.6)"," ",neighbourListKey(i,1),&
-        neighbourListKey(i,3),neighbourListKey(i,2),neighbourListKeyR(i,1)
+      print *,"ID    Start   End     Length  Rcutoff "
+      Do i=1,1024
+        If(neighbourListKey(i,1).gt.0)Then
+          print "(I5,A1,I8,I8,I8,F12.6)",i," ",neighbourListKey(i,1),&
+          neighbourListKey(i,3),neighbourListKey(i,2),neighbourListKeyR(i,1)
+        End If  
       End Do
     End If  
   End Subroutine outputNLSummaryT
@@ -736,10 +747,10 @@ Contains
       print "(A64)","----------------------------------------------------------------"     
       print "(A64)","                                                                "  
       print "(A64)","FCC:                                                            "
-      print "(A20,F12.6)","Alat:               ",fccALat
-      print "(A20,F12.6)","Min Energy:         ",fccEMin
-      print "(A20,F12.6)","Opt Volume:         ",fccVolMin
-      print "(A20,F12.6)","Bulk Modulus:       ",fccBM
+      print "(A20,F12.6,A3,F12.6,A1)","Alat:               ",fccALatMurn,"  (",fccALat,")"
+      print "(A20,F12.6,A3,F12.6,A1)","Min Energy:         ",fccEMinMurn,"  (",fccEMin,")"
+      print "(A20,F12.6,A3,F12.6,A1)","Opt Volume:         ",fccVolMinMurn,"  (",fccVolMin,")"
+      print "(A20,F12.6,A3,F12.6,A1)","Bulk Modulus:       ",fccBMMurn,"  (",fccBM,")"
       print "(A20,F12.6)","C11:                ",fccEC(1)
       print "(A20,F12.6)","C12:                ",fccEC(2)
       print "(A20,F12.6)","C44:                ",fccEC(3) 
@@ -748,10 +759,12 @@ Contains
       print "(A20,F12.6)","Alat:               ",bccALat
       print "(A20,F12.6)","Min Energy:         ",bccEMin
       print "(A20,F12.6)","Opt Volume:         ",bccVolMin
-      print "(A20,F12.6)","Bulk Modulus:       ",bccBM
+      print "(A20,F12.6,A3,F12.6,A1)","Bulk Modulus:       ",bccBMMurn,"  (",bccBM,")"
       print "(A20,F12.6)","C11:                ",bccEC(1)
       print "(A20,F12.6)","C12:                ",bccEC(2)
       print "(A20,F12.6)","C44:                ",bccEC(3)    
+      print "(A64)","                                                                "  
+      print "(A20,F12.6)","Testing RSS:        ",testingRSS     
       print "(A64)","                                                                "  
       print "(A64)","----------------------------------------------------------------"   
       

@@ -279,7 +279,6 @@ Contains
     If(eosFitRSSOption.eq.1)Then
       Call calcEOSFit(configID, 1, fccALat, eosFitRSS)    
     End If
-    print *,eosFitRSS
 !--------------------------------------------
 ! Testing RSS
 !--------------------------------------------
@@ -652,7 +651,6 @@ Contains
     Call M_distDouble2D(dataPoints)    
     !Call M_collDouble2D(dataPointsPrint)   
     !Call M_distDouble2D(dataPointsPrint)   
-    print *,"eos fit"
 ! Compare these points to 
     If(structureType.eq.1)Then  !FCC
       coefficients(1) = fccReferenceValues(2)                 ! E0

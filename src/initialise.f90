@@ -154,11 +154,9 @@ contains
 !close output file
     close(989)
   End If   
-!save output file name
-  outputFileForces = trim(outputDirectory)//"/"//"rssLog.dat"
 !Create output file
     If(mpiProcessID.eq.0)Then
-    open(unit=979,file=trim(outputFileForces))
+    open(unit=979,file=trim(trim(outputDirectory)//"/"//"rssLog.dat"))
     write(979,"(A38)") "======================================"
     write(979,"(A38)") "            RSS Log File              "
     write(979,"(A38)") "      University of Birmingham        "
@@ -176,20 +174,20 @@ contains
   outputFileForces = trim(outputDirectory)//"/"//"nlSeparation.dat"
 !Create output file
     If(mpiProcessID.eq.0)Then
-    open(unit=969,file=trim(outputFileForces))
-    write(969,"(A38)") "======================================"
-    write(969,"(A38)") "     Neighbour List Separations       "
-    write(969,"(A38)") "      University of Birmingham        "
-    write(969,"(A38)") "             Ben Palmer               "
-    write(969,"(A38)") "======================================"
-    write(969,"(A1)") " "
-    write(969,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
-    "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)  
-    write(969,"(A1)") " "
-    write(969,"(A1)") " "
+      open(unit=969,file=trim(outputFileForces))
+      write(969,"(A38)") "======================================"
+      write(969,"(A38)") "     Neighbour List Separations       "
+      write(969,"(A38)") "      University of Birmingham        "
+      write(969,"(A38)") "             Ben Palmer               "
+      write(969,"(A38)") "======================================"
+      write(969,"(A1)") " "
+      write(969,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+      "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)  
+      write(969,"(A1)") " "
+      write(969,"(A1)") " "
 !close output file
-    close(969)
-  End If 
+      close(969)
+    End If 
   End Subroutine initDataFiles
   
   

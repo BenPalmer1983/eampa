@@ -119,11 +119,34 @@ Contains
       print *,"Testing-Reference RSS:    ",testingRSS
       print *,"" 
       print *,"================================================================="
-      
-      
-      
-      
     End If   
+! Save aLat vs Energy Data points    
+    If(mpiProcessID.eq.0)Then 
+      Open(UNIT=25,FILE=Trim(outputDirectory)//"/alat-vs-energy.dat")
+      write(25,"(A30)") "=============================="
+      write(25,"(A30)") "ALat vs Energy                "
+      write(25,"(A30)") "=============================="
+      Close(25)      
+    End If    
+    
+    If(mpiProcessID.eq.0)Then 
+      Open(UNIT=25,FILE=Trim(outputDirectory)//"/alat-vs-energy.dat",&
+      status="old",position="append",action="write") 
+      write(25,"(A3)") " "
+      write(25,"(A3)") "FCC"
+      write(25,"(A3)") " "
+      Close(25)      
+    End If    
+    Call aLatEnergy(901, 1, fccALatMurn)
+    If(mpiProcessID.eq.0)Then 
+      Open(UNIT=25,FILE=Trim(outputDirectory)//"/alat-vs-energy.dat",&
+      status="old",position="append",action="write") 
+      write(25,"(A3)") " "
+      write(25,"(A3)") "BCC"
+      write(25,"(A3)") " "
+      Close(25)      
+    End If 
+    Call aLatEnergy(901, 2, bccALatMurn)
 
 
   End Subroutine runTestAnalysis  
@@ -133,7 +156,7 @@ Contains
 ! Tests the EAM potential
     Implicit None   ! Force declaration of all variables
 ! Private variables       
-    Integer(kind=StandardInteger) :: i, configID
+    Integer(kind=StandardInteger) :: configID
     Integer(kind=StandardInteger), optional :: printTestingIn
     Integer(kind=StandardInteger) :: printTesting
     Real(kind=DoubleReal), Dimension(1:4) :: coefficientsMurn 
@@ -163,9 +186,6 @@ Contains
     Call readConfigFile(0,configID)           ! Read in configuration file into config slot 901
     Call makeNeighbourList(configID,configID,printTesting)           ! Make new neighbour list
 ! Estimate FCC lattice parameter
-    !Call estimateALat(configID,fccALat, fccEMin, fccVolMin, fccBM, &
-    !                 coefficientsMurn, coefficientsBirchMurn, &
-    !                 rssMurnFit, rssBirchMurnFit) 
     Call estimateALat(configID,&
                      coefficientsMurn, coefficientsBirchMurn, &
                      rssMurnFit, rssBirchMurnFit) 
@@ -193,9 +213,6 @@ Contains
     Call readConfigFile(0,configID)
     Call makeNeighbourList(configID,configID)  
 ! Estimate BCC lattice parameter
-    !Call estimateALat(configID,bccALat, bccEMin, bccVolMin, bccBM, &
-    !                 coefficientsMurn, coefficientsBirchMurn, &
-    !                 rssMurnFit, rssBirchMurnFit) 
     Call estimateALat(configID, &
                      coefficientsMurn, coefficientsBirchMurn, &
                      rssMurnFit, rssBirchMurnFit)     
@@ -250,30 +267,40 @@ Contains
 ! Calculate elastic constants    
     Call calcSpecificEC(configID, fccALat, fccVolMin, fccBM, fccEC, -1)
 ! BCC
-    Call makeConfigFile(1,bccALat)     ! Make with optimised lattice parameter
+    Call makeConfigFile(2,bccALat)     ! Make with optimised lattice parameter
     Call readConfigFile(0,configID)              ! Read in configuration file
     Call makeNeighbourList(configID,configID)           ! Make new neighbour list    
 ! Calculate elastic constants    
     Call calcSpecificEC(configID, bccALat, bccVolMin, bccBM, bccEC, -1)
+!--------------------------------------------
+! EoS RSS
+!--------------------------------------------    
+    eosFitRSS = 0.0D0
+    If(eosFitRSSOption.eq.1)Then
+      Call calcEOSFit(configID, 1, fccALat, eosFitRSS)    
+    End If
+    print *,eosFitRSS
 !--------------------------------------------
 ! Testing RSS
 !--------------------------------------------
     fccCalcValues = -2.1D20
     bccCalcValues = -2.1D20
 ! Fill calculated arrays
-    fccCalcValues(1) = fccALat * rssWeighting(4)
-    fccCalcValues(2) = fccEMin * rssWeighting(5)
-    fccCalcValues(3) = fccBM * rssWeighting(6)
-    fccCalcValues(4) = fccEC(1) * rssWeighting(7)
-    fccCalcValues(5) = fccEC(2) * rssWeighting(7)
-    fccCalcValues(6) = fccEC(3) * rssWeighting(7)
-!    bccCalcValues
-    testingRSS = 0.0D0
-    Do i=1,size(fccReferenceValues,1)
-      If(fccReferenceValues(i).gt.-2.0D20.and.fccCalcValues(i).gt.-2.0D20)Then
-        testingRSS = testingRSS + (fccReferenceValues(i)-fccCalcValues(i))**2
-      End If
-    End Do   
+    fccCalcValues(1) = fccALat
+    fccCalcValues(2) = fccEMin
+    fccCalcValues(3) = fccBM
+    fccCalcValues(4) = fccEC(1)
+    fccCalcValues(5) = fccEC(2)
+    fccCalcValues(6) = fccEC(3)
+! Calculate RSS
+    testingALatRSS = (fccReferenceValues(1)-fccALat)**2
+    testingEMinRSS = (fccReferenceValues(2)-fccEMin)**2    
+    testingBMRSS = (fccReferenceValues(3)-fccBM)**2    
+    testingECRSS = (fccReferenceValues(4)-fccEC(1))**2+&
+                   (fccReferenceValues(5)-fccEC(2))**2+&
+                   (fccReferenceValues(6)-fccEC(3))**2
+! Total testing RSS
+    testingRSS = testingALatRSS+testingEMinRSS+testingBMRSS+testingECRSS+eosFitRSS
 !--------------------------------------------
 ! Output
 !--------------------------------------------   
@@ -284,10 +311,6 @@ Contains
   End Subroutine runTestEAM
   
   
-  
-  !Subroutine estimateALat(configID, aLatMin, eMin, volumeMin, bm, &
-  !                       coefficientsMurn, coefficientsBirchMurn,&
-  !                       rssMurnFit,rssBirchMurnFit)
   Subroutine estimateALat(configID, &
                          coefficientsMurn, coefficientsBirchMurn,&
                          rssMurnFit,rssBirchMurnFit)
@@ -436,11 +459,221 @@ Contains
     rssMurnFit = MurnRSS(dataPointsFit,coefficientsMurn)
 ! Birch-Murnaghan Fit
     coefficientsBirchMurn = BirchMurnFit(dataPointsFit, 0.01D0, 2000, 5, coefficientsMurn)
-    rssBirchMurnFit = BirchMurnRSS(dataPointsFit,coefficientsBirchMurn)
-    
+    rssBirchMurnFit = BirchMurnRSS(dataPointsFit,coefficientsBirchMurn)    
   End Subroutine estimateALat
   
 
+  Subroutine aLatEnergy(configID, structureType, aLatOpt)
+! Makes array of alat-energy data points
+    Implicit None   ! Force declaration of all variables
+! Private variables       
+    Integer(kind=StandardInteger) :: configID, i, j       ! probably 901
+    Integer(kind=StandardInteger) :: structureType  ! 1 FCC, 2 BCC
+    Integer(kind=StandardInteger) :: xCopy, yCopy, zCopy
+    Real(kind=DoubleReal) :: aLatTest, aLatOpt, volume, energyM, energyBM
+    Real(kind=DoubleReal) :: configEnergy, pairEnergy, embeddingEnergy
+    Real(kind=DoubleReal), Dimension(1:41,1:2) :: dataPoints
+    Real(kind=DoubleReal), Dimension(1:41,1:4) :: dataPointsPrint
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsMurn  
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsBirchMurn
+! Init variables
+    If(structureType.eq.1)Then     ! FCC
+      xCopy = 4
+      yCopy = 4
+      zCopy = 4
+    End If
+    If(structureType.eq.2)Then     ! BCC
+      xCopy = 5
+      yCopy = 5
+      zCopy = 5
+    End If
+! Open file       
+    If(mpiProcessID.eq.0)Then 
+      Open(UNIT=25,FILE=Trim(outputDirectory)//"/alat-vs-energy.dat",&
+      status="old",position="append",action="write") 
+    End If      
+! Make config + neighbour list    
+    Call makeConfigFile(structureType,2.0D0)     ! Make with optimised lattice parameter
+    Call readConfigFile(0,configID)                ! Read in configuration file
+    Call makeNeighbourList(configID,configID)           ! Make new neighbour list    
+! Save neighbour list    
+    Call saveConfigNL(configID)
+! Lattice/Energy calculations (2.0D0 Ang to 10.0D0 Ang)
+    dataPointsPrint = 0.0D0
+    Do i=1,41
+      If(mpiProcessID.eq.mod(i-1,mpiProcessCount))Then   ! Split between multiple processes
+        aLatTest = 2.0D0 +((i-1)*0.2D0)
+        !Call makeConfigFile(structureType,aLatTest)     ! Make with optimised lattice parameter
+        !Call readConfigFile(0,configID)                ! Read in configuration file
+        !Call makeNeighbourList(configID,configID)           ! Make new neighbour list    
+        Call isotropicDistortion(configID, 0.0D0, aLatTest/2.0D0)
+        Call calcEnergy(configID, configEnergy, 0, pairEnergy, embeddingEnergy)      
+        configEnergy = configEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        pairEnergy = pairEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        embeddingEnergy = embeddingEnergy/(1.0D0*configurationCoordsKeyG(configID,2))        
+        dataPointsPrint(i,1) = aLatTest
+        dataPointsPrint(i,2) = configEnergy
+        dataPointsPrint(i,3) = pairEnergy
+        dataPointsPrint(i,4) = embeddingEnergy
+! Reload list        
+        Call loadConfigNL(configID)
+      End If
+    End Do
+! Collect and distribute data array   
+    Call M_collDouble2D(dataPointsPrint)    
+    Call M_distDouble2D(dataPointsPrint)
+! output data
+    If(mpiProcessID.eq.0)Then
+      write(25,"(A8,A16,A16,A16,A16)") &
+      "        ","aLat/Ang        ","Energy/eV       ",&        
+      "Pair Energy/eV  ","Embe Energy/eV  "
+      Do j=1,41
+        write(25,"(I8,F16.8,F16.8,F16.8,F16.8)") j,&
+        dataPointsPrint(j,1),dataPointsPrint(j,2),&
+        dataPointsPrint(j,3),dataPointsPrint(j,4)
+      End Do
+    End If        
+    write(25,"(A1)") " "
+! Make config + neighbour list    
+    Call makeConfigFile(structureType,(aLatOpt-20*0.005D0))     ! Make with optimised lattice parameter
+    Call readConfigFile(0,configID)                ! Read in configuration file
+    Call makeNeighbourList(configID,configID)           ! Make new neighbour list    
+! Save neighbour list    
+    Call saveConfigNL(configID)    
+! Lattice/Energy calculations (2.0D0 Ang to 10.0D0 Ang)
+    dataPoints = 0.0D0
+    dataPointsPrint = 0.0D0
+    j = 0
+    Do i=-20,20
+      j = j + 1
+      If(mpiProcessID.eq.mod(j-1,mpiProcessCount))Then   ! Split between multiple processes
+        aLatTest = aLatOpt+(i*0.005D0)
+        !Call makeConfigFile(structureType,aLatTest)     ! Make with optimised lattice parameter
+        !Call readConfigFile(0,configID)                ! Read in configuration file
+        !Call makeNeighbourList(configID,configID)           ! Make new neighbour list  
+        Call isotropicDistortion(configID, 0.0D0, aLatTest/(aLatOpt-20*0.005D0))        
+        Call calcEnergy(configID, configEnergy, 0, pairEnergy, embeddingEnergy)      
+        configEnergy = configEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        pairEnergy = pairEnergy/(1.0D0*configurationCoordsKeyG(configID,2))
+        embeddingEnergy = embeddingEnergy/(1.0D0*configurationCoordsKeyG(configID,2))  
+        If(structureType.eq.1)Then
+          dataPoints(j,1) = (aLatTest**3)/4.0D0
+        End If
+        If(structureType.eq.2)Then
+          dataPoints(j,1) = (aLatTest**3)/2.0D0
+        End If
+        dataPoints(j,2) = configEnergy
+        dataPointsPrint(j,1) = aLatTest
+        dataPointsPrint(j,2) = configEnergy
+        dataPointsPrint(j,3) = pairEnergy
+        dataPointsPrint(j,4) = embeddingEnergy
+! Reload list        
+        Call loadConfigNL(configID)
+      End If  
+    End Do
+! Collect and distribute data array   
+    Call M_collDouble2D(dataPoints) 
+    Call M_collDouble2D(dataPointsPrint)    
+    Call M_distDouble2D(dataPoints)  
+    Call M_distDouble2D(dataPointsPrint)
+! Murnaghan Fit
+    coefficientsMurn = MurnFit(dataPoints)
+! Birch-Murnaghan Fit
+    coefficientsBirchMurn = BirchMurnFit(dataPoints, 0.01D0, 2000, 5, coefficientsMurn)
+! output data
+    If(mpiProcessID.eq.0)Then
+      write(25,"(A8,A16,A16,A16,A16,A16,A16)") &
+      "        ","aLat/Ang        ","Energy/eV       ",&        
+      "Murn Energy/eV  ","BM Energy/eV    ",&
+      "Pair Energy/eV  ","Embe Energy/eV  "
+      Do j=1,41
+        volume = dataPoints(j,1)
+        energyM = MurnCalc(volume, coefficientsMurn)
+        energyBM = BirchMurnCalc(volume, coefficientsMurn)
+        write(25,"(I8,F16.8,F16.8,F16.8,F16.8,F16.8,F16.8)") j,&
+        dataPointsPrint(j,1),dataPointsPrint(j,2),&
+        energyM,energyBM,&
+        dataPointsPrint(j,3),dataPointsPrint(j,4)
+      End Do
+    End If
+    write(25,"(A1)") " "
+! Close file       
+    If(mpiProcessID.eq.0)Then 
+      Close(25)
+    End If            
+  End Subroutine aLatEnergy
+  
+  
+  
+  
+  Subroutine calcEOSFit(configID, structureType, aLatOpt, eosFitRSSValues)
+! Apply a distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables   
+    Integer(kind=StandardInteger) :: configID, structureType, i
+    Real(kind=DoubleReal) :: aLatTest, aLatLower, aLatOpt, eosFitRSSValues
+    Real(kind=DoubleReal) :: configEnergy, configEnergyBM
+    Real(kind=DoubleReal), Dimension(1:16,1:2) :: dataPoints
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficients ! E0, V0, B0, B'0
+! Init values    
+    eosFitRSSValues = 0.0D0
+! Starting aLat
+    aLatLower = aLatOpt - 0.5D0  
+! Make config + neighbour list    
+    Call makeConfigFile(structureType,aLatLower)     ! Make with optimised lattice parameter
+    Call readConfigFile(0,configID)                ! Read in configuration file
+    Call makeNeighbourList(configID,configID)           ! Make new neighbour list    
+! Save neighbour list    
+    Call saveConfigNL(configID)    
+! Calculate points from EAM potential
+    dataPoints = 0.0D0
+    Do i=1,16
+      If(mpiProcessID.eq.mod(i-1,mpiProcessCount))Then       
+        aLatTest = aLatLower + (i-1)*(0.5D0/7.0D0)
+        Call isotropicDistortion(configID, 0.0D0, aLatTest/aLatLower)
+        Call calcEnergy(configID, configEnergy, 0) 
+        If(structureType.eq.1)Then  !FCC
+          dataPoints(i,1) = (aLatTest**3/4.0D0)
+        End If  
+        If(structureType.eq.2)Then  !BCC
+          dataPoints(i,1) = (aLatTest**3/2.0D0)
+        End If  
+        dataPoints(i,2) = configEnergy/(1.0D0*configurationCoordsKeyG(configID,2)) 
+        !dataPointsPrint(i,1) = aLatTest
+        !dataPointsPrint(i,2) = dataPoints(i,1)
+        !dataPointsPrint(i,3) = dataPoints(i,2)
+        !dataPointsPrint(i,4) = 0.0D0
+  ! Reload list        
+        Call loadConfigNL(configID)
+      End If
+    End Do   
+! Collect and distribute data array   
+    Call M_collDouble2D(dataPoints)   
+    Call M_distDouble2D(dataPoints)    
+    !Call M_collDouble2D(dataPointsPrint)   
+    !Call M_distDouble2D(dataPointsPrint)   
+    print *,"eos fit"
+! Compare these points to 
+    If(structureType.eq.1)Then  !FCC
+      coefficients(1) = fccReferenceValues(2)                 ! E0
+      coefficients(2) = (fccReferenceValues(1)**3)/4.0D0            ! V0
+      coefficients(3) = fccReferenceValues(3)/160.2176568     ! B0
+      coefficients(4) = 3.0D0                                 ! B'0
+    End If  
+    If(structureType.eq.2)Then  !BCC    
+    End If  
+! Fit B'0 to points
+    coefficients = BirchMurnFitBP(dataPoints, coefficients)   
+! Calculate rss    
+    Do i=1,16 
+      configEnergyBM = BirchMurnCalc(dataPoints(i,1),coefficients)
+      eosFitRSSValues = eosFitRSSValues + (configEnergyBM-dataPoints(i,2))**2
+    End Do  
+  End Subroutine calcEOSFit
+  
+  
+  
+  
   
   
   
@@ -463,54 +696,7 @@ Contains
     End Do
   End Subroutine changeALat  
     
-    
-  Subroutine saveConfigNL(configID)
-! Save NL for one config to the temp memory array
-    Implicit None   ! Force declaration of all variables
-! Private variables   
-    Integer(kind=StandardInteger) :: configID, keyS, keyE, i, j
-! Init variables
-    keyS = neighbourListKey(configID,1)
-    keyE = neighbourListKey(configID,3)
-! copy data
-    Do j=1,size(neighbourListI,2)
-      Do i=keyS,keyE
-        neighbourListIT(i,j) = neighbourListI(i,j)
-      End Do
-    End Do  
-    Do i=keyS,keyE
-      neighbourListRT(i) = neighbourListR(i)
-    End Do     
-    Do j=1,size(neighbourListCoords,2)
-      Do i=keyS,keyE
-        neighbourListCoordsT(i,j) = neighbourListCoords(i,j)
-      End Do
-    End Do 
-  End Subroutine saveConfigNL
-  
-  Subroutine loadConfigNL(configID)
-! Load NL for one config from the temp memory array
-    Implicit None   ! Force declaration of all variables
-! Private variables   
-    Integer(kind=StandardInteger) :: configID, keyS, keyE, i, j
-! Init variables
-    keyS = neighbourListKey(configID,1)
-    keyE = neighbourListKey(configID,3)
-! copy data
-    Do j=1,size(neighbourListI,2)
-      Do i=keyS,keyE
-        neighbourListI(i,j) = neighbourListIT(i,j)
-      End Do
-    End Do  
-    Do i=keyS,keyE
-      neighbourListR(i) = neighbourListRT(i)
-    End Do     
-    Do j=1,size(neighbourListCoords,2)
-      Do i=keyS,keyE
-        neighbourListCoords(i,j) = neighbourListCoordsT(i,j)
-      End Do
-    End Do 
-  End Subroutine loadConfigNL  
+ 
   
   Subroutine calcVol(configID, aLat, volume)
 ! Apply a distortion to the neighbour list
@@ -545,6 +731,8 @@ Contains
 ! calculate volume    
     volume = TripleProductSq(superCellVectors)
   End Subroutine calcVol  
+  
+  
   
   
   

@@ -350,7 +350,9 @@ Contains
     If(fileRow(1:7).eq."#SAVENL")Then  
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Read(fileRow,*) saveNLToFile 
-    End If  
+    End If   
+    
+    
     
     
 !----------------------------------      
@@ -401,6 +403,19 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Call strToDPArr(fileRow,rssWeighting)      
     End If  
+       
+       
+!----------------------------------      
+! Testing Options
+!----------------------------------          
+    If(fileRow(1:7).eq."#EOSFIT")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) testingFitChoice 
+    End If 
+    If(fileRow(1:10).eq."#EOSRSSFIT")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) eosFitRSSOption 
+    End If 
        
     
 !----------------------------------      

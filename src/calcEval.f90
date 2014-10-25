@@ -59,9 +59,19 @@ Contains
     End If
     Call calcRSS()           ! Calculate RSS of stresses, forces and energies
 ! Output to terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      print *,"RSS: ",totalRSS,testingRSS,(totalRSS+testingRSS)
-    End If    
+    If(mpiProcessID.eq.0)Then 
+      Open(UNIT=25,FILE=Trim(outputDirectory)//"/rssLog.dat",&
+      status="old",position="append",action="write") 
+      If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF")Then
+        write(25,"(E16.8,E16.8,E16.8,E16.8,E16.8,E16.8,E16.8)") &
+        configTotalRSS,testingALatRSS,testingEMinRSS,testingBMRSS,&
+        totalRSS,testingECRSS,eosFitRSS
+      Else
+        write(25,"(E16.8,E16.8)") &
+        configTotalRSS,totalRSS
+      End If
+      Close(25)
+    End If   
     totalRSS = totalRSS + testingRSS
 ! Output evaluate results to output file
     Call outputEvaluate()  
@@ -134,6 +144,18 @@ Contains
         configRSS(i,ySize) = configRSS(i,ySize) + configRSS(i,j)
       End Do
     End Do 
+    configTotalRSS = totalRSS
+! Apply weightings to testing RSS
+    If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF")Then
+      testingALatRSS = testingALatRSS*rssWeighting(4)
+      testingEMinRSS = testingEMinRSS*rssWeighting(5)   
+      testingBMRSS = testingBMRSS*rssWeighting(6)   
+      testingECRSS = testingECRSS*rssWeighting(7) 
+      eosFitRSS = eosFitRSS*rssWeighting(8) 
+! Add to total    
+      totalRSS = totalRSS+testingALatRSS+testingEMinRSS+testingBMRSS+&
+                 testingECRSS+eosFitRSS
+    End If  
   End Subroutine calcRSS 
   
 !------------------------------------------------------------------------!

@@ -169,7 +169,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefBM
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcBM
   Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
-  Real(kind=DoubleReal) :: totalRSS, optimumRSS, startRSS
+  Real(kind=DoubleReal) :: totalRSS, optimumRSS, startRSS, configTotalRSS
 ! Optimisation  
   Real(kind=DoubleReal) :: nodeVariationAmount
   Real(kind=DoubleReal) :: saTemp, saMaxVariation
@@ -225,8 +225,11 @@ Module globals
   Real(kind=DoubleReal) :: bccALatBirchMurn, bccEMinBirchMurn, bccVolMinBirchMurn, bccBMBirchMurn, bccBMPBirchMurn
   Real(kind=DoubleReal), Dimension(1:10) :: fccECMurn, bccECMurn
   Integer(kind=StandardInteger) :: printTestingData, outputTestingData
-  Real(kind=DoubleReal) :: testingRSS
+  Real(kind=DoubleReal) :: testingRSS, eosFitRSS
   Integer(kind=StandardInteger) :: testingFitChoice  ! 1 Murn, 2 BirchMurn
+  Integer(kind=StandardInteger) :: eosFitRSSOption  ! Include RSS of EAM model to ref EoS
+  Real(kind=DoubleReal) :: testingALatRSS, testingEMinRSS
+  Real(kind=DoubleReal) :: testingBMRSS, testingECRSS
   
 !----------------------------------------------
 ! PWscf Batch File Globals  
@@ -422,7 +425,7 @@ Module globals
   Public :: configCalcEL  
   Public :: configRefBM
   Public :: configCalcBM
-  Public :: configRSS
+  Public :: configRSS, configTotalRSS
   Public :: totalRSS, optimumRSS, startRSS
 ! Optimisation  
   Public :: nodeVariationAmount  
@@ -463,6 +466,10 @@ Module globals
   Public :: printTestingData, outputTestingData
   Public :: testingRSS
   Public :: testingFitChoice
+  Public :: eosFitRSS
+  Public :: eosFitRSSOption
+  Public :: testingALatRSS, testingEMinRSS
+  Public :: testingBMRSS, testingECRSS
 ! DFT Config
   Public :: dftReplaceLabel 
   
@@ -699,6 +706,7 @@ Contains
     configRefBM = -2.1D20
     configCalcBM = -2.1D20
     configRSS = 0.0D0
+    configTotalRSS = 0.0D0
     totalRSS = 0.0D0
     optimumRSS = 0.0D0
     startRSS = 0.0D0
@@ -774,6 +782,12 @@ Contains
     outputTestingData = 0
     testingRSS = 0.0D0
     testingFitChoice = 1
+    eosFitRSS = 0.0D0
+    eosFitRSSOption = 0
+    testingALatRSS = 0.0D0
+    testingEMinRSS = 0.0D0
+    testingBMRSS = 0.0D0
+    testingECRSS = 0.0D0
 ! DFT Config
     dftReplaceLabel = BlankString2DArray(dftReplaceLabel)
   

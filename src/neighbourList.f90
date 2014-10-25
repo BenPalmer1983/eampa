@@ -29,6 +29,13 @@ Module neighbourList
 ! Public Subroutines
   Public :: makeNeighbourList
   Public :: clearNeighbourList
+  Public :: saveConfigNL
+  Public :: loadConfigNL
+  Public :: isotropicDistortion
+  Public :: tetragonalDistortion
+  Public :: orthogonalDistortion
+  Public :: monoclinicDistortion
+  Public :: applyDistortionNL
   
 Contains
   Subroutine makeNeighbourList(configIDStartIn,configIDEndIn,forcePrintIn)
@@ -287,5 +294,257 @@ Contains
     configRefEVInput = configRefEV     
     configRefBMInput = configRefBM
   End Subroutine storeCNL 
+  
+  
+  
+!------------------------------------------------
+! Neighbour List - Save & Load
+!------------------------------------------------      
+     
+  Subroutine saveConfigNL(configID)
+! Save NL for one config to the temp memory array
+    Implicit None   ! Force declaration of all variables
+! Private variables   
+    Integer(kind=StandardInteger) :: configID, keyS, keyE, i, j
+! Init variables
+    keyS = neighbourListKey(configID,1)
+    keyE = neighbourListKey(configID,3)
+! copy data
+    Do j=1,size(neighbourListI,2)
+      Do i=keyS,keyE
+        neighbourListIT(i,j) = neighbourListI(i,j)
+      End Do
+    End Do  
+    Do i=keyS,keyE
+      neighbourListRT(i) = neighbourListR(i)
+    End Do     
+    Do j=1,size(neighbourListCoords,2)
+      Do i=keyS,keyE
+        neighbourListCoordsT(i,j) = neighbourListCoords(i,j)
+      End Do
+    End Do 
+  End Subroutine saveConfigNL
+  
+  Subroutine loadConfigNL(configID)
+! Load NL for one config from the temp memory array
+    Implicit None   ! Force declaration of all variables
+! Private variables   
+    Integer(kind=StandardInteger) :: configID, keyS, keyE, i, j
+! Init variables
+    keyS = neighbourListKey(configID,1)
+    keyE = neighbourListKey(configID,3)
+! copy data
+    Do j=1,size(neighbourListI,2)
+      Do i=keyS,keyE
+        neighbourListI(i,j) = neighbourListIT(i,j)
+      End Do
+    End Do  
+    Do i=keyS,keyE
+      neighbourListR(i) = neighbourListRT(i)
+    End Do     
+    Do j=1,size(neighbourListCoords,2)
+      Do i=keyS,keyE
+        neighbourListCoords(i,j) = neighbourListCoordsT(i,j)
+      End Do
+    End Do 
+  End Subroutine loadConfigNL
+  
+
+  
+!------------------------------------------------
+! Distortion + NL subroutines
+!------------------------------------------------     
+  
+  
+  Subroutine isotropicDistortion(configID, distortionAmount, factorIn)
+! Apply an isotropic distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: configID 
+    Real(kind=DoubleReal) :: distortionAmount, factor
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion    
+    Real(kind=DoubleReal), Optional :: factorIn
+! Optional input    
+    factor = 1.0D0
+    If(Present(factorIn))Then
+      factor = factorIn 
+    End If
+! set distortion matrix
+    distortion(1,1) = factor*(1.0D0+distortionAmount)
+    distortion(1,2) = 0.0D0
+    distortion(1,3) = 0.0D0
+    distortion(2,1) = 0.0D0
+    distortion(2,2) = factor*(1.0D0+distortionAmount)
+    distortion(2,3) = 0.0D0
+    distortion(3,1) = 0.0D0
+    distortion(3,2) = 0.0D0
+    distortion(3,3) = factor*(1.0D0+distortionAmount)
+    Call applyDistortionNL(configID, distortion, 1)  
+  End Subroutine isotropicDistortion
+  
+  Subroutine tetragonalDistortion(configID, distortionAmount, factorIn)
+! Apply an isotropic distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: configID 
+    Real(kind=DoubleReal) :: distortionAmount, factor
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion    
+    Real(kind=DoubleReal), Optional :: factorIn
+! Optional input    
+    factor = 1.0D0
+    If(Present(factorIn))Then
+      factor = factorIn 
+    End If
+! set distortion matrix
+    distortion(1,1) = factor*(1.0D0+distortionAmount)
+    distortion(1,2) = 0.0D0
+    distortion(1,3) = 0.0D0
+    distortion(2,1) = 0.0D0
+    distortion(2,2) = factor*(1.0D0+distortionAmount)
+    distortion(2,3) = 0.0D0
+    distortion(3,1) = 0.0D0
+    distortion(3,2) = 0.0D0
+    distortion(3,3) = factor*((1.0D0+distortionAmount)**(-2.0D0))
+    Call applyDistortionNL(configID, distortion, 1)  
+  End Subroutine tetragonalDistortion
+  
+  Subroutine orthogonalDistortion(configID, distortionAmount, factorIn)
+! Apply an isotropic distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: configID 
+    Real(kind=DoubleReal) :: distortionAmount, factor
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion    
+    Real(kind=DoubleReal), Optional :: factorIn
+! Optional input    
+    factor = 1.0D0
+    If(Present(factorIn))Then
+      factor = factorIn 
+    End If
+! set distortion matrix
+    distortion(1,1) = factor*(1.0D0+distortionAmount)
+    distortion(1,2) = 0.0D0
+    distortion(1,3) = 0.0D0
+    distortion(2,1) = 0.0D0
+    distortion(2,2) = factor*(1.0D0-distortionAmount)
+    distortion(2,3) = 0.0D0
+    distortion(3,1) = 0.0D0
+    distortion(3,2) = 0.0D0
+    distortion(3,3) = factor*(1.0D0+(distortionAmount**2)/(1.0D0-distortionAmount**(2.0D0)))
+    Call applyDistortionNL(configID, distortion, 1)  
+  End Subroutine orthogonalDistortion
+  
+  Subroutine monoclinicDistortion(configID, distortionAmount, factorIn)
+! Apply an isotropic distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Integer(kind=StandardInteger) :: configID 
+    Real(kind=DoubleReal) :: distortionAmount, factor
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion    
+    Real(kind=DoubleReal), Optional :: factorIn
+! Optional input    
+    factor = 1.0D0
+    If(Present(factorIn))Then
+      factor = factorIn 
+    End If
+! set distortion matrix
+    distortion(1,1) = factor*1.0D0
+    distortion(1,2) = factor*0.5D0*distortionAmount
+    distortion(1,3) = 0.0D0
+    distortion(2,1) = factor*0.5D0*distortionAmount
+    distortion(2,2) = factor*1.0D0
+    distortion(2,3) = 0.0D0
+    distortion(3,1) = 0.0D0
+    distortion(3,2) = 0.0D0
+    distortion(3,3) = factor*(1.0D0+(distortionAmount**2)/(4.0D0-distortionAmount**(2.0D0)))
+    Call applyDistortionNL(configID, distortion, 1)  
+  End Subroutine monoclinicDistortion
+  
+  
+  
+  Subroutine applyDistortionNL(configID, distortion, typeCalc)
+! Apply a distortion to the neighbour list
+    Implicit None   ! Force declaration of all variables
+! Private variables   
+    Integer(kind=StandardInteger) :: configID, typeCalc, distOption
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: distortion
+    Integer(kind=StandardInteger) :: i, j, arrayCheck, keyS, keyE
+    Real(kind=DoubleReal) :: xCA, yCA, zCA, xCB, yCB, zCB
+! Init variables
+    keyS = neighbourListKey(configID,1)
+    keyE = neighbourListKey(configID,3)
+    distOption = 2 ! Full nl modification for distortion
+! Check type of distortion (just energy, isotropic distortion)
+    If(typeCalc.eq.1)Then  ! Energy only calculation
+      ! Check distortion array
+      If(distortion(1,1).eq.distortion(2,2).and.distortion(1,1).eq.distortion(3,3))Then
+        arrayCheck = 0
+        Do i=1,3 
+          Do j=1,3 
+            If(j.ne.i)Then
+              If(distortion(i,j).ne.0.0D0)Then
+                arrayCheck = 1
+              End If
+            End If
+          End Do
+        End Do
+        If(arrayCheck.eq.0)Then
+          distOption = 1
+        End If
+      End If
+    End If
+! Distort neighbour list  
+    If(distOption.eq.1)Then
+! Isotropic distortion, energy calculation only - just change nl separation
+      Do i=keyS,keyE
+        neighbourListR(i) = distortion(1,1)*neighbourListR(i)
+      End Do
+    Else
+! Non isotropic/energy-force-stress calculations         
+      Do i=keyS,keyE
+! Apply distortion vector - Point A
+        xCA = neighbourListCoords(i,1)*distortion(1,1)+&
+              neighbourListCoords(i,2)*distortion(1,2)+&
+              neighbourListCoords(i,3)*distortion(1,3)
+        yCA = neighbourListCoords(i,1)*distortion(2,1)+&
+              neighbourListCoords(i,2)*distortion(2,2)+&
+              neighbourListCoords(i,3)*distortion(2,3)
+        zCA = neighbourListCoords(i,1)*distortion(3,1)+&
+              neighbourListCoords(i,2)*distortion(3,2)+&
+              neighbourListCoords(i,3)*distortion(3,3)
+        neighbourListCoords(i,1) = xCA     
+        neighbourListCoords(i,2) = yCA      
+        neighbourListCoords(i,3) = zCA       
+! Apply distortion vector - Point A
+        xCB = neighbourListCoords(i,4)*distortion(1,1)+&
+              neighbourListCoords(i,5)*distortion(1,2)+&
+              neighbourListCoords(i,6)*distortion(1,3)
+        yCB = neighbourListCoords(i,4)*distortion(2,1)+&
+              neighbourListCoords(i,5)*distortion(2,2)+&
+              neighbourListCoords(i,6)*distortion(2,3)
+        zCB = neighbourListCoords(i,4)*distortion(3,1)+&
+              neighbourListCoords(i,5)*distortion(3,2)+&
+              neighbourListCoords(i,6)*distortion(3,3)
+        neighbourListCoords(i,4) = xCB     
+        neighbourListCoords(i,5) = yCB      
+        neighbourListCoords(i,6) = zCB      
+! Store differences        
+        neighbourListCoords(i,7) = neighbourListCoords(i,4) - neighbourListCoords(i,1)    
+        neighbourListCoords(i,8) = neighbourListCoords(i,5) - neighbourListCoords(i,2)   
+        neighbourListCoords(i,9) = neighbourListCoords(i,6) - neighbourListCoords(i,3)   
+! Store separation
+        neighbourListR(i) = (neighbourListCoords(i,7)**2 + &
+                            neighbourListCoords(i,8)**2 + &
+                            neighbourListCoords(i,9)**2)**0.5
+! Store directon magnitudes
+        neighbourListCoords(i,10) = neighbourListCoords(i,7)/neighbourListR(i)
+        neighbourListCoords(i,11) = neighbourListCoords(i,8)/neighbourListR(i)
+        neighbourListCoords(i,12) = neighbourListCoords(i,9)/neighbourListR(i)
+      End Do
+    End If
+  End Subroutine applyDistortionNL
+  
+  
+  
   
 End Module neighbourList  

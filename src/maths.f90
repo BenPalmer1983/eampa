@@ -39,9 +39,13 @@ Module maths
   Public :: PointInterp         !y(x) from large set of data x-y, finds region and uses lagrange interp
   Public :: CalcResidualSquareSum
   Public :: MurnFit
+  Public :: MurnCalc
   Public :: MurnRSS
+  Public :: MurnFitBP
   Public :: BirchMurnFit
+  Public :: BirchMurnCalc
   Public :: BirchMurnRSS
+  Public :: BirchMurnFitBP
 ! Vector Functions  
   Public :: CrossProduct
   Public :: DotProduct
@@ -586,6 +590,42 @@ Contains
     End Do
   End Function MurnRSS  
   
+  Function MurnFitBP(points, coefficientsIn) RESULT (coefficients)
+! Fits B'0 and holds other coefficients
+    Implicit None  !Force declaration of all variables
+! Declare variables
+    Integer(kind=StandardInteger) :: i
+    !Real(kind=DoubleReal) :: energyMin, volOpt, bm, bmP, randDouble
+    Real(kind=DoubleReal) :: randDouble, varyAmount, optRSS, testRSS
+    Real(kind=DoubleReal), Dimension(:,:) :: points
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsIn  ! E0, V0, B0, B'0
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficients  ! E0, V0, B0, B'0
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsTemp  ! E0, V0, B0, B'0
+    Real(kind=DoubleReal) :: variance
+    Integer(kind=StandardInteger) :: loops
+! Optional argument variables    
+    variance = 0.001D0
+    loops = 100
+    coefficients = coefficientsIn
+! Starting RSS    
+    optRSS = MurnRSS(points,coefficients)
+! Adjust points    
+    Do i=1,loops   
+      coefficientsTemp = coefficients
+      Call RANDOM_NUMBER(randDouble)
+      varyAmount = variance*2.0D0*(-0.5D0+randDouble)
+      coefficientsTemp(4) = &
+      (1.0D0 + varyAmount)*coefficientsTemp(4)
+      testRSS = MurnRSS(points,coefficientsTemp)
+      If(testRSS.lt.optRSS)Then
+        optRSS = testRSS
+        coefficients = coefficientsTemp
+        If(optRSS.lt.1.0D-5)Then
+          Exit
+        End If
+      End If
+    End Do  
+  End Function MurnFitBP  
   
   
   Function BirchMurnFit(points, varianceIn, loopsIn, refinementsIn, coeffsIn) RESULT (coefficients)
@@ -697,7 +737,43 @@ Contains
       rss = rss + (energyC-energy)**2
     End Do
   End Function BirchMurnRSS  
-
+  
+  Function BirchMurnFitBP(points, coefficientsIn) RESULT (coefficients)
+! Fits B'0 and holds other coefficients
+    Implicit None  !Force declaration of all variables
+! Declare variables
+    Integer(kind=StandardInteger) :: i
+    !Real(kind=DoubleReal) :: energyMin, volOpt, bm, bmP, randDouble
+    Real(kind=DoubleReal) :: randDouble, varyAmount, optRSS, testRSS
+    Real(kind=DoubleReal), Dimension(:,:) :: points
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsIn  ! E0, V0, B0, B'0
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficients  ! E0, V0, B0, B'0
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsTemp  ! E0, V0, B0, B'0
+    Real(kind=DoubleReal) :: variance
+    Integer(kind=StandardInteger) :: loops
+! Optional argument variables    
+    variance = 0.01D0
+    loops = 1000
+    coefficients = coefficientsIn
+! Starting RSS    
+    optRSS = BirchMurnRSS(points,coefficients)
+! Adjust points    
+    Do i=1,loops   
+      coefficientsTemp = coefficients
+      Call RANDOM_NUMBER(randDouble)
+      varyAmount = variance*2.0D0*(-0.5D0+randDouble)
+      coefficientsTemp(4) = &
+      (1.0D0 + varyAmount)*coefficientsTemp(4)
+      testRSS = BirchMurnRSS(points,coefficientsTemp)
+      If(testRSS.lt.optRSS)Then
+        optRSS = testRSS
+        coefficients = coefficientsTemp
+        If(optRSS.lt.1.0D-5)Then
+          Exit
+        End If
+      End If
+    End Do  
+  End Function BirchMurnFitBP  
   
   
 ! Interpolation  

@@ -25,8 +25,51 @@ Module optimise
   Public :: runOptimise
   
 Contains  
-  
+
+
+
   Subroutine runOptimise()
+    Implicit None   ! Force declaration of all variables
+! Private variables    
+    Real(kind=DoubleReal) :: saTempIn, saMaxVariationIn
+    Integer(kind=StandardInteger) :: saTempLoopsIn, saVarLoopsIn
+    Integer(kind=StandardInteger) :: optLoopsIn
+    Character(len=4) :: eampaRunTypeIn
+! Store input variables
+    saTempIn = saTemp
+    saMaxVariationIn = saMaxVariation
+    saTempLoopsIn = saTempLoops
+    saVarLoopsIn = saVarLoops
+    optLoopsIn = optLoops
+    eampaRunTypeIn = eampaRunType
+! Choose which type of optimisation process
+    If(eampaRunType(1:4).eq."OPTI".or.eampaRunType(1:4).eq."OPTF".or.&
+    eampaRunType(1:4).eq."OPTT")Then
+!----------------------------------------------------
+! Config only, Full or Test only optimisation    
+!----------------------------------------------------
+      Call runOptimiseProcess()
+    End If
+    If(eampaRunType(1:4).eq."OPTE")Then
+!----------------------------------------------------
+! Extensive optimisation       
+!----------------------------------------------------
+! Start optimising potential using test (BM, EoS etc) only, force embedding fit to 6th order poly
+      eampaRunType = "OPTT"
+      forceEmbeFitOpt = 1
+      saTemp = 100.0
+      saMaxVariation = 0.01D0
+      saTempLoops = 5
+      saVarLoops = 20
+      optLoops = 2
+      Call runOptimiseProcess(1)
+      
+      
+    End If
+    
+  End Subroutine runOptimise
+  
+  Subroutine runOptimiseProcess(loadInputIn)
     Implicit None   ! Force declaration of all variables
 ! Private variables    
     Character(len=255) :: eamTempPotPath
@@ -35,11 +78,18 @@ Contains
     Real(kind=DoubleReal) :: timeStartOpt, timeEndOpt
     Real(kind=DoubleReal) :: inputRSS
     Integer(kind=StandardInteger) :: saveForcesToFileTemp
+    Integer(kind=StandardInteger) :: loadInput
+    Integer(kind=StandardInteger), optional :: loadInputIn
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"Total Spline Nodes: ",splineTotalNodes
     End If
 ! Start Time
     Call cpu_time(timeStartOpt)
+! Optional arguments    
+    loadInput = 1
+    If(Present(loadInputIn))Then
+      loadInput = loadInputIn
+    End If
 ! Init variables
     fileNumber = BlankString(fileNumber)  
 ! Forces to file
@@ -53,8 +103,10 @@ Contains
     eamTempPotPath = Trim(outputDirectory)//"/pots"
     Call makeDir(eamTempPotPath)
 ! Load original input potential    
-    eamKey = eamKeyInput
-    eamData = eamDataInput
+    If(loadInput.eq.1)Then
+      eamKey = eamKeyInput
+      eamData = eamDataInput
+    End If  
 ! Get starting nodes    
     Call setEamNodes()
 ! Rescale Embedding Function    
@@ -83,8 +135,9 @@ Contains
 !-------------------------------------      
 ! Spline EAM - Evaluate Splined EAM
 !-------------------------------------
-    Call setEamSpline()
-    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
+    Call forceEmbeddingFit()                                ! Force embedding function to fit 6th order poly
+    Call setEamSpline()                                     ! Make EAM functions spline of nodes
+    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then    ! Apply the zbl hard core
       Call eamZblHardCore()
     End If  
     fileName = "potSpline.pot"  
@@ -135,6 +188,9 @@ Contains
     splineNodesDataOpt = splineNodesData   
     optimumRSS = totalRSS
     startRSS = totalRSS
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      Print *,"Starting RSS: ",startRSS,"*"
+    End If  
     If(saTempLoops.gt.0.and.saVarLoops.gt.0)Then
 ! Save potential    
       fileName = "preSA.pot"  
@@ -156,14 +212,16 @@ Contains
       fileName = "preFT.pot"  
       Call saveEamFile(fileName) 
 ! Fine tune points    
-      print *,"-------------------------------------------------"
-      print *,"Fine tune nodes individually ",ProgramTime ()
-      print *,"Loops: ",optLoops
-      print *,"Total Vars: ",(optLoops*splineTotalNodes)
-      print *,"-------------------------------------------------"
+      Call M_synchProcesses()
+      If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+        print *,"-------------------------------------------------"
+        print *,"Fine tune nodes individually ",ProgramTime ()
+        print *,"Loops: ",optLoops
+        print *,"Total Vars: ",(optLoops*splineTotalNodes)
+        print *,"-------------------------------------------------"
+      End If
       Call fineTuneNodes(optLoops)
-    End If
-    
+    End If    
 !---------------------------------    
 ! Test optimum
 !---------------------------------
@@ -176,10 +234,11 @@ Contains
       write(999,"(A22)") "Final calculation.    "
       write(999,"(A70)") "----------------------------------------------------------------------"       
       Close(999)
-    End If    
-
+    End If 
     splineNodesKey = splineNodesKeyOpt
     splineNodesData = splineNodesDataOpt   
+! Force embedding function to fit a 6th order polynomial
+    Call forceEmbeddingFit()
 ! Make spline EAM from nodes
     Call setEamSpline()
 ! Apply ZBL hard core if required      
@@ -204,21 +263,12 @@ Contains
 ! Output    
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
       Print *,"Optimisation time: ",(timeEndOpt-timeStartOpt)
-    End If
-    
+    End If   
 !---------------------------------    
 ! Analyse potential
 !--------------------------------- 
- 
-    Call runTestAnalysis()
-
-
-   
-    !eampaRunType(1:4) = "EVAF"
-    !Call calcBP(1)
-    
-    
-  End Subroutine runOptimise
+    Call runTestAnalysis()    
+  End Subroutine runOptimiseProcess
   
   
 !---------------------------------------------------------------------------------------------------  
@@ -230,6 +280,7 @@ Contains
     Integer(kind=StandardInteger), Dimension(1:splineTotalNodes,1:2) :: splineImprovement  ! successful var counts, successful + counts
     Real(kind=DoubleReal), Dimension(1:splineTotalNodes,1:2) :: splineImprovementDP        ! total rss reduction from node, overall variation
     Real(kind=DoubleReal) :: unvariedNode, variedNode
+    Character(len=64) :: fileName
 ! Init variables    
     splineImprovement = 0  ! count of which node move made an improvement
     splineImprovementDP = 0.0D0  
@@ -265,6 +316,8 @@ Contains
           Else
             Call outputSplineNodes("ft.nodes", 0)
           End If            
+! Force embedding function to fit a 6th order polynomial
+          Call forceEmbeddingFit()
 ! Make spline EAM from nodes
           Call setEamSpline()
 ! Apply ZBL hard core if required      
@@ -289,7 +342,10 @@ Contains
             optimumRSS = totalRSS
             Do configID=1,configCount
               configVolumeOpt(configID) = configCalcEV(configID)
-            End Do  
+            End Do
+! Save best potential so far            
+            fileName = "potTempOpt.pot"  
+            Call saveEamFile(fileName)             
 ! Print to terminal
             If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
               Print *,"Variation RSS",j,i,totalRSS,(optimumRSS/startRSS),"*"
@@ -747,6 +803,81 @@ Contains
       End Do
     End If
   End Subroutine scaleEmbeddingOpt
+!---------------------------------------------------------------------------------------------------  
+  Subroutine forceEmbeddingFit()
+! Force EAM Embedding Function to fit an analytic form
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i, j, n, functionCounter     
+    Real(kind=DoubleReal), Dimension(1:1000,1:4) :: dataPoints
+! Loop through EAM functions
+    functionCounter = 0
+    If(forceEmbeFitOpt.eq.1)Then
+      dataPoints = 0.0D0    
+      Do i=1,size(splineNodesKey,1)
+        If(splineNodesKey(i,1).gt.0)Then        
+          functionCounter = functionCounter + 1  
+        End If
+        If(splineNodesKey(i,3).eq.3.or.splineNodesKey(i,3).eq.6&
+          .or.splineNodesKey(i,3).eq.7)Then
+          n = 0
+          Do j=splineNodesKey(i,4),splineNodesKey(i,6)
+            n = n + 1
+            dataPoints(n,1) = splineNodesData(j,1)
+            dataPoints(n,2) = splineNodesData(j,2)
+          End Do
+          Call forceEmbeddingFitProcess(dataPoints, n)   
+          n = 0     
+          Do j=splineNodesKey(i,4),splineNodesKey(i,6)
+            n = n + 1
+            splineNodesData(j,1) = dataPoints(n,1) 
+            splineNodesData(j,2) = dataPoints(n,2) 
+            splineNodesData(j,3) = dataPoints(n,3) 
+            splineNodesData(j,4) = dataPoints(n,4) 
+          End Do
+        End If
+        If(functionCounter.eq.eamFunctionCount )Then
+          Exit  ! Exit, all functions cycled through
+        End If
+      End Do 
+    End If
+  End Subroutine forceEmbeddingFit   
+!---------------------------------------------------------------------------------------------------  
+  Subroutine forceEmbeddingFitProcess(dataPointsIn, dataPointsCounter)
+! Force EAM Embedding Function to fit an analytic form
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i, dataPointsCounter      
+    Real(kind=DoubleReal), Dimension(1:1000,1:4) :: dataPointsIn
+    Real(kind=DoubleReal), Dimension(1:dataPointsCounter,1:2) :: dataPoints
+    Real(kind=DoubleReal), Dimension(1:dataPointsCounter,1:2) :: pointsInterp
+    Real(kind=DoubleReal), Dimension(1:7) :: coefficients
+    Real(kind=DoubleReal), Dimension(1:3) :: yArray
+! Transfer data
+    Do i=1,dataPointsCounter
+      dataPoints(i,1) = dataPointsIn(i,1)
+      dataPoints(i,2) = dataPointsIn(i,2)
+    End Do
+! Fit to polynomial
+    coefficients = PolyFit(dataPoints,6)
+! Replace points using fit
+    Do i=1,dataPointsCounter    
+      dataPointsIn(i,2) = CalcPolynomial(coefficients, dataPointsIn(i,1))
+      pointsInterp(i,1) = dataPointsIn(i,1)
+      pointsInterp(i,2) = dataPointsIn(i,2)
+    End Do
+! Interpolate to give f'(x) and f''(x)   
+    Do i=1,dataPointsCounter   
+      yArray = PointInterp(pointsInterp,pointsInterp(i,1),&
+      4,2,1,dataPointsCounter)
+      dataPointsIn(i,3) = yArray(2)
+      dataPointsIn(i,4) = yArray(3)
+      !If(mpiProcessID.eq.0)Then
+      !print *,dataPointsIn(i,1),dataPointsIn(i,2),dataPointsIn(i,3),dataPointsIn(i,4)
+      !End If
+    End Do
+    
+  End Subroutine forceEmbeddingFitProcess  
 !---------------------------------------------------------------------------------------------------   
   Subroutine simulatedAnnealing(sTemp, tLoops, varLoops)
     Implicit None   ! Force declaration of all variables
@@ -778,6 +909,7 @@ Contains
         Else
           Call outputSplineNodes("sa.nodes", 0)
         End If        
+        Call forceEmbeddingFit()                          ! Force embedding function to fit 6th order poly
         Call setEamSpline()                               ! Make spline EAM from nodes
         If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then  ! Apply ZBL hard core if required    
           Call eamZblHardCore()

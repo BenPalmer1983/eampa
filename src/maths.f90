@@ -175,7 +175,7 @@ Contains
     output = x
   End Function solvePolynomial   
   
-  Function CalcPolynomial (polyCoefficientsIn, x, derivativeIn) RESULT (y)
+  Function CalcPolynomial(polyCoefficientsIn, x, derivativeIn) RESULT (y)
 !Calculates p(x) by default, p'(x) for derivativeIn = 1 etc
     Implicit None  !Force declaration of all variables
 !Declare variables

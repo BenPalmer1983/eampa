@@ -158,6 +158,16 @@ Contains
           print *,"Run Type: EVALUATION [FULL]"
         End If
       End If
+      If(fileRow(1:4).eq."EVAT")Then
+        optionReadEAM = 1
+        optionReadConf = 1
+        optionNeighbourList = 1
+        optionEvalFull = 1
+        optionOutput = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: EVALUATION [EAM Testing - BM, Alat, EC, EoS]"
+        End If
+      End If
       If(fileRow(1:3).eq."PWB")Then
         optionRunPWBatch = 1
         If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
@@ -184,6 +194,28 @@ Contains
         optionOutput = 1
         If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
           print *,"Run Type: OPTIMISE POTENTIAL [FULL]"
+        End If
+      End If
+      If(fileRow(1:4).eq."OPTT")Then
+        optionReadEAM = 1
+        optionReadConf = 1
+        optionNeighbourList = 1
+        optionCalcEnergies = 0
+        optionOptimise = 1
+        optionOutput = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: OPTIMISE POTENTIAL [EAM Testing - BM, Alat, EC, EoS]"
+        End If
+      End If
+      If(fileRow(1:4).eq."OPTE")Then
+        optionReadEAM = 1
+        optionReadConf = 1
+        optionNeighbourList = 1
+        optionCalcEnergies = 0
+        optionOptimise = 1
+        optionOutput = 1
+        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then    
+          print *,"Run Type: OPTIMISE POTENTIAL [EXTENSIVE]"
         End If
       End If
       If(fileRow(1:4).eq."EAMP")Then
@@ -394,6 +426,12 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Read(fileRow,*) embeRescale 
     End If  
+    If(fileRow(1:13).eq."#FORCEEMBEFIT")Then  
+      Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
+      Read(fileRow,*) forceEmbeFitOpt 
+    End If  
+       
+       
        
     
 !----------------------------------      

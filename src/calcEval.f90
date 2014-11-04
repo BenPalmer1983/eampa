@@ -51,10 +51,17 @@ Contains
     Real(kind=DoubleReal) :: timeStartEval, timeEndEval
 ! Start time
     Call cpu_time(timeStartEval)      
-! Run energy/force/stress calculations 
-    Call calcEnergies()      ! Calculate energies, stresses and forces of input configurations
+! Just energy, stress, force
+    If(eampaRunType(1:4).eq."OPTI".or.eampaRunType(1:4).eq."EVAL")Then      
+      Call calcEnergies()      ! Calculate energies, stresses and forces of input configurations
+    End If
 ! Full evaluation options
-    If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF")Then
+    If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."OPTE".or.eampaRunType(1:4).eq."EVAF")Then
+      Call calcEnergies()      ! Calculate energies, stresses and forces of input configurations
+      Call runTestEAM()        ! Calculate pulk properties for FCC and BCC
+    End If
+! EAM Testing evaluation options
+    If(eampaRunType(1:4).eq."OPTT".or.eampaRunType(1:4).eq."EVAT")Then
       Call runTestEAM()        ! Calculate pulk properties for FCC and BCC
     End If
     Call calcRSS()           ! Calculate RSS of stresses, forces and energies
@@ -62,7 +69,7 @@ Contains
     If(mpiProcessID.eq.0)Then 
       Open(UNIT=25,FILE=Trim(outputDirectory)//"/rssLog.dat",&
       status="old",position="append",action="write") 
-      If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF")Then
+      If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."OPTE".or.eampaRunType(1:4).eq."EVAF")Then
         write(25,"(E16.8,E16.8,E16.8,E16.8,E16.8,E16.8,E16.8)") &
         configTotalRSS,testingALatRSS,testingEMinRSS,testingBMRSS,&
         totalRSS,testingECRSS,eosFitRSS
@@ -102,51 +109,58 @@ Contains
 ! Reset variables
     configRSS = 0.0D0
     totalRSS = 0.0D0
+    configTotalRSS = 0.0D0    
+    If(eampaRunType(1:4).eq."OPTI".or.eampaRunType(1:4).eq."EVAI".or.&
+    eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF".or.&
+    eampaRunType(1:4).eq."OPTE")Then
 ! Loop through configs    
-    Do configID=1,configCount
+      Do configID=1,configCount
 ! Energy RSS - all atoms
-      If(configCalcEnergies(configID).gt.-2.0D20.and.configRefEnergies(configID).gt.-2.0D20)Then
-        configRSS(configID,1) = rssWeighting(1)*&
-        (configCalcEnergies(configID)-&
-        configRefEnergies(configID)*configurationCoordsKeyG(configID,2))**2
-        configRSS(configID,1) = configWeighting(configID)*configRSS(configID,1)
-      End If
+        If(configCalcEnergies(configID).gt.-2.0D20.and.configRefEnergies(configID).gt.-2.0D20)Then
+          configRSS(configID,1) = rssWeighting(1)*&
+          (configCalcEnergies(configID)-&
+          configRefEnergies(configID)*configurationCoordsKeyG(configID,2))**2
+          configRSS(configID,1) = configWeighting(configID)*configRSS(configID,1)
+        End If
 ! Force RSS - all atoms
-      fsKey = configurationCoordsKeyG(configID,1)
-      feKey = configurationCoordsKeyG(configID,3)
-      If(configRefForces(fsKey,1).gt.-2.0D20.and.configCalcForces(fsKey,1).gt.-2.0D20)Then    
+        fsKey = configurationCoordsKeyG(configID,1)
+        feKey = configurationCoordsKeyG(configID,3)
+        If(configRefForces(fsKey,1).gt.-2.0D20.and.configCalcForces(fsKey,1).gt.-2.0D20)Then    
         Do i=fsKey,feKey
-          configRSS(configID,2) = configRSS(configID,2) + &
-          (configRefForces(i,1)-configCalcForces(i,1))**2 + &
-          (configRefForces(i,2)-configCalcForces(i,2))**2 + &
-          (configRefForces(i,3)-configCalcForces(i,3))**2
-        End Do
-        configRSS(configID,2) = rssWeighting(2)*configRSS(configID,2)
-        configRSS(configID,2) = configWeighting(configID)*configRSS(configID,2)
-      End If
+            configRSS(configID,2) = configRSS(configID,2) + &
+            (configRefForces(i,1)-configCalcForces(i,1))**2 + &
+            (configRefForces(i,2)-configCalcForces(i,2))**2 + &
+            (configRefForces(i,3)-configCalcForces(i,3))**2
+          End Do
+          configRSS(configID,2) = rssWeighting(2)*configRSS(configID,2)
+          configRSS(configID,2) = configWeighting(configID)*configRSS(configID,2)
+        End If
 ! Stress - volume of atoms     
-      If(configRefStresses(configID,1).gt.-2.0D20.and.configCalcStresses(configID,1).gt.-2.0D20)Then    
-        Do i=1,9
-          configRSS(configID,3) = configRSS(configID,3) + &
-          (configCalcStresses(configID,i)-configRefStresses(configID,i))**2
-        End Do
-        configRSS(configID,3) = rssWeighting(3)*configRSS(configID,3)
-        configRSS(configID,3) = configWeighting(configID)*configRSS(configID,3)
-      End If    
-    End Do
-! Total RSS
-    xSize = size(configRSS,1)
-    ySize = size(configRSS,2)
-    Do i=1,xSize
-      configRSS(i,ySize) = 0    ! Last column is total RSS for config
-      Do j=1,(ySize-1)
-        totalRSS = totalRSS + configRSS(i,j)
-        configRSS(i,ySize) = configRSS(i,ySize) + configRSS(i,j)
+        If(configRefStresses(configID,1).gt.-2.0D20.and.configCalcStresses(configID,1).gt.-2.0D20)Then    
+          Do i=1,9
+            configRSS(configID,3) = configRSS(configID,3) + &
+            (configCalcStresses(configID,i)-configRefStresses(configID,i))**2
+          End Do
+          configRSS(configID,3) = rssWeighting(3)*configRSS(configID,3)
+          configRSS(configID,3) = configWeighting(configID)*configRSS(configID,3)
+        End If    
       End Do
-    End Do 
-    configTotalRSS = totalRSS
+! Total RSS
+      xSize = size(configRSS,1)
+      ySize = size(configRSS,2)
+      Do i=1,xSize
+        configRSS(i,ySize) = 0    ! Last column is total RSS for config
+        Do j=1,(ySize-1)
+          totalRSS = totalRSS + configRSS(i,j)
+          configRSS(i,ySize) = configRSS(i,ySize) + configRSS(i,j)
+        End Do
+      End Do 
+      configTotalRSS = totalRSS
+    End If
 ! Apply weightings to testing RSS
-    If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF")Then
+    If(eampaRunType(1:4).eq."OPTF".or.eampaRunType(1:4).eq."EVAF".or.&
+    eampaRunType(1:4).eq."OPTT".or.eampaRunType(1:4).eq."EVAT".or.&
+    eampaRunType(1:4).eq."OPTE")Then
       testingALatRSS = testingALatRSS*rssWeighting(4)
       testingEMinRSS = testingEMinRSS*rssWeighting(5)   
       testingBMRSS = testingBMRSS*rssWeighting(6)   

@@ -176,6 +176,7 @@ Module globals
   Integer(kind=StandardInteger) :: saTempLoops, saVarLoops
   Integer(kind=StandardInteger) :: varyFixedNodes
   Integer(kind=StandardInteger) :: jumbleNodesOpt
+  Integer(kind=StandardInteger) :: forceEmbeFitOpt
 ! DFT Config
   Character(len=8), Dimension(1:10,1:2) :: dftReplaceLabel 
   
@@ -366,6 +367,7 @@ Module globals
   Public :: optLoops
   Public :: reduceNodes
   Public :: embeRescale
+  Public :: forceEmbeFitOpt
 ! RSS calculation options  
   Public :: rssWeighting  
   Public :: configWeighting
@@ -719,6 +721,7 @@ Contains
     varyFixedNodes = 0
     jumbleNodesOpt = 0
     embeRescale = 0
+    forceEmbeFitOpt = 0
 ! Neighbour List
     nlUniqueKeys = 0
     neighbourListCount = 0

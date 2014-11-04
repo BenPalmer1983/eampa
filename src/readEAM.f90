@@ -837,13 +837,12 @@ Contains
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Integer(kind=StandardInteger) :: functionCounter, i, j
-    Integer(kind=StandardInteger) :: nodes, nodeKey, nodeStart, nodeLength, nodeEnd, eamPoint
+    Integer(kind=StandardInteger) :: nodes, nodeStart, nodeLength, nodeEnd, eamPoint
     Real(kind=DoubleReal), Dimension(1:1001,1:4) :: splineDataPoints
 ! Init variables    
     splineDataPoints = 0.0D0
 ! Loop through EAM functions
     functionCounter = 0
-    nodeKey = 0
     Do i=1,size(eamKey,1)
       If(eamKey(i,1).gt.0)Then        
         functionCounter = functionCounter + 1        
@@ -968,6 +967,10 @@ Contains
     End If
   End Subroutine eamZblHardCore   
   
+  
+  
+  
+
  
   
   Subroutine outputSummary()
@@ -1008,6 +1011,7 @@ Contains
       End Do
     End If 
   End Subroutine outputSummary 
+  
   
   
   Subroutine AddUniqueElement(element)

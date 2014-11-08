@@ -58,6 +58,10 @@ Contains
     If(eampaRunType(1:4).eq."OPTT".or.eampaRunType(1:4).eq."EVAT")Then
       Call runTestEAM()        ! Calculate bulk properties for FCC and BCC
     End If
+! EAM Testing evaluation options EoS Only
+    If(eampaRunType(1:4).eq."OPES")Then
+      Call calcEOSFit(901, 1, fccReferenceValues(1))  ! FCC only 
+    End If
     Call calcRSS()           ! Calculate RSS of stresses, forces and energies
 ! Output to file
     If(mpiProcessID.eq.0)Then 

@@ -1,12 +1,16 @@
 Module readinput
+
 !--------------------------------------------------------------!
 ! General subroutines and functions                        
 ! Ben Palmer, University of Birmingham   
 !--------------------------------------------------------------!
+
 ! Read user input file 
+
 !----------------------------------------
 ! Updated: 25th Aug 2014
 !----------------------------------------
+
 ! Setup Modules
   Use kinds
   Use msubs
@@ -22,9 +26,9 @@ Module readinput
 ! Privacy of variables/functions/subroutines
   Private    
 ! Public Subroutines
-  Public :: readUserInput  
+  Public :: readUserInput
+  
 Contains
-!---------------------------------------------------------------------------------------------------
   Subroutine readUserInput()
 !force declaration of all variables
   Implicit None  
@@ -265,6 +269,9 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
       Call strToIntArr(fileRow,splineNodeCount)
       splineTotalNodes = 0
+      !Do j=1,size(splineNodeCount)
+      !  splineTotalNodes = splineTotalNodes + splineNodeCount(j)
+      !End Do
     End If
     If(fileRow(1:13).eq."#EAMNODESFILE")then
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line  
@@ -352,6 +359,8 @@ Contains
       fileRow = trim(adjustl(StrToUpper(fileRow)))
       Read(fileRow,*) nlTestCutoff
     End If  
+    
+    
 !----------------------------------      
 ! Calculation options
 !----------------------------------     
@@ -374,6 +383,10 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Read(fileRow,*) saveNLToFile 
     End If   
+    
+    
+    
+    
 !----------------------------------      
 ! Optimise options
 !----------------------------------     
@@ -417,6 +430,10 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Read(fileRow,*) forceEmbeFitOpt 
     End If  
+       
+       
+       
+    
 !----------------------------------      
 ! RSS calculation options
 !----------------------------------     
@@ -424,17 +441,21 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Call strToDPArr(fileRow,rssWeighting)      
     End If  
+       
+       
 !----------------------------------      
 ! Testing Options
 !----------------------------------          
-    If(fileRow(1:7).eq."#EOSFIT")Then       !DELETE
+    If(fileRow(1:7).eq."#EOSFIT")Then  
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Read(fileRow,*) testingFitChoice 
     End If 
-    If(fileRow(1:10).eq."#EOSRSSFIT")Then   !DELETE
+    If(fileRow(1:10).eq."#EOSRSSFIT")Then  
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Read(fileRow,*) eosFitRSSOption 
     End If 
+       
+    
 !----------------------------------      
 ! Testing Reference Data
 !----------------------------------     
@@ -442,6 +463,14 @@ Contains
       Read(1,"(A255)",IOSTAT=ios) fileRow   !read next line
       Call strToDPArr(fileRow,fccReferenceValues)      
     End If  
+    
+    
+    
+    
+    
+    
+    
+    
 !----------------------------------      
 ! PWscf Batch Files
 !----------------------------------        
@@ -475,9 +504,12 @@ Contains
       Read(bufferA,*) pwbInterstitialAtom
       Read(bufferB,*) pwbInterstitialDetails(1)
       Read(bufferC,*) pwbInterstitialDetails(2)
-    End If    
+    End If
+    
   End Do
   Close(1)
+  
+  
 ! Synch MPI processes    
     Call M_synchProcesses() 
 ! End Time
@@ -485,4 +517,6 @@ Contains
 ! Store Time    
     Call storeTime(8,timeEndRI-timeStartRI)    
   End Subroutine readUserInput 
+  
+  
 End Module readinput  

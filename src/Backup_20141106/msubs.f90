@@ -53,7 +53,6 @@ Module msubs
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
 ! Send out data to all processes from root
-    If(processCount.gt.1) Then
     If(processID.eq.0) Then
       send = 123
       Do i=1,(processCount-1)
@@ -69,8 +68,7 @@ Module msubs
       tag = 97220 + processID
       Call MPI_RECV(receive,1,MPI_INTEGER,processFrom,tag,&
       MPI_COMM_WORLD,status,error)  
-    End If       
-    End If    
+    End If         
   End Subroutine M_synchProcesses 
 
 
@@ -92,7 +90,6 @@ Module msubs
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-    If(processCount.gt.1) Then
 ! Send out data to all processes from root
     If(processID.eq.0) Then
       send = Len(sendString)
@@ -113,7 +110,6 @@ Module msubs
       stringLen = receive
     End If     
     Call M_distCharA(sendString,stringLen)
-    End If
   End Subroutine M_distChar 
   Subroutine M_distCharA(sendStringIn, stringLen)
     Implicit None   ! Force declaration of all variables
@@ -126,7 +122,6 @@ Module msubs
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)    
-    If(processCount.gt.1) Then
 ! Send out data to all processes from root
     If(processID.eq.0) Then
       Do i=1,(processCount-1)
@@ -145,7 +140,6 @@ Module msubs
       MPI_COMM_WORLD,status,error)  
       sendStringIn = recvString
     End If 
-    End If
   End Subroutine M_distCharA 
   
 !------------------------------
@@ -161,7 +155,6 @@ Module msubs
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-    If(processCount.gt.1) Then
 ! Send out data to all processes from root
     If(processID.eq.0) Then
       Do i=1,(processCount-1)
@@ -180,7 +173,6 @@ Module msubs
       MPI_COMM_WORLD,status,error)  
       sendIn = receive
     End If    
-    End If
   End Subroutine M_distDouble 
   
 !------------------------------
@@ -196,7 +188,6 @@ Module msubs
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-    If(processCount.gt.1) Then
 ! Send out data to all processes from root
     If(processID.eq.0) Then
       Do i=1,(processCount-1)
@@ -215,7 +206,6 @@ Module msubs
       MPI_COMM_WORLD,status,error)  
       sendIn = receive
     End If    
-    End If
   End Subroutine M_distInt 
   
   
@@ -237,7 +227,6 @@ Module msubs
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-    If(processCount.gt.1) Then
 ! Send out data to all processes from root
     If(processID.eq.0) Then
       Do i=1,(processCount-1)
@@ -256,7 +245,6 @@ Module msubs
       MPI_COMM_WORLD,status,error)  
       sendIn = receive
     End If    
-    End If
   End Subroutine M_distInt1D 
   
 !------------------------------
@@ -273,7 +261,6 @@ Module msubs
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-    If(processCount.gt.1) Then
 ! Send out data to all processes from root
     If(processID.eq.0) Then
       Do i=1,(processCount-1)
@@ -292,7 +279,6 @@ Module msubs
       MPI_COMM_WORLD,status,error)  
       sendIn = receive
     End If    
-    End If
   End Subroutine M_distDouble1D 
   
 !------------------------------
@@ -310,7 +296,6 @@ Module msubs
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-    If(processCount.gt.1) Then
 ! Init variables    
     arrayX = size(sendIn,1)
     arrayY = size(sendIn,2)
@@ -338,7 +323,6 @@ Module msubs
         End Do
       End If   
     End Do      
-    End If
   End Subroutine M_distDouble2D 
   
   
@@ -385,8 +369,7 @@ Module msubs
     arrayX = size(sendIn,1)
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
-    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)    
-    If(processCount.gt.1) Then
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
 ! All processes back to root    
     If(selectedProcess.eq.-1)Then
 ! Send from workers
@@ -432,7 +415,6 @@ Module msubs
         End Do    
       End If       
     End If    
-    End If
   End Subroutine M_collDouble1D 
   
   
@@ -458,8 +440,7 @@ Module msubs
     arrayX = size(sendIn,1)
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
-    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)    
-    If(processCount.gt.1) Then
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
 ! All processes back to root  
     If(processID.gt.0) Then    
       send = sendIn    
@@ -482,7 +463,6 @@ Module msubs
         End Do
       End Do    
     End If 
-    End If
   End Subroutine M_collDouble1DMap   
   
   
@@ -524,7 +504,6 @@ Module msubs
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
     Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
-    If(processCount.gt.1) Then
 ! All processes back to root    
     If(selectedProcess.eq.-1)Then
       Do j=1,arrayY
@@ -582,7 +561,6 @@ Module msubs
         End If  
       End Do        
     End If    
-    End If
   End Subroutine M_collDouble2D 
   
     
@@ -615,8 +593,7 @@ Module msubs
     receive = 0.0D0
 ! Call mpi subroutines
     Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
-    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)    
-    If(processCount.gt.1) Then
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
 ! Send from proc B
     If(processID.eq.procB)Then     
       processTo = procA
@@ -632,7 +609,6 @@ Module msubs
       Call MPI_RECV(receive,4,MPI_DOUBLE_PRECISION,processFrom,tag,&
       MPI_COMM_WORLD,status,error) 
       doubleIn = doubleIn + receive
-    End If
     End If
   End Subroutine M_sumDouble 
   

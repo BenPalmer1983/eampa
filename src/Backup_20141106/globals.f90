@@ -169,7 +169,6 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefBM
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcBM
   Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
-  Real(kind=DoubleReal), Dimension(1:20) :: testConfigRSS                          ! 1FccALat,2FccEMin,3FccBM,4FccEoS,5FccC11,6FccC12,7FccC44,8BccALat,9BccEMin,10BccBM,11BccEoS,12BccC11,13BccC12,14BccC44
   Real(kind=DoubleReal) :: totalRSS, optimumRSS, startRSS, configTotalRSS
 ! Optimisation  
   Real(kind=DoubleReal) :: nodeVariationAmount
@@ -428,7 +427,7 @@ Module globals
   Public :: configCalcEL  
   Public :: configRefBM
   Public :: configCalcBM
-  Public :: configRSS, configTotalRSS, testConfigRSS
+  Public :: configRSS, configTotalRSS
   Public :: totalRSS, optimumRSS, startRSS
 ! Optimisation  
   Public :: nodeVariationAmount  
@@ -709,7 +708,6 @@ Contains
     configRefBM = -2.1D20
     configCalcBM = -2.1D20
     configRSS = 0.0D0
-    testConfigRSS = 0.0D0
     configTotalRSS = 0.0D0
     totalRSS = 0.0D0
     optimumRSS = 0.0D0

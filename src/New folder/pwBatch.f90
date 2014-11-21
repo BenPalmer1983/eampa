@@ -71,7 +71,7 @@ Module pwBatch
     Do i=1,maxFileRows
 ! Read in line
       Read(1,"(A255)",IOSTAT=ios) fileRow
-      If(ios /= 0)Then
+      If(ios /= 0) Then
         EXIT
       End If
       If(StrToUpper(fileRow(1:10)).eq."#PWBOUTDIR")Then
@@ -161,7 +161,7 @@ Module pwBatch
 ! Read in line
       Read(101,"(A255)",IOSTAT=ios) fileRow
 ! break out if end of file
-      If(ios /= 0)Then
+      If(ios /= 0) Then
         EXIT
       End If
       fileRowOrig = fileRow

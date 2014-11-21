@@ -1,4 +1,4 @@
-Program eampa
+PROGRAM eampa
 ! University of Birmingham
 ! Ben Palmer
 !
@@ -14,41 +14,42 @@ Program eampa
 ! - length, Angstrom
 ! - forces, ev/Angstrom
 !
-!Setup Modules
+! Setup Modules
   Use kinds          ! data kinds
   Use msubs           ! mpi module
   Use constants      ! physical constants module
-  Use units          ! unit conversion and normalisation 
+  Use units          ! unit conversion and normalisation
   Use general        ! string functions
   Use maths          ! maths functions
+  Use mMaths         ! mpi maths functions
   Use globals        ! declare all globals
   Use initialise     ! initialise program
   Use loadData       ! load important data
   Use readinput      ! read input
-  Use readEAM        ! read EAM potential file  
-  Use prepEAM        ! read EAM potential file  
-  Use readConfig     ! read config file  
-  Use neighbourList  ! make neighbour list 
-  Use prep           ! prepare before calculations etc 
+  Use readEAM        ! read EAM potential file
+  Use prepEAM        ! read EAM potential file
+  Use readConfig     ! read config file
+  Use neighbourList  ! make neighbour list
+  Use prep           ! prepare before calculations etc
   Use calcEAM
   Use calcEval
   Use optimise
   Use testEAM
-  Use pwBatch        ! read config file  
+  Use pwBatch        ! read config file
   Use output
   Use clean
 ! Force declaration of all variables
   Implicit None
 ! Include MPI header
-  Include 'mpif.h'  
-!Variables
-  Integer(kind=StandardInteger) :: error    
-!store start time
+  Include 'mpif.h'
+! Variables
+  Integer(kind=StandardInteger) :: error
+! store start time
   Call cpu_time(programStartTime)
-!-------------------------------------------------------------- 
-!--- Load data and initialise
-!Init MPI
-  Call MPI_Init(error)   
+! --------------------------------------------------------------
+! --- Load data and initialise
+! Init MPI
+  Call MPI_Init(error)
 ! Run globals module:
 ! Initialise the default values for the global variables
   Call initGlobals()
@@ -56,13 +57,13 @@ Program eampa
 ! Make and store output/temp directories
 ! Create output files
 ! Init a file cleanup list
-  Call runInitialise()  
+  Call runInitialise()
 ! Run load data module:
 ! Loads isotope data into 4 arrays
 ! Any other data useful should be loaded here
   Call loadIsotopeData()
-!-------------------------------------------------------------- 
-!--- Read Input Files
+! --------------------------------------------------------------
+! --- Read Input Files
 ! Read user input file:
   Call readUserInput()
 ! Optional read ins
@@ -78,53 +79,49 @@ Program eampa
   End If
 ! Prepare for calculations
   Call runPrep()
-!-------------------------------------------------------------- 
-!--- Eval/Calculate config energies
+! --------------------------------------------------------------
+! --- Eval/Calculate config energies
   If(optionCalcEnergies.eq.1)Then
     Call calcEnergies()
-  End If  
+  End If
   If(optionEval.eq.1)Then
     Call evaluate()
   End If
   If(optionEvalFull.eq.1)Then
     Call evaluate()
   End If
-  
-!-------------------------------------------------------------- 
-!--- Optimise input EAM potential functions
+
+! --------------------------------------------------------------
+! --- Optimise input EAM potential functions
   If(optionOptimise.eq.1)Then
     Call runOptimise()
-  End If  
-  
-!-------------------------------------------------------------- 
-!--- Test input EAM potential functions  
+  End If
+
+! --------------------------------------------------------------
+! --- Test input EAM potential functions
   If(optionTestEAM.eq.1)Then
     Call runTestAnalysis()
-  End If  
-  
-!-------------------------------------------------------------- 
-!--- PW Batch Files
+  End If
+
+! --------------------------------------------------------------
+! --- PW Batch Files
   If(optionRunPWBatch.eq.1)Then
     Call runPWBatch()
   End If
-  
-  
-  
-!--------------------------------------------------------------   
-!--- Clean up and finalise 
+
+! --------------------------------------------------------------
+! --- Clean up and finalise
   Call runClean()
-  
-  
+
 ! Store end time
   Call cpu_time(programEndTime)
-! Store Time    
-  Call storeTime(100,programEndTime-programStartTime)    
+! Store Time
+  Call storeTime(100,programEndTime-programStartTime)
 ! Output times
-  Call outputCpuTimes()  
-! Call end output to terminal 
+  Call outputCpuTimes()
+! Call end output to terminal
   Call outputEndT()
 ! Finalise MPI
   Call MPI_Finalize(error)
-    
-  
+
 End Program eampa

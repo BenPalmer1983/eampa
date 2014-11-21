@@ -1,11 +1,4 @@
 #!/bin/bash
-echo "Current working directory:"
-pwd
-echo "Make bin directory"
-mkdir -p bin
-echo "Check formatting/layout of source files"
-python make.py 1
-echo "Compile source"
 mkdir -p bin
 #mpif90 -g -fcheck=all -Wall -mtune=native -std=f95 -o
 mpif90 -g -fcheck=all -Wall -mtune=native -o bin/eampa.x \
@@ -20,8 +13,6 @@ src/bulkProperties.f90 src/testEAM.f90  \
 src/calcEval.f90  \
 src/optimise.f90  \
 src/pwBatch.f90 src/clean.f90  \
-src/eampa.f90 &> logs/make.log
+src/eampa.f90
 sleep 1 
 rm *.mod
-echo "Check compile result"
-python make.py 2

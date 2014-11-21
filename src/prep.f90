@@ -1,15 +1,15 @@
 Module prep
 
-!--------------------------------------------------------------!
-! General subroutines and functions                        
-! Ben Palmer, University of Birmingham   
-!--------------------------------------------------------------!
+! --------------------------------------------------------------!
+! General subroutines and functions
+! Ben Palmer, University of Birmingham
+! --------------------------------------------------------------!
 
-! Read user input file 
+! Read user input file
 
-!----------------------------------------
+! ----------------------------------------
 ! Updated: 12th Aug 2014
-!----------------------------------------
+! ----------------------------------------
 
 ! Setup Modules
   Use kinds
@@ -19,54 +19,50 @@ Module prep
   Use general
   Use units
   Use initialise
-  Use loadData  
+  Use loadData
   Use globals
   Use output
 ! Force declaration of all variables
   Implicit None
-!Privacy of variables/functions/subroutines
-  Private    
-!Public Subroutines
+! Privacy of variables/functions/subroutines
+  Private
+! Public Subroutines
   Public :: runPrep
-  
-Contains
+
+  Contains
   Subroutine runPrep()
     Implicit None   ! Force declaration of all variables
-! Private variables    
+! Private variables
     Call setProcessMap()
-
   End Subroutine runPrep
-  
-  
-  
-  
+
   Subroutine setProcessMap()
     Implicit None   ! Force declaration of all variables
-! Private variables    
+! Private variables
     Integer(kind=StandardInteger) :: i, j
 ! Init variables
-    i = 0    
+    i = 0
     j = 0
-! Energy/force/stress calculations    
+! Energy/force/stress calculations
     Do i=1,configCount
       processMap(i,1) = mod(i-1,mpiProcessCount)
     End Do
 ! Equilibrium volume calculations
-    If(calcEqVol(1:3).eq."ALL")Then    
+    If(calcEqVol(1:3).eq."ALL")Then
       Do i=1,configCount
         processMap(i,2) = mod(i-1,mpiProcessCount)
       End Do
-    Else If(calcEqVol(1:3).eq."SEL")Then  
+    ElseIf(calcEqVol(1:3).eq."SEL")Then
       Do i=1,configCount
         If(configRefEV(i).gt.-2.0D20)Then
           j = j + 1
           processMap(i,2) = mod(j-1,mpiProcessCount)
         End If
       End Do
-    Else !none  
-      !do nothing
+    Else !none
+! do nothing
     End If
-! Bulk modulus calculations    
+! Bulk modulus calculations
     Do i=1,configCount
       If(configRefBM(i).gt.-2.0D20)Then
         j = j + 1
@@ -76,8 +72,6 @@ Contains
 ! Output to file
     Call outputProcessMap()
   End Subroutine setProcessMap
-  
-  
-  
-End Module prep    
-  
+
+End Module prep
+

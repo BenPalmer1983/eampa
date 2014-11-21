@@ -89,6 +89,7 @@ Module readEAM
 ! Will also convert LAMMPS and DLPOLY style EAM
     Implicit None   ! Force declaration of all variables
 ! Private variables
+    Integer(kind=StandardInteger), Parameter :: maxFileRows = 10000000
     Integer(kind=StandardInteger) :: ios, i
     Character(len=255) :: fileRow
     Character(len=8) :: tempName
@@ -109,7 +110,7 @@ Module readEAM
       fileRow = RemoveComments(fileRow)
       fileRow = RemoveQuotes(fileRow)
 ! Break out If end of file
-      If(ios /= 0)Then
+      If(ios /= 0) Then
         EXIT
       End If
       fileRow = Trim(Adjustl(fileRow))
@@ -128,6 +129,7 @@ Module readEAM
 ! Reads in the eam potential from the ew temporary EAM file
     Implicit None   ! Force declaration of all variables
 ! Private variables
+    Integer(kind=StandardInteger), Parameter :: maxFileRows = 10000000
     Integer(kind=StandardInteger) :: ios, functionCounter, i
     Integer(kind=StandardInteger) :: eamFunctionKey, pointCounter, functionStart, functionLength
     Integer(kind=StandardInteger) :: elementIdA, elementIdB, elementIdMin, elementIdMax
@@ -154,7 +156,7 @@ Module readEAM
 ! Read in line
       Read(1,"(A255)",IOSTAT=ios) fileRow
 ! Break out If end of file
-      If(ios /= 0)Then
+      If(ios /= 0) Then
         EXIT
       End If
 ! Check If New Function
@@ -214,7 +216,7 @@ Module readEAM
 ! Read in line
       Read(1,"(A255)",IOSTAT=ios) fileRow
 ! Break out If end of file
-      If(ios /= 0)Then
+      If(ios /= 0) Then
         EXIT
       End If
 ! Check If New Function
@@ -310,6 +312,7 @@ Module readEAM
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Character(len=255) :: eamFilePathC
+    Integer(kind=StandardInteger), Parameter :: maxFileRows = 10000000
     Integer(kind=StandardInteger) :: ios, i, j, k, n, points, rowPoints
     Integer(kind=StandardInteger) :: rowCount
     Character(len=255) :: fileRow
@@ -339,7 +342,7 @@ Module readEAM
 ! Read in line
         Read(1,"(A255)",IOSTAT=ios) fileRow
 ! break out if end of file
-        If(ios /= 0)Then
+        If(ios /= 0) Then
           EXIT
         End If
         If(fileRow(1:1).ne."#")Then
@@ -588,7 +591,7 @@ Module readEAM
 ! Read in line
         Read(1,"(A255)",IOSTAT=ios) fileRow
 ! break out if end of file
-        If(ios /= 0)Then
+        If(ios /= 0) Then
           EXIT
         End If
         If(fileRow(1:1).ne."#")Then
@@ -773,7 +776,7 @@ Module readEAM
             splineNodesKey(i,4) = nodeKey               ! Start
             splineNodesKey(i,5) = nodes                 ! Length
             splineNodesKey(i,6) = nodeKey + nodes - 1   ! End
-          ElseIf(j.eq.nodes)Then
+          ElseIf(j.eq.nodes)TThen
             splineNodesData(nodeKey,1) = eamData(eamEnd,1)
             splineNodesData(nodeKey,2) = eamData(eamEnd,2)
             splineNodesData(nodeKey,3) = eamData(eamEnd,3)

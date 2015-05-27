@@ -11,14 +11,19 @@ Module maths
 
 ! Force declaration of all variables
   Implicit None
+! Data types
   Integer, Parameter :: SingleReal = Selected_Real_Kind(6,37)         ! single real, 6 decimal precision, exponent range 37
   Integer, Parameter :: DoubleReal = Selected_Real_Kind(15,307)       ! double real, 15 decimal precision, exponent range 307
   Integer, Parameter :: QuadrupoleReal = Selected_Real_Kind(33,4931)  ! quadrupole real
+  Integer, Parameter :: QuadrupleReal = Selected_Real_Kind(33,4931)  ! quadrupole real
   Integer, Parameter :: TinyInteger = Selected_Int_Kind(1)            ! tiny integer    1 byte
   Integer, Parameter :: SmallInteger = Selected_Int_Kind(4)           ! small integer    4 bytes -2E31 to 2E31-1
   Integer, Parameter :: StandardInteger = Selected_Int_Kind(8)        ! standard integer 8 bytes -2E63 to 2E63-1
   Integer, Parameter :: LongInteger = Selected_Int_Kind(12)           ! long integer
   Integer, Parameter :: VeryLongInteger = Selected_Int_Kind(32)       ! very long integer
+! Constants
+  Real(kind=DoubleReal), Parameter :: lnTwo = 0.6931471805599453094172321214581765680755D0
+  Real(kind=QuadrupoleReal), Parameter :: lnTwoQ = 0.6931471805599453094172321214581765680755D0
 
 ! Make private
   Private
@@ -27,6 +32,7 @@ Module maths
   Public :: Factorial
   Public :: BinomialCoefficient
   Public :: RoundDP
+  Public :: logN2
 ! Polynomial Related Functions
   Public :: SolvePolynomial
   Public :: CalcPolynomial
@@ -34,6 +40,7 @@ Module maths
 ! Fitting, Regression, Interpolation
   Public :: PolyFit             ! Fit polynomial to large set of data - Vandermonde
   Public :: SP_PolyFit          ! Fit polynomial to large set of data - Superposition
+  Public :: PolyFitQ            ! Fit polynomial to large set of data - Vandermonde (use quadruple precision)
   Public :: MinPolyFit          ! Fit polynomial, find minimum (if in region of data points)
   Public :: InterpLagrange      !find y(x) or y'(x) using lagrange interp from set of x-y
   Public :: PointInterp         !y(x) from large set of data x-y, finds region and uses lagrange interp
@@ -59,6 +66,11 @@ Module maths
   Public :: IntegerList
 ! Matrix Functions
   Public :: InvertMatrix
+  Public :: MatAdd
+  Public :: MatMult
+  Public :: InvertMatrixQ
+! Coordinates  
+  Public :: TransformCoords
 ! Spline Functions
   Public :: SplineAB
   Public :: SplineNodes
@@ -67,6 +79,11 @@ Module maths
   Public :: Zbl
   Public :: ZblFull
   Public :: CalcIsotopeAmount
+  Public :: GaverStehfestWeighting
+  Public :: GaverStehfestWeightingQ
+  Public :: MaxTrajDepth
+  
+  
 
 ! --Subroutines--!
   Public :: setRandomSeedArray
@@ -121,6 +138,73 @@ Module maths
     c = Factorial(n)/(Factorial(n-k)*Factorial(k))
   End Function BinomialCoefficient
 
+  Function FactorialDP(input) RESULT (output)
+! force declaration of all variables
+    Implicit None
+! declare variables
+    Integer(kind=StandardInteger) :: i,input
+    Integer(kind=VeryLongInteger) :: tempInt
+    Real(kind=DoubleReal) :: output
+! calculate factorial
+    tempInt = 1
+    Do i=1,input
+      tempInt = i * tempInt
+    End Do
+    output = 1.0D0*tempInt
+  End Function FactorialDP
+
+  Function BinomialCoefficientDP(n,k) RESULT (c)
+! force declaration of all variables
+    Implicit None
+! declare variables
+    Integer(kind=StandardInteger) :: n,k
+    Real(kind=DoubleReal) :: c, nDP, nkDP, kDP
+! calculate factorial
+    nDP = FactorialDP(n)
+    nkDP = Factorial(n-k)
+    kDP = FactorialDP(k)
+    c = 1.0D0*nDP/(nkDP*kDP)
+  End Function BinomialCoefficientDP
+
+  Function FactorialQ(input) RESULT (output)
+! force declaration of all variables
+    Implicit None
+! declare variables
+    Integer(kind=StandardInteger) :: i,input
+    Integer(kind=VeryLongInteger) :: tempInt
+    Real(kind=QuadrupoleReal) :: tempQ
+    Real(kind=QuadrupoleReal) :: output
+! calculate factorial
+    tempInt = 1
+    tempQ = 1
+    Do i=1,input
+      If(i.le.33)Then
+        tempInt = i * tempInt
+        tempQ = 1.0D0*tempInt
+      End If
+      If(i.eq.34)Then
+        tempQ = 1.0D0*i*tempInt
+      End If
+      If(i.ge.35)Then
+        tempQ = 1.0D0*i*tempQ
+      End If
+    End Do
+    output = tempQ
+  End Function FactorialQ
+
+  Function BinomialCoefficientQ(n,k) RESULT (c)
+! force declaration of all variables
+    Implicit None
+! declare variables
+    Integer(kind=StandardInteger) :: n,k
+    Real(kind=QuadrupoleReal) :: c, nDP, nkDP, kDP
+! calculate factorial
+    nDP = FactorialDP(n)
+    nkDP = Factorial(n-k)
+    kDP = FactorialDP(k)
+    c = 1.0D0*nDP/(nkDP*kDP)
+  End Function BinomialCoefficientQ
+
   Function RoundDP(dpIn) RESULT (intOut)
 ! Round DP to nearest int
     Implicit None ! Force declaration of all variables
@@ -129,11 +213,28 @@ Module maths
     intOut = Floor(dpIn+0.5D0)
   End Function RoundDP
 
+  Function logN2(loops) RESULT (output)
+! Return quadruple value of ln(2)
+    Implicit None ! Force declaration of all variables
+    Integer(kind=StandardInteger) :: loops, k
+    Real(kind=QuadrupoleReal) :: output
+    output = 0.0D0
+    Do k=0,loops
+      output = output + (1.0D0/((2.0D0*k+1.0D0)*(2.0D0*k+2.0D0)))
+    End Do
+! Calculate Bailey et al 2007 method
+! output = 0.0D0
+! Do k=0,loops
+!   output = output + (1.0D0/(9**k*(2.0D0*k+1.0D0)))
+! End Do
+! output = (2.0D0/3.0D0)*output
+  End Function logN2
+
 ! ------------------------------------------------------------------------!
 ! Polynomial Related Functions
 ! ------------------------------------------------------------------------!
 
-  Function SolvePolynomial (coefficients, lower, upper) RESULT (output)
+  Function SolvePolynomial (coefficients, lower, upper, convergenceThresholdIn) RESULT (output)
 ! Solves the polynomial p(x) = 0, in region close to p(x) = 0
     Implicit None  !Force declaration of all variables
 ! Declare variables
@@ -141,11 +242,16 @@ Module maths
     Real(kind=DoubleReal) :: upper, lower, output
     Real(kind=DoubleReal) :: x,y,dydx
     Real(kind=DoubleReal) :: convergence, convergenceThreshold, convergenceTarget, factor, difference
+    Real(kind=DoubleReal), Optional :: convergenceThresholdIn
     Integer(kind=StandardInteger) :: i,maxLoops
+! Optional argument
+    convergenceThreshold = 1.0D-5
+    If(Present(convergenceThresholdIn))Then
+      convergenceThreshold = convergenceThresholdIn
+    End If
 ! Set values
     convergenceTarget = 0
     convergence = 1000
-    convergenceThreshold = 0.00001
     maxLoops = 0
 ! set start value for x
     factor = 0.5
@@ -313,7 +419,6 @@ Module maths
       End If
     End If
   End Function PolyFit
-
   Function SP_PolyFit(points,order,iterationsIn) RESULT (coefficients)
 ! Fits multiple polynomials exactly to random data points and takes superposition of these as the result
     Implicit None  !Force declaration of all variables
@@ -418,6 +523,68 @@ Module maths
       lastRSS = rss
     End Do
   End Function SP_PolyFit
+! -------------------------------------------------------------------------------------------------!
+  Function PolyFitQ(points,order,extendedFitIn) RESULT (coefficientsOut)
+! Fits a polynomial of order to the points input
+! Input points and output coeffs DP, internal matrix QP
+    Implicit None  !Force declaration of all variables
+! Declare variables
+    Integer(kind=StandardInteger) :: k,col,row,exponentValue
+    Integer(kind=StandardInteger), Optional :: extendedFitIn
+    Integer(kind=StandardInteger) :: extendedFit
+    Integer(kind=StandardInteger) :: order
+    Real(kind=DoubleReal), Dimension(:,:) :: points
+    Real(kind=DoubleReal), Dimension(1:(order+1)) :: coefficientsOut
+! Real(kind=QuadrupleReal) :: vRSS, spRSS
+    Real(kind=QuadrupleReal), Dimension(1:(order+1),1:1) :: coefficients
+    Real(kind=QuadrupleReal), Dimension(1:(order+1),1:(order+1)) :: xMatrix
+    Real(kind=QuadrupleReal), Dimension(1:(order+1),1:1) :: yMatrix
+! Optional argument
+    extendedFit = 0
+    If(Present(extendedFitIn))Then
+      extendedFit = extendedFitIn
+    End If
+! Step 1 - Standard fit with Vandermonde matrix
+! Init matrices
+    xMatrix = 0.0D0
+    yMatrix = 0.0D0
+    coefficientsOut = 0.0D0
+! Build Least Squares Fitting Vandermonde matrix
+    Do row=1,(order+1)
+      Do col=1,(order+1)
+        exponentValue = row+col-2
+        Do k=1,size(points,1)
+          xMatrix(row,col) = 1.0D0*xMatrix(row,col)+1.0D0*points(k,1)&
+          **exponentValue
+        End Do
+      End Do
+    End Do
+    Do row=1,(order+1)
+      exponentValue = row-1
+      Do k=1,size(points,1)
+        yMatrix(row,1) = 1.0D0*yMatrix(row,1)+1.0D0*points(k,2)*&
+        points(k,1)**exponentValue
+      End Do
+    End Do
+! invert xMatrix
+    xMatrix = InvertMatrixQ(xMatrix)
+! multiply inverse by y to get coefficients
+    coefficients = MatMultQ(xMatrix,yMatrix)
+! move values to output matrix
+    Do row=1,(order+1)
+      coefficientsOut(row) = Dble(coefficients(row,1))
+    End Do
+! Step 2 - extended fit
+! If(extendedFit.ne.0)Then
+! If required, use superposition fit and check if better than vandermonde
+! vRSS = CalcResidualSquareSum(points,coefficients)
+! coefficientsSP = SP_PolyFit(points,order,50)
+! spRSS = CalcResidualSquareSum(points,coefficientsSP)
+! If(spRSS.lt.vRSS)Then
+!  coefficients = coefficientsSP
+! End If
+! End If
+  End Function PolyFitQ
 
   Function PolyFitExact(points) RESULT (coefficients)
 ! Exactly fit polynomial to points, matrix method
@@ -490,6 +657,8 @@ Module maths
 
   Function MurnFit(points, varianceIn, loopsIn, refinementsIn) RESULT (coefficients)
 ! Fit Murnaghan EoS to data
+! Fitting method adapted from http://gilgamesh.cheme.cmu.edu/doc/software/jacapo/appendices/appendix-eos.html
+! Murnaghan equation from Murnaghan 1944 described by Fu 1983
     Implicit None  !Force declaration of all variables
 ! Declare variables
     Integer(kind=StandardInteger) :: i, n, pointToVary
@@ -625,6 +794,8 @@ Module maths
 
   Function BirchMurnFit(points, varianceIn, loopsIn, refinementsIn, coeffsIn) RESULT (coefficients)
 ! Fit Murnaghan EoS to data
+! Fitting method adapted from http://gilgamesh.cheme.cmu.edu/doc/software/jacapo/appendices/appendix-eos.html
+! Birch-Murnaghan equation described by Hebbache 2004
     Implicit None  !Force declaration of all variables
 ! Declare variables
     Integer(kind=StandardInteger) :: i, n, pointToVary
@@ -896,7 +1067,7 @@ Module maths
   End Function InterpLagrange
 
   Function PointInterp(points,x,subsetSize,derivativeIn,inputSetStartIn,inputSetLengthIn) RESULT (yArray)
-! Takes large set of data points, finds region, and interps with lagrange
+! Takes large set of data points, finds region of points around the input "x", and interps with lagrange
     Implicit None  !Force declaration of all variables
 ! Declare variables - In/Out
     Real(kind=DoubleReal), Dimension(:,:) :: points
@@ -1231,6 +1402,9 @@ Module maths
 ! ------------------------------------------------------------------------!
 ! Matrix Functions
 ! ------------------------------------------------------------------------!
+
+! Standard/Double Precision
+
   Function InvertMatrix(xMatrix) RESULT (xMatrixInverse)
 ! Invert square matrix
     Implicit None  !Force declaration of all variables
@@ -1241,6 +1415,7 @@ Module maths
     Real(kind=DoubleReal), Dimension(1:size(xMatrix,1),1:2*size(xMatrix,1)) :: xMatrixWorking
     Real(kind=DoubleReal), Dimension(1:size(xMatrix,1),1:size(xMatrix,1)) :: xMatrixInverse
     Real(kind=DoubleReal), Dimension(1:2*size(xMatrix,1)) :: xMatrixRow
+! matrix(row,column)
 ! Initialise variables
     row = 0
     rowb = 0
@@ -1340,6 +1515,170 @@ Module maths
       End Do
     End If
   End Function MatAdd
+
+  Function MatMult(xMatrix,yMatrix) RESULT (oMatrix)
+! Force declaration of all variables
+    Implicit None
+! Declare variables
+    Integer(kind=StandardInteger) :: i,j,k,xRows,xCols,yRows,yCols
+    Real(kind=DoubleReal), Dimension(:,:) :: xMatrix, yMatrix
+    Real(kind=DoubleReal), Dimension(1:size(xMatrix,1),1:size(yMatrix,2)) :: oMatrix
+! matrix(row,column)
+! Initialise variables
+    oMatrix = 0.0D0
+    xRows = size(xMatrix,1)  ! Output rows
+    xCols = size(xMatrix,2)
+    yRows = size(yMatrix,1)
+    yCols = size(yMatrix,2)  ! Output cols
+! Multiply matrices
+    If(xCols.eq.yRows)Then
+      Do i=1,xRows
+        Do j=1,yCols
+          Do k=1,xCols
+            oMatrix(i,j) = oMatrix(i,j) + xMatrix(i,k)*yMatrix(k,j)
+          End Do
+        End Do
+      End Do
+    End If
+  End Function MatMult
+
+! Quadruple Precision
+
+  Function InvertMatrixQ(xMatrix) RESULT (xMatrixInverse)
+! Invert square matrix
+    Implicit None  !Force declaration of all variables
+! Declare variables
+    Real(kind=QuadrupleReal), Dimension(:,:) :: xMatrix
+    Integer(kind=StandardInteger) :: row,col,rowb
+    Integer(kind=StandardInteger) :: matrixSize
+    Real(kind=QuadrupleReal), Dimension(1:size(xMatrix,1),1:2*size(xMatrix,1)) :: xMatrixWorking
+    Real(kind=QuadrupleReal), Dimension(1:size(xMatrix,1),1:size(xMatrix,1)) :: xMatrixInverse
+    Real(kind=QuadrupleReal), Dimension(1:2*size(xMatrix,1)) :: xMatrixRow
+! Initialise variables
+    row = 0
+    rowb = 0
+    col = 0
+    matrixSize = size(xMatrix,1)
+    xMatrixWorking = 0.0D0
+    xMatrixInverse = 0.0D0
+    xMatrixRow = 0.0D0
+! if a square matrix
+    If(size(xMatrix,1).eq.size(xMatrix,2))Then
+! Fill working array
+      Do row=1,matrixSize
+        Do col=1,matrixSize
+          xMatrixWorking(row,col) = 1.0D0*xMatrix(row,col)
+        End Do
+      End Do
+      Do row=1,matrixSize
+        Do col=1,matrixSize
+          If(row.eq.col)Then
+            xMatrixWorking(row,col+matrixSize) = 1.0D0
+          End If
+        End Do
+      End Do
+! make lower triangle of zeros
+      Do row=1,matrixSize-1
+        Do rowb=row+1,matrixSize
+          If(xMatrixWorking(rowb,row).ne.0.0D0)Then !Only do if necessary
+            Do col=1,(2*matrixSize) !loop over all columns
+              xMatrixRow(col) = 1.0D0*&
+              ((1.0D0*xMatrixWorking(row,row))/(1.0D0*xMatrixWorking(rowb,row)))*&
+              xMatrixWorking(rowb,col)-1.0D0*xMatrixWorking(row,col)
+            End Do
+! replace row values
+            Do col=1,(2*matrixSize) !loop over all columns
+              xMatrixWorking(rowb,col) = 1.0D0 * xMatrixRow(col)
+            End Do
+          End If
+        End Do
+! force zeros in the lower triangle
+        Do rowb=row+1,matrixSize
+          xMatrixWorking(rowb,row) = 0.0D0
+        End Do
+      End Do
+! re-force zeros in the lower triangle
+      Do row=1,matrixSize
+        Do col=1,matrixSize
+          If(row.gt.col)Then
+            xMatrixWorking(row,col) = 0.0D0
+          End If
+        End Do
+      End Do
+! make upper triangle of zeros
+      Do row=matrixSize,2,-1
+        Do rowb=row-1,1,-1
+          If(xMatrixWorking(rowb,row).ne.0.0D0)Then !Only do if necessary
+            Do col=1,(2*matrixSize) !loop over all columns
+              xMatrixRow(col) = 1.0D0*&
+              ((1.0D0*xMatrixWorking(row,row))/(1.0D0*xMatrixWorking(rowb,row)))*&
+              xMatrixWorking(rowb,col)-1.0D0*xMatrixWorking(row,col)
+            End Do
+! replace row values
+            Do col=1,(2*matrixSize) !loop over all columns
+              xMatrixWorking(rowb,col) = 1.0D0 * xMatrixRow(col)
+            End Do
+          End If
+        End Do
+! force zeros in the upper triangle
+        Do rowb=row-1,1,-1
+          xMatrixWorking(rowb,row) = 0.0D0
+        End Do
+      End Do
+! Divide rhs by diagonal on lhs and store in inverse
+      Do row=1,matrixSize
+        Do col=1,matrixSize
+          xMatrixInverse(row,col) = 1.0D0*&
+          xMatrixWorking(row,col+matrixSize)/xMatrixWorking(row,row)
+        End Do
+      End Do
+    End If
+  End Function InvertMatrixQ
+
+  Function MatAddQ(xMatrix,yMatrix) RESULT (oMatrix)
+! Force declaration of all variables
+    Implicit None
+! Declare variables
+    Integer(kind=StandardInteger) :: i,j
+    Real(kind=QuadrupleReal), Dimension(:,:) :: xMatrix, yMatrix
+    Real(kind=QuadrupleReal), Dimension(1:size(xMatrix,1),1:size(xMatrix,2)) :: oMatrix
+! Initialise variables
+    oMatrix = 0.0D0
+! Add matrices
+    If(size(xMatrix,1).eq.size(yMatrix,1).and.size(xMatrix,2).eq.size(yMatrix,2))Then
+      Do i=1,size(xMatrix,1)
+        Do j=1,size(xMatrix,2)
+          oMatrix(i,j) = xMatrix(i,j) + yMatrix(i,j)
+        End Do
+      End Do
+    End If
+  End Function MatAddQ
+
+  Function MatMultQ(xMatrix,yMatrix) RESULT (oMatrix)
+! Force declaration of all variables
+    Implicit None
+! Declare variables
+    Integer(kind=StandardInteger) :: i,j,k,xRows,xCols,yRows,yCols
+    Real(kind=QuadrupleReal), Dimension(:,:) :: xMatrix, yMatrix
+    Real(kind=QuadrupleReal), Dimension(1:size(xMatrix,1),1:size(yMatrix,2)) :: oMatrix
+! matrix(row,column)
+! Initialise variables
+    oMatrix = 0.0D0
+    xRows = size(xMatrix,1)  ! Output rows
+    xCols = size(xMatrix,2)
+    yRows = size(yMatrix,1)
+    yCols = size(yMatrix,2)  ! Output cols
+! Multiply matrices
+    If(xCols.eq.yRows)Then
+      Do i=1,xRows
+        Do j=1,yCols
+          Do k=1,xCols
+            oMatrix(i,j) = oMatrix(i,j) + xMatrix(i,k)*yMatrix(k,j)
+          End Do
+        End Do
+      End Do
+    End If
+  End Function MatMultQ
 
 ! ------------------------------------------------------------------------!
 ! Unit Vector Functions
@@ -1603,7 +1942,31 @@ Module maths
       End Do
     End If
   End Function IntegerList
+  
+  
 
+! ------------------------------------------------------------------------!
+! Physical/Scientific functions
+! ------------------------------------------------------------------------!
+  
+  Function TransformCoords (xVect, tVect) RESULT (xPVect)
+! Transform coords with transformation matrix
+    Implicit None  ! Force declaration of all variables
+! declare variables
+    Real(kind=DoubleReal), Dimension(1:3) :: xVect, xPVect
+    Real(kind=DoubleReal), Dimension(1:3, 1:3) :: tVect
+    xPVect(1) = xVect(1)*tVect(1,1)+&
+                xVect(2)*tVect(1,2)+&
+                xVect(3)*tVect(1,3)
+    xPVect(2) = xVect(1)*tVect(2,1)+&
+                xVect(2)*tVect(2,2)+&
+                xVect(3)*tVect(2,3)
+    xPVect(3) = xVect(1)*tVect(3,1)+&
+                xVect(2)*tVect(3,2)+&
+                xVect(3)*tVect(3,3)  
+  End Function TransformCoords
+  
+ 
 ! ------------------------------------------------------------------------!
 ! Physical/Scientific functions
 ! ------------------------------------------------------------------------!
@@ -1688,59 +2051,35 @@ Module maths
 ! Decay Functions
 ! ------------------------------------------------------------------------!
 
-  Function CalcIsotopeAmount(parentProductionRate,decayDataArray,tStart,&
-    tEnd,tBeamEnd) RESULT (isotopeChange)
-! force declaration of all variables
+  Function CalcIsotopeAmount(w,decayDataArray,t,calcOptionIn) RESULT (isotopeChange)
+! Force declaration of all variables
     Implicit None
-! declare variables
-    Integer(kind=StandardInteger) :: i,decaySteps,decayStepCounter
-    Real(kind=DoubleReal) :: parentProductionRate,tStart,tEnd,tBeamEnd,dTime
+! Declare variables
+    Integer(kind=StandardInteger) :: i,j,decaySteps,decayStepCounter, noChanges
+    Integer(kind=StandardInteger), optional :: calcOptionIn
+    Integer(kind=StandardInteger) :: calcOption
+    Real(kind=DoubleReal) :: halfLifeChange, randNumber, w, t
     Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: decayDataArray
     Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: isotopeChange
-    Real(kind=DoubleReal) :: w,lP,lA,lB
-    Real(kind=DoubleReal) :: lamlp !la-lp
-    Real(kind=DoubleReal) :: lpmla !lp-la
-    Real(kind=DoubleReal) :: lalamlalp !lala-lalp
-! Real(kind=DoubleReal) :: lalalalp !lala-lalp
-    Real(kind=DoubleReal) :: eplP,enlP,eplA,enlA
-    Real(kind=DoubleReal) :: eplAnlP,enlAnlP,eplAplP
-    Real(kind=DoubleReal) :: nPstart,nAstart,nBstart
-    Real(kind=DoubleReal) :: nPend,nAend,nBend
-    Real(kind=DoubleReal) :: ePA,eAB
     Real(kind=DoubleReal) :: stableLimit
-    Real(kind=DoubleReal) :: termA,termB,termC
-    Integer(kind=StandardInteger) :: m,N
-    Real(kind=DoubleReal), Dimension( : ), Allocatable :: coefficients
-    Real(kind=DoubleReal) :: lnstore
-    Real(kind=DoubleReal) :: sumN,s,Fs
-    Real(kind=DoubleReal), Dimension( : ), Allocatable :: cS
-    Real(kind=DoubleReal), Dimension( : ), Allocatable :: nO
-    tBeamEnd = 0.0D0
+! Quadrupole Reals
+    Real(kind=QuadrupoleReal) :: resultQ, resultGS, tQ, tempQ
+    Real(kind=QuadrupoleReal), Dimension(1:20) :: L ! Lambda
+    Real(kind=QuadrupoleReal), Dimension(1:20) :: N ! Starting number of atoms
+    Real(kind=QuadrupoleReal), Dimension(1:20) :: E ! Exp
+    Real(kind=QuadrupoleReal), Dimension(1:19) :: B ! Exp
+! -------------------------------------------------
+! decaySteps really means decay isotopes in chain (steps = decaySteps-1)
+! -------------------------------------------------
+! Input decay chain array:
 ! decayDataArray(i,1) !Tally key
 ! decayDataArray(i,2) !No. Atoms
 ! decayDataArray(i,3) !Half life
 ! decayDataArray(i,4) !branching factor
 ! decayDataArray(i,5) !isotope Z
 ! decayDataArray(i,6) !isotope A
-! set variables
-    dTime = tEnd - tStart
-! Alter decay chain
-! - If dTime * decay constant lt 1.0D-11 then assume stable for purposes of simulation
-    decayStepCounter = 0
-    Do i=1,size(decayDataArray,1)
-      stableLimit = (log(2.0D0)/decayDataArray(i,3))*dTime
-      decayStepCounter = decayStepCounter + 1
-      If(stableLimit.lt.1.0D-10)Then
-        decayDataArray(i,3) = -1    !set as stable
-        Exit
-      End If
-    End Do
-! Resize array
-    decayDataArray = ArraySize2DDouble(decayDataArray,decayStepCounter)
-! set decay steps/isotopes
-    decaySteps = size(decayDataArray,1)
-! allocate isotopeChange array
-    Allocate(isotopeChange(1:decaySteps,1:10))
+! -------------------------------------------------
+! Output decay chain array:
 ! isotopeChange(i,1)    !Tally key
 ! isotopeChange(i,2)    !Change in isotope amount
 ! isotopeChange(i,3)    !Start amount
@@ -1750,7 +2089,67 @@ Module maths
 ! isotopeChange(i,7)    !T1/2
 ! isotopeChange(i,8)    !Decay constant
 ! isotopeChange(i,9)    !Branching factor
-! isotopeChange(i,10)  !Parent production rate
+! isotopeChange(i,10)   !Parent production rate
+! isotopeChange(i,11)   !Time
+! isotopeChange(i,12)   !GS End
+! -------------------------------------------------
+! Optional arguments
+    calcOption = 1  !(1) 1-4 analytic 5+ SG, (2)1+  SG,  (3) 1-4 analytic+GS 5+ SG
+    If(Present(calcOptionIn))Then
+      calcOption = calcOptionIn
+    End If
+! Init variables
+    tQ = t
+    resultQ = 0.0D0
+    resultGS = 0.0D0
+! -------------------------------------------------
+! Alter decay chain
+! -------------------------------------------------
+! - If dTime * decay constant lt 1.0D-14 then assume stable for purposes of simulation
+    decayStepCounter = 0
+    Do i=1,size(decayDataArray,1)
+      stableLimit = (log(2.0D0)/decayDataArray(i,3))*t
+      decayStepCounter = decayStepCounter + 1
+      If(stableLimit.lt.1.0D-14)Then
+        decayDataArray(i,3) = -1    !set as stable
+        Exit
+      End If
+    End Do
+! Resize array
+    decayDataArray = ArraySize2DDouble(decayDataArray,decayStepCounter)
+! -------------------------------------------------
+! Set stable isotope decay constant very small to avoid infinity error
+! -------------------------------------------------
+    Do i=1,size(decayDataArray,1)
+      If(decayDataArray(i,3).eq.(-1))Then
+        decayDataArray(i,3) = 1.0D100
+      End If
+    End Do
+! -------------------------------------------------
+! Break same decay constants by ~1E-3% to avoid singularities
+! -------------------------------------------------
+    noChanges = 0
+    Do While(noChanges.eq.0)
+      noChanges = 1
+      Do i=1,size(decayDataArray,1)
+        Do j=1,size(decayDataArray,1)
+          If(i.ne.j)Then
+            If(decayDataArray(i,3).eq.decayDataArray(j,3))Then
+              Call RANDOM_NUMBER(randNumber)
+              halfLifeChange = 0.1D0+randNumber*0.9D0
+              halfLifeChange = decayDataArray(i,3)*1D-5*halfLifeChange
+              decayDataArray(i,3) = decayDataArray(i,3)+halfLifeChange
+              decayDataArray(j,3) = decayDataArray(j,3)-halfLifeChange
+              noChanges = 0
+            End If
+          End If
+        End Do
+      End Do
+    End Do
+! set decay steps/isotopes
+    decaySteps = size(decayDataArray,1)
+! allocate isotopeChange array
+    Allocate(isotopeChange(1:decaySteps,1:12))
 ! Fill with starting data
     Do i=1,decaySteps
       isotopeChange(i,1) = decayDataArray(i,1)
@@ -1762,416 +2161,127 @@ Module maths
       isotopeChange(i,7) = decayDataArray(i,3)
       isotopeChange(i,8) = log(2.0D0)/decayDataArray(i,3)
       isotopeChange(i,9) = decayDataArray(i,4)
-      isotopeChange(i,10) = parentProductionRate
+      isotopeChange(i,10) = w
+      isotopeChange(i,11) = t
+      isotopeChange(i,12) = 0.0D0          !default no change
     End Do
-    w = parentProductionRate
-! ------------------
-! ---1 Decay Step
-! ------------------
-    If(decaySteps.eq.1)Then
-      nPstart = decayDataArray(1,2)
-      nPend = 1.0D0*(nPstart+1.0D0*dTime*w)
-! force ge than 0
-      If(nPend.lt.0.0D0)Then
-        nPend = 0.0D0
+! Store lambda starting atom number data
+    Do i=1,decaySteps
+      If(decayDataArray(i,3).gt.9.9D99)Then
+        L(i) = 0.0D0
+      Else
+        L(i) = lnTwoQ/isotopeChange(i,7)
       End If
-! Store key and tally change data
-      isotopeChange(1,4) = nPend
-    End If
-! ------------------
-! ---2 Decay Steps
-! ------------------
-    If(decaySteps.eq.2)Then
-! parent terms
-      lP = log(2.0D0)/decayDataArray(1,3)
-      enlP = exp(-1.0D0*dTime*lP)
-      nPstart = decayDataArray(1,2)
-! child A terms
-      nAstart = decayDataArray(2,2)
-      ePA = decayDataArray(2,4)
+      N(i) = isotopeChange(i,3)
+      tempQ = -1.0D0*L(i)*tQ
+      E(i) = exp(tempQ)
+      B(i) = decayDataArray(i,4)
+    End Do
+!
+! nP -> nA -> nB -> nC -> nD ...
+!
+! Set starting variables
+    If(decaySteps.ge.1)Then
 ! calc nP
-      nPend = (1.0D0/lP)*(enlP*(nPstart*lP-w)+w)
-! calc nA
-      nAend = nAstart+ePA*((1-enlP)*nPstart+w*(dTime+(enlP-1)/lP))
-! force ge than 0
-      If(nPend.lt.0.0D0)Then
-        nPend = 0.0D0
+      If(calcOption.eq.1)Then
+        resultQ = (w/L(1))*(1-E(1))+N(1)*E(1)
+        isotopeChange(1,4) = dble(resultQ)
       End If
-      If(nAend.lt.0.0D0)Then
-        nAend = 0.0D0
+      If(calcOption.eq.2.or.ISNAN(resultQ))Then ! solve numerically
+        resultGS = CalcIsotopeAmountGS(tQ,1,isotopeChange)
+        isotopeChange(1,4) = dble(resultGS)
       End If
-! Store key and tally change data
-      isotopeChange(1,4) = nPend
-      isotopeChange(2,4) = nAend
     End If
-! ------------------
-! ---3 Decay Steps
-! ------------------
-    If(decaySteps.eq.3)Then
-      dTime = tEnd - tStart
-      w = parentProductionRate
-! parent terms
-      lP = log(2.0D0)/decayDataArray(1,3)
-      eplP = exp(1.0D0*dTime*lP)
-      enlP = exp(-1.0D0*dTime*lP)
-      nPstart = decayDataArray(1,2)
-! child A terms
-      nAstart = decayDataArray(2,2)
-      ePA = decayDataArray(2,4)
-      lA = log(2.0D0)/decayDataArray(2,3)
-      eplA = exp(1.0D0*dTime*lA)
-      enlA = exp(-1.0D0*dTime*lA)
-      eplAnlP = exp(1.0D0*dTime*lA-1.0D0*dTime*lP)
+    If(decaySteps.ge.2)Then
+! calc nA
+      If(calcOption.eq.1)Then ! solve numerically
+        resultQ = B(2)*L(1)*w*(1.0D0/(L(1)*L(2))+E(1)/(L(1)*(L(1)-L(2)))-&
+        E(2)/(L(2)*(L(1)-L(2))))+&
+        B(2)*L(1)*N(1)*(E(1)/(L(2)-L(1))+E(2)/(L(1)-L(2)))+&
+        N(2)*E(2)
+        isotopeChange(2,4) = dble(resultQ)
+      End If
+      If(calcOption.eq.2.or.ISNAN(resultQ))Then ! solve numerically
+        resultGS = CalcIsotopeAmountGS(tQ,2,isotopeChange)
+        isotopeChange(2,4) = dble(resultGS)
+      End If
+    End If
+    If(decaySteps.ge.3)Then
 ! child B terms
-      nBstart = decayDataArray(3,2)
-      eAB = decayDataArray(3,4)
-      lB = log(2.0D0)/decayDataArray(3,3)
-      eplA = exp(1.0D0*dTime*lA)
-      enlA = exp(-1.0D0*dTime*lA)
-      eplP = exp(1.0D0*dTime*lP)
-      enlP = exp(-1.0D0*dTime*lP)
-      enlAnlP = exp(-1.0D0*dTime*lA-1.0D0*dTime*lP)
-      eplAplP = exp(1.0D0*dTime*lA+1.0D0*dTime*lP)
-! mixed terms
-      lamlp = lA-lP
-      lpmla = lP-lA
-      lalamlalp = lA*lA-lA*lP
-! calc nP
-      nPend = (1.0D0/lP)*(enlP*(nPstart*lP-w)+w)
-! calc nA
-      nAend = (1/(lA*(lA-lP)))*(nAstart*(lA*(lA-lP))+ePA*((enlA-1)*w*lP+&
-      lA*(w-nPstart*lP*enlA+enlP*(nPstart*lP-w))))
-! calc nB
-      nBend = (1/(lA*(lA-lP)*lP))*((lA-lP)*(-1.0D0*w*eAB*ePA*lA+&
-      (-1.0D0*w*eAB*ePA+(nBstart+eAB*(nAstart+(dTime*w+nPstart)*ePA))*&
-      lA)*lP)+eAB*(enlP*ePA*lA*lA*(w-nPstart*lP)+enlA*lP*(ePA*(-1.0D0*&
-      w+nPstart*lA)*lP+nAstart*lA*(lP-lA))))
-! force ge than 0
-      If(nPend.lt.0.0D0)Then
-        nPend = 0.0D0
+      If(calcOption.eq.1)Then
+        resultQ = &
+        w*B(2)*B(3)*L(1)*L(2)*&                   ! Term 1
+        (1.0D0/(L(1)*L(2)*L(3))-&
+        E(1)/(L(1)*(L(1)-L(2))*(L(1)-L(3)))+&
+        E(2)/(L(2)*(L(1)-L(2))*(L(2)-L(3)))+&
+        E(3)/(L(3)*(L(1)-L(3))*(L(3)-L(2))))+&
+        B(2)*B(3)*L(1)*L(2)*N(1)*&                ! Term 2
+        (E(1)/((L(1)-L(2))*(L(1)-L(3)))-&
+        E(2)/((L(1)-L(2))*(L(2)-L(3)))-&
+        E(3)/((L(1)-L(3))*(L(3)-L(2))))+&
+        B(3)*L(2)*N(2)*&                          ! Term 3
+        (E(1)/(L(2)-L(1))+E(2)/(L(1)-L(2)))+&
+        N(3)*E(3)
+        isotopeChange(3,4) = dble(resultQ)
       End If
-      If(nAend.lt.0.0D0)Then
-        nAend = 0.0D0
+      If(calcOption.eq.2.or.ISNAN(resultQ))Then ! solve numerically
+        resultGS = CalcIsotopeAmountGS(tQ,3,isotopeChange)
+        isotopeChange(3,4) = dble(resultGS)
       End If
-      If(nBend.lt.0.0D0)Then
-        nBend = 0.0D0
-      End If
-! Store key and tally change data
-      isotopeChange(1,4) = nPend
-      isotopeChange(2,4) = nAend
-      isotopeChange(3,4) = nBend
     End If
-! ------------------
-! ---4+ Decay Steps
-! ------------------
     If(decaySteps.ge.4)Then
-      dTime = tEnd - tStart
-      w = parentProductionRate
-! parent terms
-      lP = log(2.0D0)/decayDataArray(1,3)
-      eplP = exp(1.0D0*dTime*lP)
-      enlP = exp(-1.0D0*dTime*lP)
-      nPstart = decayDataArray(1,2)
-! child A terms
-      nAstart = decayDataArray(2,2)
-      ePA = decayDataArray(2,4)
-      lA = log(2.0D0)/decayDataArray(2,3)
-      eplA = exp(1.0D0*dTime*lA)
-      enlA = exp(-1.0D0*dTime*lA)
-      eplAnlP = exp(1.0D0*dTime*lA-1.0D0*dTime*lP)
-! child B terms
-      nBstart = decayDataArray(3,2)
-      eAB = decayDataArray(3,4)
-      lB = log(2.0D0)/decayDataArray(3,3)
-      eplA = exp(1.0D0*dTime*lA)
-      enlA = exp(-1.0D0*dTime*lA)
-      eplP = exp(1.0D0*dTime*lP)
-      enlP = exp(-1.0D0*dTime*lP)
-      enlAnlP = exp(-1.0D0*dTime*lA-1.0D0*dTime*lP)
-      eplAplP = exp(1.0D0*dTime*lA+1.0D0*dTime*lP)
-! mixed terms
-      lamlp = lA-lP
-      lpmla = lP-lA
-      lalamlalp = lA*lA-lA*lP
-! calc nP
-      nPend = (1.0D0/lP)*(enlP*(nPstart*lP-w)+w)
-! calc nA
-      nAend = (1/(lA*(lA-lP)))*(nAstart*(lA*(lA-lP))+ePA*((enlA-1)*w*lP+&
-      lA*(w-nPstart*lP*enlA+enlP*(nPstart*lP-w))))
-! calc nB
-      termA=(1.0D0*exp(-1.0D0*dTime*(lA+lP)))/(lB*(lA-lB)*(lA-lP)*(lP-lB))
-      termB=exp(dTime*(lA-lB+lP))*nBstart*lB*(lB-lA)*(lA-lP)*(lB-lP)
-      termC=eAB*((exp(dTime*lP)-exp(dTime*(lA-lB+lP)))*nAstart*lA*lB*&
-      (lA-lP)*(lB-lP)+ePA*(exp(dTime*lP)*(exp(dTime*lA)-1.0D0)*w*lB*lP*&
-      (lP-lB)+lA*lA*(exp(dTime*(lA-lB+lP))*((exp(dTime*lB)-1)*w+&
-      nPstart*lB)*lP-exp(dTime*lA)*lB*((-1.0D0+exp(dTime*lP))*w+&
-      nPstart*lP))+lA*(-1.0D0*exp(dTime*(lA-lB+lP))*(-1.0D0+&
-      exp(dTime*lB))*w*lP*lP+(exp(dTime*lP)-exp(dTime*(lA-lB+lP)))*&
-      nPstart*lB*lP*lP+lB*lB*(exp(dTime*lA)*(-1+exp(dTime*lP))*w+&
-      (exp(dTime*lA)-exp(dTime*lP))*nPstart*lP))))
-      nBend = termA*(termB+termC)
-! force ge than 0
-      If(nPend.lt.0.0D0)Then
-        nPend = 0.0D0
+! child C terms
+      If(calcOption.eq.1)Then
+        resultQ = &
+        w*B(2)*B(3)*B(4)*L(1)*L(2)*L(3)*&          ! Term 1
+        (&
+        1.0D0/(L(1)*L(2)*L(3)*L(4))&
+        +E(1)/(L(1)*(L(1)-L(2))*(L(1)-L(3))*(L(1)-L(4)))&
+        -E(2)/(L(2)*(L(1)-L(2))*(L(1)-L(3))*(L(2)-L(4)))&
+        -E(3)/(L(3)*(L(1)-L(3))*(L(3)-L(2))*(L(3)-L(4)))&
+        -E(4)/(L(4)*(L(1)-L(4))*(L(4)-L(2))*(L(4)-L(3)))&
+        )+&
+        B(2)*B(3)*L(1)*L(2)*N(1)*&                  ! Term 2
+        (&
+        E(2)/((L(1)-L(2))*(L(2)-L(3))*(L(2)-L(4)))&
+        -E(1)/((L(1)-L(2))*(L(1)-L(3))*(L(1)-L(4)))&
+        +E(3)/((L(1)-L(3))*(L(3)-L(2))*(L(3)-L(4)))&
+        +E(4)/((L(1)-L(4))*(L(4)-L(2))*(L(4)-L(3)))&
+        )+&
+        B(3)*B(4)*L(2)*L(3)*N(2)*&                   ! Term 3
+        (&
+        E(2)/((L(2)-L(3))*(L(2)-L(4)))&
+        -E(3)/((L(2)-L(3))*(L(3)-L(4)))&
+        -E(4)/((L(2)-L(4))*(L(4)-L(3)))&
+        )+&
+        B(4)*L(3)*N(3)*&                   ! Term 4
+        (&
+        E(3)/(L(4)-L(3))&
+        +E(4)/(L(3)-L(4))&
+        )+&
+        E(4)*N(4)
+        isotopeChange(4,4) = dble(resultQ)
       End If
-      If(nAend.lt.0.0D0)Then
-        nAend = 0.0D0
+      If(calcOption.eq.2.or.ISNAN(resultQ))Then ! solve numerically
+        resultGS = CalcIsotopeAmountGS(tQ,4,isotopeChange)
+        isotopeChange(4,4) = dble(resultGS)
       End If
-      If(nBend.lt.0.0D0)Then
-        nBend = 0.0D0
-      End If
-! Store key and tally change data
-      isotopeChange(1,4) = nPend
-      isotopeChange(2,4) = nAend
-      isotopeChange(3,4) = nBend
-! use numerical inverse laplace transform for 4 steps and more
-! Gaver Stehfest coefficients
-      N = 12
-      Allocate(coefficients(1:12))
-      coefficients(1) = -0.16666666666666666666D-1
-      coefficients(2) = 0.160166666666666666666D2
-      coefficients(3) = -0.1247D4
-      coefficients(4) = 0.27554333333333333333D5
-      coefficients(5) = -0.26328083333333333333D6
-      coefficients(6) = 0.13241387D7
-      coefficients(7) = -0.38917055333333333333D7
-      coefficients(8) = 0.7053286333333333333333D7
-      coefficients(9) = -0.80053365D7
-      coefficients(10) = 0.55528305D7
-      coefficients(11) = -0.21555072D7
-      coefficients(12) = 0.3592512D6
-! Allocate array for laplace transform equation coefficients
-      Allocate(cS(0:decaySteps))
-! starting nO
-      Allocate(nO(1:decaySteps))
-! ------------------
-! ---4 Decay Steps
-! ------------------
-! calculate for 4 decay steps (4th isotope is stable)
-      If(decaySteps.eq.4)Then
-! set atom start amounts
-        Do i=1,decaySteps
-          nO(i) = isotopeChange(i,3)
-        End Do
-! set other variables
-        lnstore = 0.693147180559945/dTime
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-! lambda isotopeChange(i,8), !epsilon isotopeChange(i,9), !omega isotopeChange(i,10)
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = (1.0D0/s)
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)&
-          +nO(1))+nO(2))+nO(3))+nO(4))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(4,4) = lnstore * sumN    !store end atom count
-      End If !End 4
-! ------------------
-! ---5 Decay Steps
-! ------------------
-! calculate for 5 decay steps (4th isotope is unstable, 5th is stable)
-      If(decaySteps.eq.5)Then
-        Do i=1,decaySteps
-          nO(i) = isotopeChange(i,3)
-        End Do
-! set other variables
-        lnstore = 0.693147180559945/dTime
-! 4th isotope Unstable
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = (1.0D0/(s+isotopeChange(4,8)))
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)&
-          +nO(1))+nO(2))+nO(3))+nO(4))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(4,4) = lnstore * sumN    !store end atom count
-! 5th isotope Stable
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = 1.0D0*((isotopeChange(4,9)*isotopeChange(4,8))/(s+isotopeChange(4,8)))
-          cS(5) = (1.0D0/s)
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(5)*(cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)&
-          +nO(1))+nO(2))+nO(3))+nO(4))+nO(5))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(5,4) = lnstore * sumN    !store end atom count
-      End If !End 5
-! ------------------
-! ---6 Decay Steps
-! ------------------
-! calculate for 6 decay steps (4th isotope is unstable, 5th is unstable, 6th is stable)
-      If(decaySteps.eq.6)Then
-        Do i=1,decaySteps
-          nO(i) = isotopeChange(i,3)
-        End Do
-! set other variables
-        lnstore = 0.693147180559945/dTime
-! 4th isotope Unstable
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = (1.0D0/(s+isotopeChange(4,8)))
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)+nO(1))+nO(2))+nO(3))+nO(4))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(4,4) = lnstore * sumN    !store end atom count
-! 5th isotope Unstable
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = 1.0D0*((isotopeChange(4,9)*isotopeChange(4,8))/(s+isotopeChange(4,8)))
-          cS(5) = (1.0D0/(s+isotopeChange(5,8)))
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(5)*(cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)&
-          +nO(1))+nO(2))+nO(3))+nO(4))+nO(5))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(5,4) = lnstore * sumN    !store end atom count
-! 6th isotope Stable
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = 1.0D0*((isotopeChange(4,9)*isotopeChange(4,8))/(s+isotopeChange(4,8)))
-          cS(5) = 1.0D0*((isotopeChange(5,9)*isotopeChange(5,8))/(s+isotopeChange(5,8)))
-          cS(6) = (1.0D0/(s))
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(6)*(cS(5)*(cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)&
-          +nO(1))+nO(2))+nO(3))+nO(4))+nO(5))+nO(6))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(6,4) = lnstore * sumN    !store end atom count
-      End If !End 6
-! ------------------
-! ---7 Decay Steps
-! ------------------
-! calculate for 7 decay steps (4th isotope is unstable, 5th is unstable, 6th is stable)
-      If(decaySteps.eq.7)Then
-        Do i=1,decaySteps
-          nO(i) = isotopeChange(i,3)
-        End Do
-! set other variables
-        lnstore = 0.693147180559945/dTime
-! 4th isotope Unstable
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = (1.0D0/(s+isotopeChange(4,8)))
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)+nO(1))+nO(2))+nO(3))+nO(4))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(4,4) = lnstore * sumN    !store end atom count
-! 5th isotope Unstable
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = 1.0D0*((isotopeChange(4,9)*isotopeChange(4,8))/(s+isotopeChange(4,8)))
-          cS(5) = (1.0D0/(s+isotopeChange(5,8)))
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(5)*(cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)&
-          +nO(1))+nO(2))+nO(3))+nO(4))+nO(5))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(5,4) = lnstore * sumN    !store end atom count
-! 6th isotope Stable
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = 1.0D0*((isotopeChange(4,9)*isotopeChange(4,8))/(s+isotopeChange(4,8)))
-          cS(5) = 1.0D0*((isotopeChange(5,9)*isotopeChange(5,8))/(s+isotopeChange(5,8)))
-          cS(6) = (1.0D0/(s+isotopeChange(6,8)))
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(6)*(cS(5)*(cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)&
-          +nO(1))+nO(2))+nO(3))+nO(4))+nO(5))+nO(6))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(6,4) = lnstore * sumN    !store end atom count
-! 7th isotope Stable
-        sumN = 0.0D0
-        Do m=1,N
-          s = lnstore*m
-! Store laplace transform equation coefficients
-          cS(0) = 1.0D0*(isotopeChange(1,10)/s)
-          cS(1) = 1.0D0*((isotopeChange(1,9)*isotopeChange(1,8))/(s+isotopeChange(1,8)))
-          cS(2) = 1.0D0*((isotopeChange(2,9)*isotopeChange(2,8))/(s+isotopeChange(2,8)))
-          cS(3) = 1.0D0*((isotopeChange(3,9)*isotopeChange(3,8))/(s+isotopeChange(3,8)))
-          cS(4) = 1.0D0*((isotopeChange(4,9)*isotopeChange(4,8))/(s+isotopeChange(4,8)))
-          cS(5) = 1.0D0*((isotopeChange(5,9)*isotopeChange(5,8))/(s+isotopeChange(5,8)))
-          cS(6) = 1.0D0*((isotopeChange(6,9)*isotopeChange(6,8))/(s+isotopeChange(6,8)))
-          cS(7) = (1.0D0/(s))
-! ---------------------------------------------------------------------------------------------------
-          Fs = 1.0D0*cS(7)*(cS(6)*(cS(5)*(cS(4)*(cS(3)*(cS(2)*(cS(1)*(cS(0)&
-          +nO(1))+nO(2))+nO(3))+nO(4))+nO(5))+nO(6))+nO(7))
-! ---------------------------------------------------------------------------------------------------
-          sumN = sumN + coefficients(m) * Fs
-        End Do
-        isotopeChange(7,4) = lnstore * sumN    !store end atom count
-      End If !End 7
     End If
-! force ge than 0
-    Do i=1,size(isotopeChange,1)
+! Numeric inverse laplace for remainder
+    If(decaySteps.ge.5)Then
+      Do i=4,decaySteps
+        resultGS = CalcIsotopeAmountGS(tQ,i,isotopeChange)
+        isotopeChange(i,4) = dble(resultGS)
+        isotopeChange(i,12) = dble(resultGS)
+      End Do
+    End If
+! Adjust the isotope values
+    Do i=1,decaySteps
       If(isotopeChange(i,4).lt.0.0D0)Then
         isotopeChange(i,4) = 0.0D0
+      End If
+      If(isotopeChange(i,12).lt.0.0D0)Then
+        isotopeChange(i,12) = 0.0D0
       End If
     End Do
 ! Store changes in isotope amounts
@@ -2179,6 +2289,159 @@ Module maths
       isotopeChange(i,2) = isotopeChange(i,4) - isotopeChange(i,3)
     End Do
   End Function CalcIsotopeAmount
+
+  Function CalcIsotopeAmountGS(t,isotopeStep,isotopeChangeIn) RESULT (output)
+! Force declaration of all variables
+    Implicit None
+! Declare variables
+    Integer(kind=StandardInteger) :: i, isotopeStep, M, k
+    Real(kind=DoubleReal), Dimension( : , : ), Allocatable :: isotopeChangeIn
+    Real(kind=QuadrupoleReal), Dimension(1:50) :: weightingQ
+    Real(kind=QuadrupoleReal), Dimension(1:20) :: L ! Lambda
+    Real(kind=QuadrupoleReal), Dimension(1:20) :: N ! Starting number of atoms
+    Real(kind=QuadrupoleReal), Dimension(1:20) :: B ! Starting number of atoms
+    Real(kind=QuadrupoleReal) :: kQ, w, t, ft, s, FS, output
+! -------------------------------------------------
+! Output decay chain array:
+! isotopeChange(i,1)    !Tally key
+! isotopeChange(i,2)    !Change in isotope amount
+! isotopeChange(i,3)    !Start amount
+! isotopeChange(i,4)    !End amount
+! isotopeChange(i,5)    !Isotope Z
+! isotopeChange(i,6)    !Isotope A
+! isotopeChange(i,7)    !T1/2
+! isotopeChange(i,8)    !Decay constant
+! isotopeChange(i,9)    !Branching factor
+! isotopeChange(i,10)   !Parent production rate
+! -------------------------------------------------
+! Init variables
+    M = 8
+    weightingQ = GaverStehfestWeightingQ(M,weightingQ)
+    w = isotopeChangeIn(1,10)
+    output = 0.0D0
+! Adjust the isotope values
+    Do i=1,isotopeStep
+      If(isotopeChangeIn(i,4).lt.0.0D0)Then
+        isotopeChangeIn(i,4) = 0.0D0
+      End If
+    End Do
+! Store lambda starting atom number data
+    Do i=1,isotopeStep
+      L(i) = lnTwoQ/isotopeChangeIn(i,7)
+      N(i) = isotopeChangeIn(i,3)
+      If(i.eq.1)Then
+        B(i) = 1.0D0
+      Else
+        B(i) = isotopeChangeIn(i,9)
+      End If
+    End Do
+! Perform calculation
+    ft = 0.0D0
+    Do k=1,2*M
+      kQ = 1.0D0 * k
+      s = (kQ*lnTwoQ)/t
+! -----------------------
+      FS = (1.0D0/(s+L(1)))*(w/s+N(1))
+      Do i=2,isotopeStep
+        FS = (1.0D0/(s+L(i)))*(B(i)*L(i-1)*FS+N(2))
+      End Do
+! FS = (1.0D0/(s+L(1)))*(w/s+N(1))
+! -----------------------
+      ft = ft + weightingQ(k)*FS
+    End Do
+    ft = (lnTwoQ/t)*ft
+    output = Dble(ft)
+! isotopeChangeOut(isotopeStep,4) = Dble(ft)
+  End Function CalcIsotopeAmountGS
+
+  Function GaverStehfestWeighting(N, weightingIn) RESULT (weighting)
+! Force declaration of all variables
+    Implicit None
+! Declare variables
+    Integer(kind=StandardInteger) :: N
+    Integer(kind=StandardInteger) :: j, k, jStart, jEnd
+    Real(kind=DoubleReal) :: factor, wSum
+! Real(kind=DoubleReal), Dimension(1:2*N) :: weighting
+    Real(kind=DoubleReal), Dimension(:) :: weightingIn
+    Real(kind=DoubleReal), Dimension(1:size(weightingIn)) :: weighting
+! Init array
+    weighting = 0.0D0
+! k loop
+    Do k=1,2*N
+      factor = (-1)**(k+N)/(1.0D0*FactorialDP(N))
+      jStart = Floor((k+1)/2.0D0)
+      jEnd = min(k,N)
+      wSum = 0.0D0
+! j loop
+      Do j=jStart,jEnd
+        wSum = wSum + 1.0D0*(j**(N+1))*BinomialCoefficientDP(N,j)*&
+        BinomialCoefficientDP(2*j,j)*BinomialCoefficientDP(j,k-j)
+      End Do
+      weighting(k) = factor*wSum
+    End Do
+  End Function GaverStehfestWeighting
+
+  Function GaverStehfestWeightingQ(N, weightingIn) RESULT (weighting)
+! Force declaration of all variables
+    Implicit None
+! Declare variables
+    Integer(kind=StandardInteger) :: N
+    Integer(kind=StandardInteger) :: j, k, jStart, jEnd
+    Real(kind=QuadrupoleReal) :: factor, wSum
+    Real(kind=QuadrupoleReal), Dimension(:) :: weightingIn
+    Real(kind=QuadrupoleReal), Dimension(1:size(weightingIn)) :: weighting
+! Init array
+    weighting = 0.0D0
+! k loop
+    Do k=1,2*N
+      factor = (-1)**(k+N)/(1.0D0*FactorialQ(N))
+      jStart = Floor((k+1)/2.0D0)
+      jEnd = min(k,N)
+      wSum = 0.0D0
+! j loop
+      Do j=jStart,jEnd
+        wSum = wSum + 1.0D0*(j**(N+1))*BinomialCoefficientQ(N,j)*&
+        BinomialCoefficientQ(2*j,j)*BinomialCoefficientQ(j,k-j)
+      End Do
+      weighting(k) = factor*wSum
+    End Do
+  End Function GaverStehfestWeightingQ
+
+  Function MaxTrajDepth(coefficients, maxDepthIn) RESULT (maxDepth)
+! Calc max depth (E = 0) for ion trajectory, described by polynomial
+    Implicit None  ! Force declaration of all variables
+! Declare variables
+    Integer(kind=StandardInteger) :: i, j, nMax
+    Real(kind=DoubleReal), Dimension(:) :: coefficients
+    Real(kind=DoubleReal) :: c, x, y, maxDepth, maxDepthL
+    Real(kind=DoubleReal), Optional :: maxDepthIn
+! Set optional argument
+    maxDepth = 1.0D10     ! 1m in ang
+    If(Present(maxDepthIn))Then
+      maxDepth = maxDepthIn
+    End If
+! Do three refinement loops
+    Do i=1,4
+      nMax = 20+(i*10)
+      c = 10**(log10(maxDepth)/(1.0D0*nMax))
+      Do j=1,50
+        If(i.lt.3)Then
+          x = 1.0D0*c**j
+        Else
+          x = (maxDepth+1.0D0)-c**(nMax-j)
+        End If
+        y = CalcPolynomial(coefficients, x)
+        If(y.lt.0.0D0)Then
+          maxDepth = x
+          Exit
+        End If
+        If(i.eq.4)Then
+          maxDepthL = x
+        End If
+      End Do
+    End Do
+    maxDepth = SolvePolynomial (coefficients, maxDepthL, maxDepth, 1.0D-6)
+  End Function MaxTrajDepth
 
 ! ------------------------------------------------------------------------!
 !                                                                        !

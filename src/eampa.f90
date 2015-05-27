@@ -16,7 +16,7 @@ PROGRAM eampa
 !
 ! Setup Modules
   Use kinds          ! data kinds
-  Use msubs           ! mpi module
+  Use msubs          ! mpi module
   Use constants      ! physical constants module
   Use units          ! unit conversion and normalisation
   Use general        ! string functions
@@ -26,18 +26,13 @@ PROGRAM eampa
   Use initialise     ! initialise program
   Use loadData       ! load important data
   Use readinput      ! read input
-  Use readEAM        ! read EAM potential file
-  Use prepEAM        ! read EAM potential file
-  Use readConfig     ! read config file
-  Use neighbourList  ! make neighbour list
-  Use prep           ! prepare before calculations etc
+  Use readEAM        ! read eam file
+  Use readConfig     ! read user/dft configurations
+  Use neighbourList  ! build neighbour list
+  Use preCalc
   Use calcEAM
-  Use calcEval
-  Use optimise
-  Use testEAM
-  Use pwBatch        ! read config file
   Use output
-  Use clean
+  Use finalise
 ! Force declaration of all variables
   Implicit None
 ! Include MPI header
@@ -64,63 +59,26 @@ PROGRAM eampa
   Call loadIsotopeData()
 ! --------------------------------------------------------------
 ! --- Read Input Files
-! Read user input file:
+! Read user input file into memory
   Call readUserInput()
-! Optional read ins
-  If(optionReadEAM.eq.1)Then
-    Call readEAMFile()
-    Call runPrepEAM()
-  End If
-  If(optionReadConf.eq.1)Then
-    Call readConfigFile()
-  End If
-  If(optionNeighbourList.eq.1)Then
-    Call makeNeighbourList()
-  End If
-! Prepare for calculations
-  Call runPrep()
-! --------------------------------------------------------------
-! --- Eval/Calculate config energies
-  If(optionCalcEnergies.eq.1)Then
-    Call calcEnergies()
-  End If
-  If(optionEval.eq.1)Then
-    Call evaluate()
-  End If
-  If(optionEvalFull.eq.1)Then
-    Call evaluate()
-  End If
-
-! --------------------------------------------------------------
-! --- Optimise input EAM potential functions
-  If(optionOptimise.eq.1)Then
-    Call runOptimise()
-  End If
-
-! --------------------------------------------------------------
-! --- Test input EAM potential functions
-  If(optionTestEAM.eq.1)Then
-    Call runTestAnalysis()
-  End If
-
-! --------------------------------------------------------------
-! --- PW Batch Files
-  If(optionRunPWBatch.eq.1)Then
-    Call runPWBatch()
-  End If
-
-! --------------------------------------------------------------
-! --- Clean up and finalise
-  Call runClean()
+! Read the EAM functions/functionals into memory  
+  Call readEAMFile()
+! Read config file, dft output files and save these as one config file  
+  Call readConfigFile()
+! Save input files
+  Call outputInputFiles()
+! Make neighbour list
+  Call makeNeighbourList()
+! Pre calculation  
+  Call runPreCalc()
+  
+  Call calcEnergies()
+  
+  Call runFinalise()
 
 ! Store end time
   Call cpu_time(programEndTime)
-! Store Time
-  Call storeTime(100,programEndTime-programStartTime)
-! Output times
-  Call outputCpuTimes()
-! Call end output to terminal
-  Call outputEndT()
+  
 ! Finalise MPI
   Call MPI_Finalize(error)
 

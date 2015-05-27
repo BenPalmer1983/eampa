@@ -289,7 +289,7 @@ if arguments[2]=="2":
     
  
 #========================================================================
-# Format layout, remove unnecessary tabs, spaces
+# Remove unused variables
 #========================================================================
 
 if arguments[2]=="3":

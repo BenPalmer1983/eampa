@@ -1,5 +1,14 @@
 Module loadData
 
+! --------------------------------------------------------------!
+! Ben Palmer, University of Birmingham
+! Module: loadData
+! Updated: 18th May 2015
+! --------------------------------------------------------------!
+! Description:
+! Loads isotope data into memory
+! --------------------------------------------------------------!
+
 ! Setup Modules
   Use kinds
   Use msubs

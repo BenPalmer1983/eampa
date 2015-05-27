@@ -1,5 +1,17 @@
 Module initialise
 
+! --------------------------------------------------------------!
+! Ben Palmer, University of Birmingham
+! Module: initialise
+! Updated: 18th May 2015
+! --------------------------------------------------------------!
+! Description:
+! Makes directories used when program runs
+! Creates the output files with headers
+! Defines the ProgramTime() function
+! --------------------------------------------------------------!
+
+
 ! Setup Modules
   Use kinds
   Use msubs
@@ -21,7 +33,6 @@ Module initialise
 
 ! Subroutines
   Public :: runInitialise        !Subroutine
-  Public :: fileToClean
 
 ! Functions
   Public :: ProgramTime             !Function
@@ -172,12 +183,26 @@ Module initialise
       close(979)
     End If
 ! save output file name
-    outputFileForces = trim(outputDirectory)//"/"//"nlSeparation.dat"
-! Create output file
     If(mpiProcessID.eq.0)Then
-      open(unit=969,file=trim(outputFileForces))
+      open(unit=969,file=trim(trim(outputDirectory)//"/"//"nlSeparation.dat"))
       write(969,"(A38)") "======================================"
       write(969,"(A38)") "     Neighbour List Separations       "
+      write(969,"(A38)") "      University of Birmingham        "
+      write(969,"(A38)") "             Ben Palmer               "
+      write(969,"(A38)") "======================================"
+      write(969,"(A1)") " "
+      write(969,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+      "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)
+      write(969,"(A1)") " "
+      write(969,"(A1)") " "
+! close output file
+      close(969)
+    End If
+! save output file name
+    If(mpiProcessID.eq.0)Then
+      open(unit=969,file=trim(trim(outputDirectory)//"/"//"nlFile.dat"))
+      write(969,"(A38)") "======================================"
+      write(969,"(A38)") "           Neighbour List             "
       write(969,"(A38)") "      University of Birmingham        "
       write(969,"(A38)") "             Ben Palmer               "
       write(969,"(A38)") "======================================"
@@ -205,24 +230,23 @@ Module initialise
 ! close output file
       close(969)
     End If
+! Create output file
+    If(mpiProcessID.eq.0)Then
+      open(unit=969,file=trim(outputDirectory)//"/"//"CalcLog.dat")
+      write(969,"(A38)") "======================================"
+      write(969,"(A38)") "         EoS Fitting Results          "
+      write(969,"(A38)") "      University of Birmingham        "
+      write(969,"(A38)") "             Ben Palmer               "
+      write(969,"(A38)") "======================================"
+      write(969,"(A1)") " "
+      write(969,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+      "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)
+      write(969,"(A1)") " "
+      write(969,"(A1)") " "
+! close output file
+      close(969)
+    End If    
   End Subroutine initDataFiles
-
-! Other subroutines
-! Run all the input subroutines
-  Subroutine fileToClean(fileName)
-! Internal subroutine variables
-    Integer(kind=StandardInteger) :: i
-    Character(*) :: fileName
-    Character(len=512) :: testLine
-! Add to list
-    Do i=1,100
-      testLine = fileCleanupList(i)
-      If(testLine(1:2).eq."  ")Then
-        fileCleanupList(i) = trim(adjustl(fileName))
-        Exit
-      End If
-    End Do
-  End Subroutine fileToClean
 
 ! ------------------------------------------------------------------------!
 !                                                                        !

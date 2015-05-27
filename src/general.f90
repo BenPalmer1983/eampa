@@ -23,6 +23,7 @@ Module general
   Public :: extractArrayColumnDP, extractArrayColumnInt
   Public :: makeDir, rmFile, rmDir, randFileName, tempFileName
   Public :: strToIntArr, strToDPArr, strToStrArr
+  Public :: timeAcc
 ! Public functions
   Public :: dpToString, intToString
   Public :: GetClockTime
@@ -347,6 +348,16 @@ Module general
     End Do
   End Subroutine strToStrArr
 
+! Time Accumulator subroutine  
+  Subroutine timeAcc(time,timeStart,timeEnd)
+! Take space separated integers and convert to array
+    Implicit None   ! Force declaration of all variables
+! Declare private variables
+    Real(kind=DoubleReal) :: time,timeStart,timeEnd
+    time = time + timeEnd - timeStart
+  End Subroutine timeAcc
+  
+  
 ! ------------------------------------------------------------------------!
 !                                                                        !
 ! MODULE FUNCTIONS                                                     !

@@ -119,14 +119,6 @@ Module output
       status="old",position="append",action="write")
       Do i=1,configCount
         write(1,"(A15,I8)") "Configuration: ",i
-        
-        write(1,"(F14.7,F14.7,F14.7)") crystalUnitCell(i,1), &
-        crystalUnitCell(i,2), crystalUnitCell(i,3)
-        write(1,"(F14.7,F14.7,F14.7)") crystalUnitCell(i,4), &
-        crystalUnitCell(i,5), crystalUnitCell(i,6)
-        write(1,"(F14.7,F14.7,F14.7)") crystalUnitCell(i,7), &
-        crystalUnitCell(i,8), crystalUnitCell(i,9)
-        
         printOut = 0
         startKey = configurationCoordsKeyG(i,1)
         endKey = configurationCoordsKeyG(i,3)
@@ -371,6 +363,65 @@ Module output
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Integer(kind=StandardInteger) :: configID, totalAtoms
+! Only on root process
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
+      status="old",position="append",action="write")
+      write(999,"(A1)") " "
+      write(999,"(F8.4,A2,A26)") ProgramTime(),"  ","Configuration Evaluations:"
+      write(999,"(A5,A5,A7,A13,A13,A13,A13,A13,A13,A13,A13,A13,A13)") &
+      "Cfg  ","Proc ","Atoms  ","Ref Energy   ",&
+      "Calc Energy  ","Config Vol   ","Ref Eq Vol   ","Calc Eq Vol  ",&
+      "Calc Eq Ene  ","Calc Eq LatF ","Ref BM       ","Calc BM      ",&
+      "RSS          "
+      totalAtoms = 0
+      Do configID=1,maxConfigs
+        If(configurationCoordsKeyG(configID,1).gt.0)Then
+          write(999,&
+          "(I4,A1,I4,A1,I6,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1,F12.4,A1)"&
+          ) &
+          configID," ",processMap(configID,1)," ",&
+          configurationCoordsKeyG(configID,2)," ",&
+          (configRefEnergies(configID)*configurationCoordsKeyG(configID,2))," ",&
+          configCalcEnergies(configID)," ",&
+          configVolume(configID)," ",&
+          configRefEV(configID)," ",&
+          configCalcEV(configID)," ",&
+          configCalcEE(configID)," ",&
+          configCalcEL(configID)," ",&
+          configRefBM(configID)," ",&
+          configCalcBM(configID)," ",&
+          configRSS(configID,size(configRSS,2))," "
+          totalAtoms = totalAtoms + configurationCoordsKeyG(configID,2)
+        End If
+      End Do
+      write(999,"(A5,A5,A10)") &
+      "Cfg  ","Proc ","Stresses  "
+      Do configID=1,maxConfigs
+        If(configurationCoordsKeyG(configID,1).gt.0)Then
+          write(999,&
+          "(I4,A1,I4,A1,I6,A14,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6)"&
+          ) &
+          configID," ",processMap(configID,1)," ",&
+          configurationCoordsKeyG(configID,2)," Stress Ref:  ",&
+          configRefStresses(configID,1),configRefStresses(configID,2),configRefStresses(configID,3),&
+          configRefStresses(configID,4),configRefStresses(configID,5),configRefStresses(configID,6),&
+          configRefStresses(configID,7),configRefStresses(configID,8),configRefStresses(configID,9)
+          write(999,&
+          "(I4,A1,I4,A1,I6,A14,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6,F14.6)"&
+          ) &
+          configID," ",processMap(configID,1)," ",&
+          configurationCoordsKeyG(configID,2)," Stress Calc: ",&
+          configCalcStresses(configID,1),configCalcStresses(configID,2),configCalcStresses(configID,3),&
+          configCalcStresses(configID,4),configCalcStresses(configID,5),configCalcStresses(configID,6),&
+          configCalcStresses(configID,7),configCalcStresses(configID,8),configCalcStresses(configID,9)
+        End If
+      End Do
+      write(999,"(A36,I8)")  "Total atoms:                        ",totalAtoms
+      write(999,"(A36,E12.4)") "Total RSS all configurations:       ",totalRSS
+      write(999,"(A1)") " "
+      Close(999)
+    End If
   End Subroutine outputEvaluate
 
   Subroutine outputTimeTaken(textOut,duration)
@@ -410,10 +461,10 @@ Module output
       write(999,"(A64)") "----------------------------------------------------------------"
       write(999,"(A64)") "                         Process Map                            "
       write(999,"(A64)") "----------------------------------------------------------------"
-      write(999,"(A64)") "MapID  Ener                                                     "
+      write(999,"(A64)") "MapID  Ener  EV                                                 "
       Do i=1,maxConfigs
         If(neighbourListKey(i,1).gt.0)Then
-          write(999,"(I6,I6,I6)") i,processMap(i)
+          write(999,"(I6,I6,I6)") i,processMap(i,1),processMap(i,2)
         End If
       End Do
       Close(999)
@@ -642,15 +693,12 @@ Module output
         coordEnd = configurationCoordsKeyG(configID,3)      
         write(999,"(A7,I4,A3,I8,I8,A1,I8,A1)") "Config ",configID,"   ",coordStart,coordEnd,"(",coordLength,")"   
         Do i=coordStart,coordEnd
-          write(999,"(A8,A4,A2,F14.6,A2,F14.6,A2,F14.6,A4,F14.6,A2,F14.6,A2,F14.6)") &
+          write(999,"(A8,A4,A2,F14.6,A2,F14.6,A2,F14.6)") &
           "        ",&
           elements(configurationCoordsIG(coordCount,1)),"  ",&
           configurationCoordsRG(i,1),"  ",&
           configurationCoordsRG(i,2),"  ",&
-          configurationCoordsRG(i,3),"    ",&
-          configurationCoordsRG(i,4),"  ",&
-          configurationCoordsRG(i,5),"  ",&
-          configurationCoordsRG(i,6)
+          configurationCoordsRG(i,3)
         End Do
       End Do
       Close(999)

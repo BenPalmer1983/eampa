@@ -41,11 +41,10 @@ Module calcEAM
     configCalcStresses = -2.1D20
 ! MPI Processes per energy calculation
 ! Loop through configurations
-    print *,"pot type",eamType,mpiProcessID
     Do configID=1,configCount
-      If(processMap(configID).eq.mod(mpiProcessID,configCount))Then  ! build in more mpi options here
+      If(processMap(configID,1).eq.mod(mpiProcessID,configCount))Then  ! build in more mpi options here
         Call calcEnergy(configID, configEnergy, 1)
-        If(processMap(configID).eq.mpiProcessID)Then
+        If(processMap(configID,1).eq.mpiProcessID)Then
           configCalcEnergies(configID) = configEnergy  !Store result from primary mpi process
         End If
       End If
@@ -55,7 +54,7 @@ Module calcEAM
     Call M_distDouble1D(configCalcEnergies)
 ! Distribute force array
     Do configID=1,configCount
-      selectedProcess = processMap(configID)
+      selectedProcess = processMap(configID,1)
       forceKeyStart = configurationCoordsKeyG(configID,1)
       forceKeyEnd = configurationCoordsKeyG(configID,3)
       Call M_collDouble2D(configCalcForces, selectedProcess, forceKeyStart, forceKeyEnd)
@@ -142,7 +141,7 @@ Module calcEAM
     Else
       processesPerEnergy = 1
     End If
-    primaryProcess = processMap(configID)
+    primaryProcess = processMap(configID,1)
     procArrayEmbe = 0
 ! Set embe energy calc start-end array
     If(processesPerEnergy.eq.1)Then
@@ -211,8 +210,6 @@ Module calcEAM
     End If
 ! Sum energies
     configEnergy = pairEnergy + embeddingEnergy
-    print *,"Energy: ",configEnergy,pairEnergy,embeddingEnergy
-    print *,"Energy: ",configEnergy/configLength,pairEnergy/configLength,embeddingEnergy/configLength
 ! output components if required
     If(Present(pairEnergyOut))Then
       pairEnergyOut = pairEnergy

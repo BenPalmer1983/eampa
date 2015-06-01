@@ -44,7 +44,9 @@ Module readEAM
 ! Start Time
     Call cpu_time(timeStartEAM)
 ! Prepare the eam file
-    Call prepFile()
+    If(mpiProcessID.eq.0)Then
+      Call prepFile()
+    End If
 ! Synchronise Processes
     Call M_synchProcesses()
 ! EAM file type

@@ -43,16 +43,18 @@ Module readEAM
     Real(kind=DoubleReal) :: timeStartEAM, timeEndEAM
 ! Start Time
     Call cpu_time(timeStartEAM)
-! Prepare the eam file
-    Call prepFile()
-! Synchronise Processes
-    Call M_synchProcesses()
 ! EAM file type
     If(eamFileType.gt.1)Then
       Call eamConvertFile()
     End If
 ! Synchronise Processes
     Call M_synchProcesses()
+! Prepare the eam file
+    If(mpiProcessID.eq.0)Then
+      Call prepFile()
+    End If
+! Send temp file name to all processes
+    Call M_distChar(eamFilePathT)
 ! Read the temporary eam file
     Call readFile()
 ! Calculate y'(x) and y''(x)
@@ -81,25 +83,26 @@ Module readEAM
     Call storeTime(4,timeEndEAM-timeStartEAM)
   End Subroutine readEAMFile
 
-  
-  
-!-----------------------------------------------
-! Prepare file and load into memory
-!-----------------------------------------------    
   Subroutine prepFile()
+! Creates a temporary file to contain the EAM potential
 ! Converts alpha to upper, and strips out comment lines etc
 ! Will also convert LAMMPS and DLPOLY style EAM
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: ios, i, n
-    Character(len=255) :: fileRow    
+    Integer(kind=StandardInteger) :: ios, i
+    Character(len=255) :: fileRow
+    Character(len=8) :: tempName
+! Set temp file path
+    Call tempFileName(tempName)
+    eamFilePathT = Trim(tempDirectory)//"/"//tempName//".temp.pot"
+    Call fileToClean(eamFilePathT)
 ! Output to Terminal
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       Print *,"Reading user eam file ",trim(eamFilePath)
     End If
+! Read EAM file and make new temp EAM pot file
     Open(UNIT=1,FILE=Trim(eamFilePath))
-    n = 0
-    eamType = 1
+    Open(UNIT=2,FILE=Trim(eamFilePathT))
     Do i=1,maxFileRows
 ! Read in line
       Read(1,"(A255)",IOSTAT=ios) fileRow
@@ -111,31 +114,203 @@ Module readEAM
       End If
       fileRow = Trim(Adjustl(fileRow))
       If(fileRow(1:1).ne."!".or.fileRow(1:1).ne." ".or.fileRow(1:1).ne."#")Then
-        n = n + 1
-        eamInputData(n) = fileRow
+        write(2,"(A)") StrToUpper(Trim(fileRow))
         If(fileRow(1:4).eq."DEND".or.fileRow(1:4).eq."EMBD")Then
           eamType = 2
         End If
       End If
     End Do
-    Close(1) 
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      Print *,"EAM loaded into memory.  Type: ",eamType
-    End If
+    Close(2)
+    Close(1)
   End Subroutine prepFile
-  
-  
 
-  
-!-----------------------------------------------
-! Convert file type
-!-----------------------------------------------  
+  Subroutine readFile()
+! Reads in the eam potential from the ew temporary EAM file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: ios, functionCounter, i
+    Integer(kind=StandardInteger) :: eamFunctionKey, pointCounter, functionStart, functionLength
+    Integer(kind=StandardInteger) :: elementIdA, elementIdB, elementIdMin, elementIdMax
+    Character(len=255) :: fileRow
+    Character(len=4) :: functionType
+    Character(len=2) :: elementA, elementB
+    Real(kind=DoubleReal) :: xVal, yVal
+! Initialise variables
+    eamFunctionKey = 0
+    pointCounter = 0
+    FunctionCounter = 0
+    FunctionStart = 1
+    FunctionLength = 0
+! Output to Terminal
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      Print *,"Reading formatted eam file ",trim(eamFilePathT)
+    End If
+! ---------------------------
+! Step 1 - store elements
+! ---------------------------
+! Read eam pot file and store unique elements, determine EAM type
+    Open(UNIT=1,FILE=eamFilePathT) ! Open file
+    Do i=1,maxFileRows
+! Read in line
+      Read(1,"(A255)",IOSTAT=ios) fileRow
+! Break out If end of file
+      If(ios /= 0)Then
+        EXIT
+      End If
+! Check If New Function
+      If(fileRow(1:4).eq."PAIR")Then
+! Store this function elements and type
+        Read(fileRow,*) functionType, elementA, elementB  ! Read in line
+! Add elements to the config/eam element list
+        Call AddUniqueElement(elementA)
+        Call AddUniqueElement(elementB)
+      ElseIf(fileRow(1:4).eq."DENS".or.fileRow(1:4).eq."EMBE".or.&
+        fileRow(1:4).eq."DDEN".or.fileRow(1:4).eq."SDEN"&
+        .or.fileRow(1:4).eq."DEMB".or.fileRow(1:4).eq."SEMB")Then
+! Store this function elements and type
+        Read(fileRow,*) functionType, elementA            ! Read in line
+        Call AddUniqueElement(elementA)
+      End If
+    End Do
+    Close(1)
+! ---------------------------
+! Step 2 - prep function counts
+! ---------------------------
+    elementsCount = 0
+    Do i=1,size(elements)
+      If(elements(i).ne."ZZ")Then
+        elementsCount = elementsCount + 1
+      End If
+    End Do
+    If(eamType.eq.1)Then        ! Standard EAM
+      eamFunctionCount = (elementsCount * ( elementsCount + 5)) / 2
+      eamPairCount = (elementsCount * ( elementsCount + 1)) / 2
+      eamDensCount = elementsCount
+      eamEmbeCount = elementsCount
+    End If
+    If(eamType.eq.2)Then        ! Two-Band EAM
+      If(elementsCount.eq.1)Then
+        eamFunctionCount = 1 + (elementsCount * ( elementsCount + 7)) / 2
+        eamPairCount = (elementsCount * ( elementsCount + 1)) / 2
+        eamSdenCount = 1
+        eamDdenCount = elementsCount
+        eamSembCount = elementsCount
+        eamDembCount = elementsCount
+      Else
+        eamFunctionCount = (elementsCount * ( elementsCount + 3))
+        eamPairCount = (elementsCount * ( elementsCount + 1)) / 2
+        eamSdenCount = (elementsCount * ( elementsCount - 1)) / 2
+        eamDdenCount = elementsCount
+        eamSembCount = elementsCount
+        eamDembCount = elementsCount
+      End If
+    End If
+! ---------------------------
+! Step 3 - store potential functions
+! ---------------------------
+! Read eam pot file and store unique elements, determine EAM type
+    Open(UNIT=1,FILE=eamFilePathT) ! Open file
+    Do i=1,maxFileRows
+! Read in line
+      Read(1,"(A255)",IOSTAT=ios) fileRow
+! Break out If end of file
+      If(ios /= 0)Then
+        EXIT
+      End If
+! Check If New Function
+! ----------------
+! PAIR + SDEN
+      If(fileRow(1:4).eq."PAIR".or.fileRow(1:4).eq."SDEN")Then
+! Store last function start/length
+        If(functionCounter.gt.0)Then
+          eamKey(eamFunctionKey,4) = functionStart
+          eamKey(eamFunctionKey,5) = functionLength
+          eamKey(eamFunctionKey,6) = (functionStart + functionLength - 1)
+          FunctionStart = functionStart + functionLength
+          FunctionLength = 0
+        End If
+! Read function information
+        Read(fileRow,*) functionType, elementA, elementB  ! Read in line
+        FunctionCounter = functionCounter + 1             ! Increment function counter
+! Set function key
+        elementIdA = QueryUniqueElement(elementA)
+        elementIdB = QueryUniqueElement(elementB)
+        elementIdMin = min(elementIdA,elementIdB)-1
+        elementIdMax = max(elementIdA,elementIdB)-1
+        If(fileRow(1:4).eq."PAIR")Then
+          eamFunctionKey = 1+elementIdMin+(elementIdMax*(elementIdMax+1))/2
+        End If
+        If(fileRow(1:4).eq."SDEN")Then
+          If(elementsCount.eq.1)Then
+            eamFunctionKey = eamPairCount + 1
+          Else
+            eamFunctionKey = eamPairCount+1+elementIdMin+(elementIdMax*(elementIdMax-1))/2
+          End If
+        End If
+! Store this function elements and type
+        eamKey(eamFunctionKey,1) = QueryUniqueElement(elementA)
+        eamKey(eamFunctionKey,2) = QueryUniqueElement(elementB)
+        eamKey(eamFunctionKey,3) = QueryFunctionType(functionType)
+! ----------------
+! DENS, EMBE, DDEN, DEMB, SEMB
+      ElseIf(fileRow(1:4).eq."DENS".or.fileRow(1:4).eq."EMBE".or.&
+        fileRow(1:4).eq."DDEN"&
+        .or.fileRow(1:4).eq."DEMB".or.fileRow(1:4).eq."SEMB")Then
+! Store last function start/length
+        If(functionCounter.gt.0)Then
+          eamKey(eamFunctionKey,4) = functionStart
+          eamKey(eamFunctionKey,5) = functionLength
+          eamKey(eamFunctionKey,6) = (functionStart + functionLength - 1)
+          FunctionStart = functionStart + functionLength
+          FunctionLength = 0
+        End If
+! Store this function elements and type
+        Read(fileRow,*) functionType, elementA            ! Read in line
+        FunctionCounter = functionCounter + 1             ! Increment function counter
+! Set function key
+        elementIdA = QueryUniqueElement(elementA)
+        If(fileRow(1:4).eq."DENS")Then
+          eamFunctionKey = eamPairCount+elementIdA
+        End If
+        If(fileRow(1:4).eq."EMBE")Then
+          eamFunctionKey = eamPairCount+eamDensCount+elementIdA
+        End If
+        If(fileRow(1:4).eq."DDEN")Then
+          eamFunctionKey = eamPairCount+eamSdenCount+elementIdA
+        End If
+        If(fileRow(1:4).eq."SEMB")Then
+          eamFunctionKey = eamPairCount+eamSdenCount+eamDdenCount+elementIdA
+        End If
+        If(fileRow(1:4).eq."DEMB")Then
+          eamFunctionKey = eamPairCount+eamSdenCount+eamDdenCount+eamSembCount+elementIdA
+        End If
+        eamKey(eamFunctionKey,1) = QueryUniqueElement(elementA)
+        eamKey(eamFunctionKey,2) = 0
+        eamKey(eamFunctionKey,3) = QueryFunctionType(functionType)
+      Else
+! Read in function/al x and y
+        pointCounter = pointCounter + 1
+        FunctionLength = functionLength + 1
+        Read(fileRow,*) xVal, yVal
+        eamData(pointCounter,1) = xVal
+        eamData(pointCounter,2) = yVal
+      End If
+    End Do
+! Store last function
+    If(functionCounter.gt.0)Then  !Store last function start/length
+      eamKey(eamFunctionKey,4) = functionStart
+      eamKey(eamFunctionKey,5) = functionLength
+      eamKey(eamFunctionKey,6) = (functionStart + functionLength - 1)
+    End If
+    Close(1) ! Close file
+  End Subroutine readFile
+
   Subroutine eamConvertFile()
 ! Fills in first and second order derivatives
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Character(len=255) :: eamFilePathC
-    Integer(kind=StandardInteger) :: ios, i, j, k, n, m, w, points, rowPoints
+    Integer(kind=StandardInteger) :: ios, i, j, k, n, points, rowPoints
     Integer(kind=StandardInteger) :: rowCount
     Character(len=255) :: fileRow
     Character(len=128) :: bufferA, bufferB, bufferC, bufferD, bufferE, bufferF
@@ -146,24 +321,25 @@ Module readEAM
     Real(kind=DoubleReal) :: rStart, rEnd, rInc
     Real(kind=DoubleReal) :: x, y
     Character(len=2), Dimension(1:300) :: functionElements
-    Character(len=255), Dimension(1:65536) :: eamInputDataT
-    eamInputDataT = BlankStringArray(eamInputDataT)   
 ! Init variables
     FunctionElements = "ZZ"
 ! Set converted eam potential file name
     eamFilePathC = Trim(tempDirectory)//"/"//Trim(eamFilePath)//".pot"
+    Call fileToClean(eamFilePathC)
 ! --------------------
 ! LAMMPS
 ! --------------------
-!    If(eamFileType.eq.2.and.mpiProcessID.eq.0)Then    ! LAMMPS file type  
-    If(eamFileType.eq.2)Then    ! LAMMPS file type 
+    If(eamFileType.eq.2.and.mpiProcessID.eq.0)Then    ! LAMMPS file type
+! open output potential file (write to)
+      Open(UNIT=2,FILE=trim(eamFilePathC))
+! open LAMMPS input potential file (read from)
+      Open(UNIT=1,FILE=trim(eamFilePath))
       rowCount = 0
-      m = 0
-      w = 0
       Do i=1,maxFileRows
-        m = m + 1
-        fileRow = eamInputData(m)     !read line
-        If(fileRow(1:1).eq." ")Then
+! Read in line
+        Read(1,"(A255)",IOSTAT=ios) fileRow
+! break out if end of file
+        If(ios /= 0)Then
           EXIT
         End If
         If(fileRow(1:1).ne."#")Then
@@ -186,206 +362,136 @@ Module readEAM
             Do j=1,elementTypeCount
               If(j.gt.1)Then
 ! Read in next element row
-                !Read(1,"(A255)",IOSTAT=ios) fileRow
-                m = m + 1
-                fileRow = eamInputData(m)     ! read next line
+                Read(1,"(A255)",IOSTAT=ios) fileRow
               End If
 ! Read element type
               Read(fileRow,*) elementZ
 ! Embedding function
-              !write(2,"(A8,A2)") "EMBE    ",elementSymbol(elementZ)
-              w = w + 1
-              write(eamInputDataT(w),"(A8,A2)") "EMBE    ",elementSymbol(elementZ)
+              write(2,"(A8,A2)") "EMBE    ",elementSymbol(elementZ)
               FunctionElements(j) = elementSymbol(elementZ)
               rho = 0.0D0
 ! Embedding function
               Do k=1,potentialLinesRho
-                !Read(1,"(A255)",IOSTAT=ios) fileRow
-                m = m + 1
-                fileRow = eamInputData(m)     ! read next line
+                Read(1,"(A255)",IOSTAT=ios) fileRow
                 If(k.lt.potentialLinesRho.or.mod(nrho,5).eq.0)Then
                   Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE
                   Read(bufferA,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                   rho = rho + drho
                   Read(bufferB,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                   rho = rho + drho
                   Read(bufferC,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                   rho = rho + drho
                   Read(bufferD,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                   rho = rho + drho
                   Read(bufferE,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                   rho = rho + drho
                 Else
                   If(mod(nrho,5).eq.1)Then
                     Read(fileRow,*) bufferA
                     Read(bufferA,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                   End If
                   If(mod(nrho,5).eq.2)Then
                     Read(fileRow,*) bufferA, bufferB
                     Read(bufferA,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                     rho = rho + drho
                     Read(bufferB,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                   End If
                   If(mod(nrho,5).eq.3)Then
                     Read(fileRow,*) bufferA, bufferB, bufferC
                     Read(bufferA,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                     rho = rho + drho
                     Read(bufferB,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                     rho = rho + drho
                     Read(bufferC,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                   End If
                   If(mod(nrho,5).eq.3)Then
                     Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
                     Read(bufferA,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                     rho = rho + drho
                     Read(bufferB,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                     rho = rho + drho
                     Read(bufferC,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                     rho = rho + drho
                     Read(bufferD,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") rho,"  ",tempDouble
                   End If
                 End If
               End Do
 ! Density function
-              !write(2,"(A8,A2)") "DENS    ",elementSymbol(elementZ)
-              w = w + 1
-              write(eamInputDataT(w),"(A8,A2)") "DENS    ",elementSymbol(elementZ)
+              write(2,"(A8,A2)") "DENS    ",elementSymbol(elementZ)
               radius = 0.0D0
 ! Density function
               Do k=1,potentialLinesR+1
-                !Read(1,"(A255)",IOSTAT=ios) fileRow
-                m = m + 1
-                fileRow = eamInputData(m)     ! read next line
+                Read(1,"(A255)",IOSTAT=ios) fileRow
                 If(k.lt.(potentialLinesR+1).or.(k.eq.(potentialLinesR+1).and.mod(nr,5).eq.0))Then
                   Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE
                   Read(bufferA,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                   radius = radius + dr
                   Read(bufferB,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                   radius = radius + dr
                   Read(bufferC,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                   radius = radius + dr
                   Read(bufferD,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                   radius = radius + dr
                   Read(bufferE,*) tempDouble
-                  !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                  w = w + 1
-                  write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                  write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                   radius = radius + dr
                 Else
                   If(mod(nr,5).eq.1)Then
                     Read(fileRow,*) bufferA
                     Read(bufferA,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                   End If
                   If(mod(nr,5).eq.2)Then
                     Read(fileRow,*) bufferA, bufferB
                     Read(bufferA,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                     radius = radius + dr
                     Read(bufferB,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                   End If
                   If(mod(nr,5).eq.3)Then
                     Read(fileRow,*) bufferA, bufferB, bufferC
                     Read(bufferA,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                     radius = radius + dr
                     Read(bufferB,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                     radius = radius + dr
                     Read(bufferC,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                   End If
                   If(mod(nr,5).eq.3)Then
                     Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
                     Read(bufferA,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                     radius = radius + dr
                     Read(bufferB,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                     radius = radius + dr
                     Read(bufferC,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                     radius = radius + dr
                     Read(bufferD,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
-                    w = w + 1
-                    write(eamInputDataT(w),"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",tempDouble
                   End If
                 End If
               End Do
@@ -398,91 +504,91 @@ Module readEAM
                 radius = 0.0D0
 ! Pair function
                 Do k=1,potentialLinesR+1
-                  !Read(1,"(A255)",IOSTAT=ios) fileRow
-                  m = m + 1
-                  fileRow = eamInputData(m)     ! read next line
+                  Read(1,"(A255)",IOSTAT=ios) fileRow
                   If(k.lt.(potentialLinesR+1).or.&
                     (k.eq.(potentialLinesR+1).and.mod(nr,5).eq.0))Then
                     Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE
                     Read(bufferA,*) tempDouble
                     If(radius.eq.0.0D0)Then
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",0.0D0
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",0.0D0
                     Else
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                     End If
                     radius = radius + dr
                     Read(bufferB,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                     radius = radius + dr
                     Read(bufferC,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                     radius = radius + dr
                     Read(bufferD,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                     radius = radius + dr
                     Read(bufferE,*) tempDouble
-                    !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                    write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                     radius = radius + dr
                   Else
                     If(mod(nr,5).eq.1)Then
                       Read(fileRow,*) bufferA
                       Read(bufferA,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                     End If
                     If(mod(nr,5).eq.2)Then
                       Read(fileRow,*) bufferA, bufferB
                       Read(bufferA,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                       radius = radius + dr
                       Read(bufferB,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                     End If
                     If(mod(nr,5).eq.3)Then
                       Read(fileRow,*) bufferA, bufferB, bufferC
                       Read(bufferA,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                       radius = radius + dr
                       Read(bufferB,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                       radius = radius + dr
                       Read(bufferC,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                     End If
                     If(mod(nr,5).eq.3)Then
                       Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
                       Read(bufferA,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                       radius = radius + dr
                       Read(bufferB,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                       radius = radius + dr
                       Read(bufferC,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                       radius = radius + dr
                       Read(bufferD,*) tempDouble
-                      !write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
+                      write(2,"(E24.16E3,A2,E24.16E3)") radius,"  ",(tempDouble/(1.0D0*radius))
                     End If
                   End If
                 End Do
               End Do
             End Do
           End If
-        End If    
+        End If
       End Do
-! Save file      
-      eamInputData = eamInputDataT
-    End If  
+      Close(1)
+      Close(2)
+    End If
 ! --------------------
 ! DLPOLY
 ! --------------------
     If(eamFileType.eq.3.and.mpiProcessID.eq.0)Then    ! DLPOLY file type
-      m = 0
-      w = 0
+! open output potential file (write to)
+      Open(UNIT=2,FILE=trim(eamFilePathC))
+! open DLPOLY input potential file (read from)
+      Open(UNIT=1,FILE=trim(eamFilePath))
       Do i=1,maxFileRows
-        m = m + 1
-        fileRow = eamInputData(m)     !read line
-! Break out
-        If(fileRow(1:1).eq." ")Then
+! Read in line
+        Read(1,"(A255)",IOSTAT=ios) fileRow
+! break out if end of file
+        If(ios /= 0)Then
           EXIT
         End If
         If(fileRow(1:1).ne."#")Then
@@ -581,221 +687,13 @@ Module readEAM
           End If
         End If
       End Do
-! Save file      
-      eamInputData = eamInputDataT
+      Close(1)
+      Close(2)
     End If
 ! Update the EAM input file
     eamFilePath = eamFilePathC
   End Subroutine eamConvertFile
-  
-  
-  
-  
 
-  
-!-----------------------------------------------
-! Read file data into eam arrays
-!-----------------------------------------------  
-  
-
-  Subroutine readFile()
-! Reads in the eam potential from the ew temporary EAM file
-    Implicit None   ! Force declaration of all variables
-! Private variables
-    Integer(kind=StandardInteger) :: ios, functionCounter, i, m
-    Integer(kind=StandardInteger) :: eamFunctionKey, pointCounter, functionStart, functionLength
-    Integer(kind=StandardInteger) :: elementIdA, elementIdB, elementIdMin, elementIdMax
-    Character(len=255) :: fileRow
-    Character(len=4) :: functionType
-    Character(len=2) :: elementA, elementB
-    Real(kind=DoubleReal) :: xVal, yVal
-! Initialise variables
-    eamFunctionKey = 0
-    pointCounter = 0
-    FunctionCounter = 0
-    FunctionStart = 1
-    FunctionLength = 0
-! Output to Terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      Print *,"Reading data to eam arrays"
-    End If
-! ---------------------------
-! Step 1 - store elements
-! ---------------------------
-    m = 0
-    Do i=1,maxFileRows
-      m = m + 1
-      fileRow = eamInputData(m)     !read line
-      If(fileRow(1:1).eq." ")Then
-        EXIT
-      End If
-! Check If New Function
-      If(fileRow(1:4).eq."PAIR")Then
-! Store this function elements and type
-        Read(fileRow,*) functionType, elementA, elementB  ! Read in line
-! Add elements to the config/eam element list
-        Call AddUniqueElement(elementA)
-        Call AddUniqueElement(elementB)
-      ElseIf(fileRow(1:4).eq."DENS".or.fileRow(1:4).eq."EMBE".or.&
-        fileRow(1:4).eq."DDEN".or.fileRow(1:4).eq."SDEN"&
-        .or.fileRow(1:4).eq."DEMB".or.fileRow(1:4).eq."SEMB")Then
-! Store this function elements and type
-        Read(fileRow,*) functionType, elementA            ! Read in line
-        Call AddUniqueElement(elementA)
-      End If
-    End Do
-! Output to Terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      Print *,"Elements loaded from potential:"
-      Do i=1,size(elements,1)
-        If(elements(i).eq."ZZ")Then
-          exit
-        End If
-        Print *,elements(i)
-      End Do  
-    End If
-    
-! ---------------------------
-! Step 2 - prep function counts
-! ---------------------------
-    elementsCount = 0
-    Do i=1,size(elements)
-      If(elements(i).ne."ZZ")Then
-        elementsCount = elementsCount + 1
-      End If
-    End Do
-    If(eamType.eq.1)Then        ! Standard EAM
-      eamFunctionCount = (elementsCount * ( elementsCount + 5)) / 2
-      eamPairCount = (elementsCount * ( elementsCount + 1)) / 2
-      eamDensCount = elementsCount
-      eamEmbeCount = elementsCount
-    End If
-    If(eamType.eq.2)Then        ! Two-Band EAM
-      If(elementsCount.eq.1)Then
-        eamFunctionCount = 1 + (elementsCount * ( elementsCount + 7)) / 2
-        eamPairCount = (elementsCount * ( elementsCount + 1)) / 2
-        eamSdenCount = 1
-        eamDdenCount = elementsCount
-        eamSembCount = elementsCount
-        eamDembCount = elementsCount
-      Else
-        eamFunctionCount = (elementsCount * ( elementsCount + 3))
-        eamPairCount = (elementsCount * ( elementsCount + 1)) / 2
-        eamSdenCount = (elementsCount * ( elementsCount - 1)) / 2
-        eamDdenCount = elementsCount
-        eamSembCount = elementsCount
-        eamDembCount = elementsCount
-      End If
-    End If
-! Output to Terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      Print *,"EAM elements: ",elementsCount
-      Print *,"EAM type: ",eamType
-      Print *,"Expected functions: ",eamFunctionCount
-    End If
-    
-! ---------------------------
-! Step 3 - store potential functions
-! ---------------------------
-    m = 0
-    Do i=1,maxFileRows
-      m = m + 1
-      fileRow = eamInputData(m)     !read line
-      If(fileRow(1:1).eq." ")Then
-        EXIT
-      End If
-! Check If New Function
-! ----------------
-! PAIR + SDEN
-      If(fileRow(1:4).eq."PAIR".or.fileRow(1:4).eq."SDEN")Then
-! Store last function start/length
-        If(functionCounter.gt.0)Then
-          eamKey(eamFunctionKey,4) = functionStart
-          eamKey(eamFunctionKey,5) = functionLength
-          eamKey(eamFunctionKey,6) = (functionStart + functionLength - 1)
-          FunctionStart = functionStart + functionLength
-          FunctionLength = 0
-        End If
-! Read function information
-        Read(fileRow,*) functionType, elementA, elementB  ! Read in line
-        FunctionCounter = functionCounter + 1             ! Increment function counter
-! Set function key
-        elementIdA = QueryUniqueElement(elementA)
-        elementIdB = QueryUniqueElement(elementB)
-        elementIdMin = min(elementIdA,elementIdB)-1
-        elementIdMax = max(elementIdA,elementIdB)-1
-        If(fileRow(1:4).eq."PAIR")Then
-          eamFunctionKey = 1+elementIdMin+(elementIdMax*(elementIdMax+1))/2
-        End If
-        If(fileRow(1:4).eq."SDEN")Then
-          If(elementsCount.eq.1)Then
-            eamFunctionKey = eamPairCount + 1
-          Else
-            eamFunctionKey = eamPairCount+1+elementIdMin+(elementIdMax*(elementIdMax-1))/2
-          End If
-        End If
-! Store this function elements and type
-        eamKey(eamFunctionKey,1) = QueryUniqueElement(elementA)
-        eamKey(eamFunctionKey,2) = QueryUniqueElement(elementB)
-        eamKey(eamFunctionKey,3) = QueryFunctionType(functionType)
-! ----------------
-! DENS, EMBE, DDEN, DEMB, SEMB
-      ElseIf(fileRow(1:4).eq."DENS".or.fileRow(1:4).eq."EMBE".or.&
-        fileRow(1:4).eq."DDEN"&
-        .or.fileRow(1:4).eq."DEMB".or.fileRow(1:4).eq."SEMB")Then
-! Store last function start/length
-        If(functionCounter.gt.0)Then
-          eamKey(eamFunctionKey,4) = functionStart
-          eamKey(eamFunctionKey,5) = functionLength
-          eamKey(eamFunctionKey,6) = (functionStart + functionLength - 1)
-          FunctionStart = functionStart + functionLength
-          FunctionLength = 0
-        End If
-! Store this function elements and type
-        Read(fileRow,*) functionType, elementA            ! Read in line
-        FunctionCounter = functionCounter + 1             ! Increment function counter
-! Set function key
-        elementIdA = QueryUniqueElement(elementA)
-        If(fileRow(1:4).eq."DENS")Then
-          eamFunctionKey = eamPairCount+elementIdA
-        End If
-        If(fileRow(1:4).eq."EMBE")Then
-          eamFunctionKey = eamPairCount+eamDensCount+elementIdA
-        End If
-        If(fileRow(1:4).eq."DDEN")Then
-          eamFunctionKey = eamPairCount+eamSdenCount+elementIdA
-        End If
-        If(fileRow(1:4).eq."SEMB")Then
-          eamFunctionKey = eamPairCount+eamSdenCount+eamDdenCount+elementIdA
-        End If
-        If(fileRow(1:4).eq."DEMB")Then
-          eamFunctionKey = eamPairCount+eamSdenCount+eamDdenCount+eamSembCount+elementIdA
-        End If
-        eamKey(eamFunctionKey,1) = QueryUniqueElement(elementA)
-        eamKey(eamFunctionKey,2) = 0
-        eamKey(eamFunctionKey,3) = QueryFunctionType(functionType)
-      Else
-! Read in function/al x and y
-        pointCounter = pointCounter + 1
-        FunctionLength = functionLength + 1
-        Read(fileRow,*) xVal, yVal
-        eamData(pointCounter,1) = xVal
-        eamData(pointCounter,2) = yVal
-      End If
-    End Do
-! Store last function
-    If(functionCounter.gt.0)Then  !Store last function start/length
-      eamKey(eamFunctionKey,4) = functionStart
-      eamKey(eamFunctionKey,5) = functionLength
-      eamKey(eamFunctionKey,6) = (functionStart + functionLength - 1)
-    End If
-  End Subroutine readFile
-
-  
-  
-  
-  
-  
   Subroutine eamDerivatives()
 ! Fills in first and second order derivatives
     Implicit None   ! Force declaration of all variables

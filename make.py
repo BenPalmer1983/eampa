@@ -1,6 +1,76 @@
 # !/usr/bin/python
 import os, sys, time
 
+#---------------------------------------------------------------------------
+# Begin Functions
+#---------------------------------------------------------------------------
+
+def subString(inputStr, start, length):
+  a = start-1
+  output = inputStr[a:a+length]
+  return output   
+
+def replaceCI(haystack,needle,replace):  # Replace, case insensitive
+  haystackU = haystack.upper()
+  needleU = needle.upper()
+  output = ""
+  i=0
+  while i<len(haystackU):
+    i = i + 1
+    testNeedleU = subString(haystackU,i,len(needle))
+    if needleU==testNeedleU:
+      i = i + len(needle)-1    
+      output = output + replace
+    else:
+      output = output + subString(haystack,i,1)
+  return output
+  
+def removeSpaces(inputStr):
+# Removes spaces
+  output = ""
+  i=0
+  while i<len(inputStr):
+    i = i + 1
+    testChar = subString(inputStr,i,1)
+    if ord(testChar) != 32:
+      output = output + testChar
+  return output  
+  
+def removeBlanks(inputStr):
+# Removes spaces, tabs, returns
+  output = ""
+  i=0
+  while i<len(inputStr):
+    i = i + 1
+    testChar = subString(inputStr,i,1)
+    if ord(testChar) not in (9,10,13,32):
+      output = output + testChar
+  return output  
+  
+  
+def removeTabs(inputStr):
+# Removes spaces
+  output = ""
+  i=0
+  while i<len(inputStr):
+    i = i + 1
+    testChar = subString(inputStr,i,1)
+    if ord(testChar) != 9:
+      output = output + testChar
+  return output    
+  
+
+def removeCR(inputStr):
+# Removes spaces
+  output = ""
+  i=0
+  while i<len(inputStr):
+    i = i + 1
+    testChar = subString(inputStr,i,1)
+    if ord(testChar) not in (10,13):
+      output = output + testChar
+  return output      
+  
 def trim(inputStr):
   output = ""
   i = len(inputStr)
@@ -15,26 +85,22 @@ def trim(inputStr):
       output = charSelected + output
     i = i - 1
   return output
-def removeCR(inputStr):
-# Removes spaces
+  
+def trimAll(inputStr):
   output = ""
-  i=0
-  while i<len(inputStr):
-    i = i + 1
-    testChar = subString(inputStr,i,1)
-    if ord(testChar) not in (10,13):
-      output = output + testChar
-  return output     
-def removeTabs(inputStr):
-# Removes spaces
-  output = ""
-  i=0
-  while i<len(inputStr):
-    i = i + 1
-    testChar = subString(inputStr,i,1)
-    if ord(testChar) != 9:
-      output = output + testChar
-  return output   
+  i = len(inputStr)
+  lastSpace = 0
+  while i>0:
+    charSelected = subString(inputStr,i,1)
+    if lastSpace==0:
+      if ord(charSelected) not in (9,10,13,32):
+        lastSpace = 1
+        output = charSelected + output
+    else:    
+      output = charSelected + output
+    i = i - 1
+  return output  
+  
 def trimLeading(inputStr):
   output = ""
   i = 0
@@ -49,18 +115,41 @@ def trimLeading(inputStr):
         output = output + charSelected
     else:    
       output = output + charSelected
-  return output      
+  return output  
+
+def countLeading(inputStr):
+  i = 0
+  iEnd = len(inputStr)
+  firstSpace = 1
+  counter = 0
+  while i<iEnd:
+    i = i + 1
+    charSelected = subString(inputStr,i,1)
+    if firstSpace==1:
+      if ord(charSelected)!=(32):
+        firstSpace = 0
+      else:    
+        counter = counter + 1
+  return counter  
+  
 def spacesString(length):
   i = 0
   output = ""
   while i<length:  
     i = i + 1
     output = output + " "
-  return output      
-def subString(inputStr, start, length):
-  a = start-1
-  output = inputStr[a:a+length]
-  return output
+  return output    
+  
+  
+def removeTrailingComma(inputStr):    
+  inputStr = trimAll(inputStr)
+  if subString(inputStr,len(inputStr),1)==",":
+    inputStr = subString(inputStr,1,len(inputStr)-1)
+  return inputStr
+  
+#---------------------------------------------------------------------------
+# End Functions
+#---------------------------------------------------------------------------  
   
 #input arguments
 arguments=[None]*10
@@ -266,6 +355,8 @@ if arguments[2]=="1":
             outputFile.write(newLine+"\n")
 #store "last loop" line
       lastLine = newLine    
+# Close file
+    srcFile.close()      
 # End loop      
     os.remove(directory+"/"+file)
     os.rename(directory+"/"+file+".temp",directory+"/"+file)     
@@ -382,6 +473,7 @@ if arguments[2]=="3":
           outputFile.write(inputLine+"\n")
         else:      
           outputFile.write(newLine+"\n")
+      srcFile.close()    
     #Replace src files with new files    
     for j in range(1,fileCount+1): 
       os.remove(fileListArr[j])

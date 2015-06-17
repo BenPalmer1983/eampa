@@ -29,7 +29,7 @@ Module finalise
 ! Privacy of functions/subroutines/variables
   Private
 ! Subroutines
-  Public :: runFinalise        !Subroutine
+  Public :: runFinaliseEval        !Subroutine
 
 ! ------------------------------------------------------------------------!
 !                                                                        !
@@ -41,22 +41,25 @@ Module finalise
   contains
 
 ! Run all the input subroutines
-  Subroutine runFinalise()
+  Subroutine runFinaliseEval()
 ! Internal subroutine variables
     
     
     
     If(mpiProcessID.eq.0)Then
+      print *,""
+      print *,"                           Run Time"
       print *,"----------------------------------------------------------------------"
+      print *,"Globals Init Time:         ",globInitTime
+      print *,"EAM Potential Load Time:   ",eamLoadTime
       print *,"Configuration input:       ",configLoadTime
       print *,"Neighbour list:            ",nlTime
       print *,"Energy Calculation:        ",efsCalcTime
       print *,"Total time:                ",ProgramTime()
-      print *,"----------------------------------------------------------------------"
   
     End If
   
-  End Subroutine
+  End Subroutine runFinaliseEval
   
   
   

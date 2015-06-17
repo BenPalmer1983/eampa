@@ -50,6 +50,15 @@ Module loadData
   Subroutine loadIsotopeData()
 ! force declaration of all variables
     Implicit None
+    Real(kind=DoubleReal) :: subStartTime, subEndTime
+    subStartTime = 0.0D0
+    subEndTime = 0.0D0
+! Start time
+    Call cpu_time(subStartTime)
+! Print out
+    If(mpiProcessID.eq.0)Then
+      print *,"LOADING DATA"
+    End If
 ! open output file
     If(mpiProcessID.eq.0)Then
       open(unit=999,file=trim(trim(outputDirectory)//"/"//"output.dat"),&
@@ -16089,6 +16098,12 @@ Module loadData
     isotopesReal(3178 ,2) = 0.00000000E+00
     isotopesReal(3179 ,2) = 0.00000000E+00
     isotopesReal(3180 ,2) = 0.00000000E+00
+! Start time
+    Call cpu_time(subEndTime)
+! Print out
+    If(mpiProcessID.eq.0)Then
+      print *,"Data loaded: ",(subEndTime-subStartTime),"s"
+    End If
   End Subroutine loadIsotopeData
 
 End Module loadData

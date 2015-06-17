@@ -28,6 +28,7 @@ Module output
 ! Public Subroutines - Output to specific file
   Public :: saveEamFile
   Public :: outputForcesFile
+  Public :: outputAtomEnergiesFile
   Public :: outputNLSeparationFile
   Public :: outputNLFile
   Public :: outputSplineNodes
@@ -54,6 +55,9 @@ Module output
   Public :: outputNLMinMaxT
   Public :: outputALatT
   Public :: outputTestingSummaryT
+  Public :: outputProcessMapT
+  Public :: outputPreCalcSummaryT
+  Public :: outputEnergyT
 
   Contains
 
@@ -118,15 +122,22 @@ Module output
       Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"forces.dat",&
       status="old",position="append",action="write")
       Do i=1,configCount
-        write(1,"(A15,I8)") "Configuration: ",i
-        
+        write(1,"(A14,I8)") "Configuration ",i
+        write(1,"(A40)") "----------------------------------------"
+        write(1,"(A20)") "Crystal unit vectors:"
         write(1,"(F14.7,F14.7,F14.7)") crystalUnitCell(i,1), &
         crystalUnitCell(i,2), crystalUnitCell(i,3)
         write(1,"(F14.7,F14.7,F14.7)") crystalUnitCell(i,4), &
         crystalUnitCell(i,5), crystalUnitCell(i,6)
         write(1,"(F14.7,F14.7,F14.7)") crystalUnitCell(i,7), &
         crystalUnitCell(i,8), crystalUnitCell(i,9)
-        
+        write(1,"(A20)") "Stress matrix:"
+        write(1,"(F14.7,F14.7,F14.7)") configCalcStresses(i,1),&
+        configCalcStresses(i,2),configCalcStresses(i,3)
+        write(1,"(F14.7,F14.7,F14.7)") configCalcStresses(i,4),&
+        configCalcStresses(i,5),configCalcStresses(i,6)
+        write(1,"(F14.7,F14.7,F14.7)") configCalcStresses(i,7),&
+        configCalcStresses(i,8),configCalcStresses(i,9)
         printOut = 0
         startKey = configurationCoordsKeyG(i,1)
         endKey = configurationCoordsKeyG(i,3)
@@ -139,6 +150,7 @@ Module output
         If(configRefForces(startKey,1).gt.-2.0D20.and.configCalcForces(startKey,1).gt.-2.0D20)Then
           printOut = 3
         End If
+        write(1,"(A20)") "Forces:"
         If(printOut.gt.0)Then
           Do j=configurationCoordsKeyG(i,1),configurationCoordsKeyG(i,3)
             If(printOut.eq.1)Then
@@ -166,6 +178,35 @@ Module output
       Close(1)
     End If
   End Subroutine outputForcesFile
+  
+  Subroutine outputAtomEnergiesFile()
+! Output atom energies to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i, j, n, printOut, startKey, endKey
+! Only on master process
+    If(mpiProcessID.eq.0)Then
+      Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"AtomEnergies.dat",&
+      status="old",position="append",action="write")
+      Do i=1,configCount
+        write(1,"(A14,I8)") "Configuration ",i
+        write(1,"(A40)") "----------------------------------------"
+        write(1,"(A20)") "Atom Energies:"
+        If(printOut.gt.0)Then
+          n = 0
+          write(1,"(A12,A16,A16,A16)") &
+          "            ","Pair","Embe","Total"
+          Do j=configurationCoordsKeyG(i,1),configurationCoordsKeyG(i,3)
+            n = n + 1
+            write(1,"(I8,A4,F16.8,F16.8,F16.8)") &
+            n,elements(configurationCoordsIG(j,1)),configAtomEnergy(j,1),&
+            configAtomEnergy(j,2),(configAtomEnergy(j,1)+configAtomEnergy(j,2))
+          End Do
+        End If
+      End Do
+      Close(1)
+    End If
+  End Subroutine outputAtomEnergiesFile
 
   Subroutine outputNLSeparationFile()
 ! Output neighbour list to file
@@ -663,6 +704,73 @@ Module output
 ! ---------------------------------------------------------------------------------------------------
 ! Output to terminal
 ! ---------------------------------------------------------------------------------------------------
+
+  Subroutine outputProcessMapT()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i
+! Only on root process
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      print *,""
+      print *,"                         Process Map                            "
+      print *,"----------------------------------------------------------------"
+      print *,"Config  Ener                                                     "
+      Do i=1,maxConfigs
+        If(processMap(i).ge.0)Then
+          print "(I6,A2,I6)",i,"  ",processMap(i)
+        Else 
+          exit        
+        End If
+      End Do
+      print *,""
+    End If
+  End Subroutine outputProcessMapT
+  
+  Subroutine outputPreCalcSummaryT()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: configID
+! Only on root process
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      print *,""
+      print *,"                         Config Summary                         "
+      print *,"----------------------------------------------------------------"
+      print *,"Conf    Atoms    Vol        Rcut   Rmin   Rmax                                "
+      Do configID=1,configCount
+        print "(I4,A3,I6,A3,F10.4,A1,F6.3,A1,F6.3,A1,F6.3)",&
+        configID,"   ",configurationCoordsKeyG(configID,2),"   ",&
+        configVolume(configID)," ",neighbourListKeyR(configID,1)," ",&
+        neighbourListKeyR(configID,2)," ",neighbourListKeyR(configID,3)
+      End Do
+      print *,"Total atoms: ",configsAtomTotal
+      print *,""
+    End If
+  End Subroutine outputPreCalcSummaryT
+  
+  Subroutine outputEnergyT()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: configID
+! Only on root process
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      print *,""
+      print *,"                     Config Energies                         "
+      print *,"----------------------------------------------------------------"
+      print *,"Conf   Atoms    Energy      Energy per Atom                  "
+      Do configID=1,configCount
+        print "(I4,A3,I8,A1,F14.7,A1,F14.7)",&
+        configID,"   ",configurationCoordsKeyG(configID,2)," ",&
+        (configCalcEnergies(configID)*1.0D0*&
+        configurationCoordsKeyG(configID,2))," ",configCalcEnergies(configID)
+        
+      End Do
+      print *,""
+    End If
+  End Subroutine outputEnergyT  
+
 
   Subroutine outputConfigSummaryT()
 ! Saves the eam file to the output directory

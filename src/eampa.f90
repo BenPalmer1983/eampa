@@ -31,6 +31,8 @@ PROGRAM eampa
   Use neighbourList  ! build neighbour list
   Use preCalc
   Use calcEAM
+  Use eval
+  Use opti
   Use output
   Use finalise
 ! Force declaration of all variables
@@ -61,21 +63,26 @@ PROGRAM eampa
 ! --- Read Input Files
 ! Read user input file into memory
   Call readUserInput()
+! --- Run Type: EVAL
+  If(eampaRunType.eq."EVAL")Then
 ! Read the EAM functions/functionals into memory  
-  Call readEAMFile()
+    Call readEAMFile()
 ! Read config file, dft output files and save these as one config file  
-  Call readConfigFile()
+    Call readConfigFile()
 ! Save input files
-  Call outputInputFiles()
+    Call outputInputFiles()
 ! Make neighbour list
-  Call makeNeighbourList()
+    Call makeNeighbourList()
 ! Pre calculation  
-  Call runPreCalc()
-  
-  Call calcEnergies()
-  
-  Call runFinalise()
-
+    Call runPreCalc()
+! Pre calc summary
+    Call outputPreCalcSummaryT()
+! Calculate stress/energy/force of configuration/s
+    Call evalEAM()
+! Finalise   
+    Call runFinaliseEval()
+  End If
+    
 ! Store end time
   Call cpu_time(programEndTime)
   

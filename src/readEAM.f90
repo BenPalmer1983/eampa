@@ -22,6 +22,7 @@ Module readEAM
   Use loadData
   Use globals
   Use output
+  Use eamGen
 ! Force declaration of all variables
   Implicit None
 ! Privacy of variables/functions/subroutines
@@ -61,24 +62,26 @@ Module readEAM
     eamKeyInput = eamKey
     eamDataInput = eamData
 ! Set eam spline nodes
-    If(eamForceSpline.eq.1)Then
+    If(eamForceSpline)Then
       Call setEamNodes()
       Call setEamSpline()
     End If
 ! Force ZBL if required
-    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
+    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL)Then
       Call eamZblHardCore()
     End If
 ! Save the eam file in the output dir if required
     Call saveEamFile(eamSaveFile)
 ! Output summary of EAM to the output file
     Call outputSummary()
+! Export EAM data to file
+    Call eamDataDump()
 ! Synchronise Processes
     Call M_synchProcesses()
 ! End Time
     Call cpu_time(timeEndEAM)
 ! Store Time
-    Call storeTime(4,timeEndEAM-timeStartEAM)
+    eamLoadTime = timeEndEAM-timeStartEAM
   End Subroutine readEAMFile
 
   
@@ -99,7 +102,7 @@ Module readEAM
     End If
     Open(UNIT=1,FILE=Trim(eamFilePath))
     n = 0
-    eamType = 1
+    eamType = 1  ! Set EAM as default
     Do i=1,maxFileRows
 ! Read in line
       Read(1,"(A255)",IOSTAT=ios) fileRow
@@ -110,7 +113,25 @@ Module readEAM
         EXIT
       End If
       fileRow = Trim(Adjustl(fileRow))
-      If(fileRow(1:1).ne."!".or.fileRow(1:1).ne." ".or.fileRow(1:1).ne."#")Then
+! Read row into      
+      If(fileRow(1:1).eq."!".or.fileRow(1:1).eq." ".or.fileRow(1:1).eq."#")Then      
+! Check for EAM type
+        If(fileRow(1:1).eq."#")Then
+          fileRow = StrToUpper(fileRow)
+          If(fileRow(1:4).eq."#EAM")Then
+            eamType = 1  ! Standard EAM
+          End If
+          If(fileRow(1:6).eq."#TBEAM")Then
+            eamType = 2  ! Two Band EAM
+          End If
+          If(fileRow(1:6).eq."#2BEAM")Then
+            eamType = 2  ! Two Band EAM
+          End If
+          If(fileRow(1:6).eq."#3BEAM")Then
+            eamType = 3  ! Two Band EAM
+          End If
+        End If
+      Else      
         n = n + 1
         eamInputData(n) = fileRow
         If(fileRow(1:4).eq."DEND".or.fileRow(1:4).eq."EMBD")Then
@@ -735,8 +756,8 @@ Module readEAM
           End If
         End If
 ! Store this function elements and type
-        eamKey(eamFunctionKey,1) = QueryUniqueElement(elementA)
-        eamKey(eamFunctionKey,2) = QueryUniqueElement(elementB)
+        eamKey(eamFunctionKey,1) = QueryUniqueElement(elementA)    ! Element A id
+        eamKey(eamFunctionKey,2) = QueryUniqueElement(elementB)    ! Element B id
         eamKey(eamFunctionKey,3) = QueryFunctionType(functionType)
 ! ----------------
 ! DENS, EMBE, DDEN, DEMB, SEMB
@@ -789,6 +810,7 @@ Module readEAM
       eamKey(eamFunctionKey,5) = functionLength
       eamKey(eamFunctionKey,6) = (functionStart + functionLength - 1)
     End If
+    
   End Subroutine readFile
 
   
@@ -899,7 +921,7 @@ Module readEAM
             splineNodesData(nodeKey,6) = 0.0D0
           End If
 ! Fix nodes below ZBL spline/core
-          If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
+          If(zblHardCore(1).gt.0.0D0.and.eamForceZBL)Then
             If(functionType.eq.1.and.splineNodesData(nodeKey,1).le.zblHardCore(2))Then
               splineNodesData(nodeKey,6) = 1.0D0
             End If
@@ -1002,7 +1024,7 @@ Module readEAM
     Real(kind=DoubleReal), Dimension(1:4) :: pointA, pointB
     Real(kind=DoubleReal), Dimension(1:6) :: splineCoeffs
 ! Loop through EAM functions
-    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL.eq.1)Then
+    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL)Then
       FunctionCounter = 0
       Do i=1,size(eamKey,1)
         If(eamKey(i,1).gt.0)Then
@@ -1077,7 +1099,7 @@ Module readEAM
             print "(I4,A1,A4,A1,I2,A2,A2,A1,I2,A2,A2,A1,I2,A2,I7,A1,I7,A1,I7)",&
             FunctionCounter," ",eamFunctionTypes(eamKey(i,3)),"(",eamKey(i,3),") ",&
             elements(eamKey(i,1)),"(",eamKey(i,1),") ",&
-            elements(eamKey(i,2)),"(",eamKey(i,3),") ",&
+            elements(eamKey(i,2)),"(",eamKey(i,2),") ",&
             eamKey(i,4)," ",eamKey(i,5)," ",eamKey(i,6)
           Else
             print "(I4,A1,A4,A1,I2,A2,A2,A1,I2,A2,A7,I7,A1,I7,A1,I7)",&
@@ -1093,6 +1115,34 @@ Module readEAM
       End Do
     End If
   End Subroutine outputSummary
+  
+  
+  Subroutine eamDataDump()
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: functionCounter, i, j
+! Create output file
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"eam.dat"))    
+! Calculate y'(x) and y''(x)
+      functionCounter = 0
+      Do i=1,size(eamKey,1)
+        If(eamKey(i,1).gt.0)Then
+          functionCounter = functionCounter + 1
+          write(999,*) "EAM Function ",FunctionCounter,eamKey(i,1),eamKey(i,2),&
+          eamKey(i,3),eamKey(i,4),eamKey(i,5),eamKey(i,6)          
+          Do j=eamKey(i,4),eamKey(i,6)
+            write(999,*) j,eamData(j,1),eamData(j,2),eamData(j,3),eamData(j,4)
+          End Do
+        End If
+        If(functionCounter.eq.eamFunctionCount )Then
+          Exit  ! Exit, all functions cycled through
+        End If
+      End Do      
+    End If  
+  End Subroutine eamDataDump
+    
 
   Subroutine AddUniqueElement(element)
     Character(len=2) :: element

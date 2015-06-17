@@ -19,6 +19,7 @@ Module preCalc
   Use units
   Use globals        ! declare all globals
   Use initialise     ! initialise program
+  Use output
   
 ! Force declaration of all variables
   Implicit None
@@ -48,12 +49,7 @@ Module preCalc
     Do configID=1,configCount    
       processMap(configID) = mod(configID-1,mpiProcessCount)      
     End Do
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      print *,"Config   Process"
-      Do configID=1,configCount
-        print *,configID,"  ",processMap(configID)
-      End Do
-    End If
+    Call outputProcessMapT()
     
     
 ! Synch MPI processes

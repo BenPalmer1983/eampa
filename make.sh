@@ -1,12 +1,16 @@
 #!/bin/bash
-
+cd ${0%/*}
+workingDir=$(pwd)
 binDir="bin"
-binFile="eampa.x "
+binFile="eampaDev.x "
 buildFiles="src/kinds.f90 src/msubs.f90 src/constants.f90 \
 src/maths.f90 src/mMaths.f90 src/general.f90 src/units.f90 src/globals.f90  \
-src/initialise.f90 src/loadData.f90 src/output.f90 \
+src/initialise.f90 \
+src/loadData.f90 src/output.f90 \
+src/eamGen.f90 \
 src/readInput.f90 src/readEAM.f90 src/readConfig.f90 \
-src/neighbourList.f90 src/preCalc.f90 src/calcEAM.f90 \
+src/neighbourList.f90 src/preCalc.f90 \
+src/calcEAM.f90 src/eval.f90 src/opti.f90 \
 src/finalise.f90 \
 src/eampa.f90"
 commandLineA="mpif90 -g -Wall \
@@ -16,20 +20,25 @@ commandLineB="mpif90 -O3 -g -Wall \
 commandLineC=" &> logs/build.log"
 #----------------------------------------------------------------------------------
 binPath=$binDir"/"$binFile
+binPathLong=$workingDir"/"$binDir"/"$binFile
+binPathOnlyLong=$workingDir"/"$binDir
 #----------------------------------------------------------------------------------
 # Make section:
 echo "Check code formatting and layout? (Default: N) [Y/N]"
-read checkCode
+#read checkCode
 echo "Remove unused variables? (Default: N) [Y/N]"
-read checkUnused
+#read checkUnused
 echo "Level 3 Optimise? (Default: N) [Y/N]"
-read optimise
+#read optimise
 echo "Make link to /bin? (Default: N) [Y/N]"
-read linkToBin
+#read linkToBin
 echo "Current working directory:"
 pwd
 echo "Make bin directory"
 mkdir -p bin
+#-------------------------
+# 
+python make.py 0
 if [[ $checkUnused == "Y" || $checkUnused == "y" ]]  
 then
   mkdir -p logs
@@ -64,11 +73,23 @@ if [[ $linkToBin == "Y" || $linkToBin == "y" ]]
 then
   commandRemove="sudo rm /bin/"$binFile
   eval $commandRemove
-  workingDir=$(pwd)
   commandLink="sudo ln -s "$workingDir"/"$binPath" /bin"
   echo "Making link: "$commandLink
   eval $commandLink
 fi
-
-#echo "Check compile result"
-#python make.py 2
+echo "Bin file details:"
+ls -l $binPathLong
+# add export to profile so user can run activity.x
+exportLine="export PATH=\"\$PATH:"$binPathOnlyLong"\""
+profileFile=$HOME"/.bash_profile"
+touch $profileFile
+if grep -q "$binPathOnlyLong" "$profileFile"; 
+then
+  echo $profileFile" already has the bin directory path"
+else
+  echo "Adding "$binPathOnlyLong" to "$profileFile
+  echo $exportLine >> $profileFile
+fi
+sleep 1 
+reloadBashProfile="source "$profileFile
+eval $reloadBashProfile

@@ -47,15 +47,15 @@ Module neighbourList
     Real(kind=DoubleReal), Dimension(1:3) :: aVect, bVect
 ! Output
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      print *,"Make neighbour list"
+      !print *,""
+      !print *,"----------------------------------------------------------------------"
+      !print *,"Neighbour list"
     End If
 ! Start time
     Call cpu_time(timeStart)
 ! Init variables
     neighbourListCount = 0
     configStart = 1
-    rMin = 2.0D21
-    rMax = -2.0D21
     totalSeperation = 0.0D0
 ! Prepare NL key array - clear all above configIDStart
     Do i=1,maxConfigs
@@ -66,6 +66,9 @@ Module neighbourList
 ! print *,"NL",configStart
 ! Loop through configurations
     Do configID=1,configCount
+! Init config specific variables
+      rMin = 2.0D21
+      rMax = -2.0D21
 ! Check config is there
       If(configurationCoordsKeyG(configID,1).gt.0)Then
 ! Load transformation matrix      
@@ -110,11 +113,14 @@ Module neighbourList
                 Do atomB=1,coordLength
                   If(l.eq.0.and.m.eq.0.and.n.eq.0.and.atomA.eq.atomB)Then  ! Don't self count atom
                   Else
+! calculate the key of the atom A atom B combination
+! half length list A=i,B=j == A=j,B=i                  
                     If(atomA.lt.atomB)Then
                       nlKey = (atomB-1)*(atomB-2)/2+atomA
                     Else
                       nlKey = (atomA-1)*(atomA-2)/2+atomB
                     End If
+! 
                     If(nlUniqueKeys(nlKey).eq.0)Then
                       nlUniqueKeys(nlKey) = 1
 
@@ -158,15 +164,15 @@ Module neighbourList
                               neighbourListCoords(neighbourListCount,4) = xB
                               neighbourListCoords(neighbourListCount,5) = yB
                               neighbourListCoords(neighbourListCount,6) = zB
-                              neighbourListCoords(neighbourListCount,7) = xB-xA
-                              neighbourListCoords(neighbourListCount,8) = yB-yA
-                              neighbourListCoords(neighbourListCount,9) = zB-zA
+                              neighbourListCoords(neighbourListCount,7) = xA-xB
+                              neighbourListCoords(neighbourListCount,8) = yA-yB
+                              neighbourListCoords(neighbourListCount,9) = zA-zB
                               neighbourListCoords(neighbourListCount,10) = &
-                              (xB-xA)/neighbourListR(neighbourListCount)
+                              (xA-xB)/neighbourListR(neighbourListCount)
                               neighbourListCoords(neighbourListCount,11) = &
-                              (yB-yA)/neighbourListR(neighbourListCount)
+                              (yA-yB)/neighbourListR(neighbourListCount)
                               neighbourListCoords(neighbourListCount,12) = &
-                              (zB-zA)/neighbourListR(neighbourListCount)
+                              (zA-zB)/neighbourListR(neighbourListCount)
 ! Tally atom separation
                               asKey = Ceiling(neighbourListR(neighbourListCount)*100)
                               If(asKey.lt.1)Then
@@ -194,18 +200,20 @@ Module neighbourList
         neighbourListKey(configID,1) = configStart
         neighbourListKey(configID,2) = configLength
         neighbourListKey(configID,3) = configStart+configLength-1
-        neighbourListKeyR(configID,1) = rCutoffSq**0.5D0
-        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-          print "(A3,I4,I8,I8,A3,I8,A1,A1,F10.5,A1)",&
-          "NL ",configID,configStart,(configStart+configLength-1),"  (",&
-          configLength,")","[",(rCutoffSq**0.5D0),"]"
-          print *,totalSeperation
-        End If
+! Store other data       
+        neighbourListKeyR(configID,1) = rCutoffSq**0.5D0 
+        neighbourListKeyR(configID,2) = rMin 
+        neighbourListKeyR(configID,3) = rMax 
+! Increment configStart for next loop/config
         configStart = configStart + configLength
       End If
       Call cpu_time(timeEnd)
       Call timeAcc(nlTime,timeStart,timeEnd)
-    End Do  ! End loop configs
+    End Do  ! End loop configs    
+! Output
+    !If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    !  print *,"----------------------------------------------------------------------"
+    !End If
     If(mpiProcessID.eq.0)Then
 ! save to file    
       Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"nlFile.dat",&

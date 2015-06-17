@@ -36,6 +36,10 @@ Module readinput
     Real(kind=DoubleReal) :: timeStartRI, timeEndRI
     Real(kind=DoubleReal) :: dftEnergyTemp
     Integer(kind=StandardInteger) :: dftAtomCountTemp
+! Print out
+    If(mpiProcessID.eq.0)Then
+      print *,"READ INPUT:"
+    End If
 ! Start Time
     Call cpu_time(timeStartRI)
 ! Read in command line arguments
@@ -100,6 +104,9 @@ Module readinput
 !
 ! Step 3 - Read In User Settings
 !
+!------------------
+! Set some default values
+    eampaRunType = "EVAL"
 ! Read in user variables
     j = 1
     Do i=1,maxFileRows
@@ -114,119 +121,10 @@ Module readinput
         j = j + 1
         fileRow = userInputData(j)   !read next line
         fileRow = StrToUpper(Trim(Adjustl(fileRow)))
-        eampaRunType = fileRow(1:4)
-        If(fileRow(1:4).eq."ENER")Then
-          optionReadEAM = 1
-          optionReadConf = 1
-          optionNeighbourList = 1
-          optionCalcEnergies = 1
-          optionOutput = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: ENERGY"
-          End If
-        End If
+! Only allow certain run types
         If(fileRow(1:4).eq."EVAL")Then
-          optionReadEAM = 1
-          optionReadConf = 1
-          optionNeighbourList = 1
-          optionEval = 1
-          optionOutput = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: EVALUATION"
-          End If
-        End If
-        If(fileRow(1:4).eq."EVAF")Then
-          optionReadEAM = 1
-          optionReadConf = 1
-          optionNeighbourList = 1
-          optionEvalFull = 1
-          optionOutput = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: EVALUATION [FULL]"
-          End If
-        End If
-        If(fileRow(1:4).eq."EVAT")Then
-          optionReadEAM = 1
-          optionReadConf = 1
-          optionNeighbourList = 1
-          optionEvalFull = 1
-          optionOutput = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: EVALUATION [EAM Testing - BM, Alat, EC, EoS]"
-          End If
-        End If
-        If(fileRow(1:3).eq."PWB")Then
-          optionRunPWBatch = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: PWSCF BATCH INPUT FILES"
-          End If
-        End If
-        If(fileRow(1:4).eq."OPTI")Then
-          optionReadEAM = 1
-          optionReadConf = 1
-          optionNeighbourList = 1
-          optionCalcEnergies = 0
-          optionOptimise = 1
-          optionOutput = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: OPTIMISE POTENTIAL"
-          End If
-        End If
-        If(fileRow(1:4).eq."OPTF")Then
-          optionReadEAM = 1
-          optionReadConf = 1
-          optionNeighbourList = 1
-          optionCalcEnergies = 0
-          optionOptimise = 1
-          optionOutput = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: OPTIMISE POTENTIAL [FULL]"
-          End If
-        End If
-        If(fileRow(1:4).eq."OPTT")Then
-          optionReadEAM = 1
-          optionReadConf = 1
-          optionNeighbourList = 1
-          optionCalcEnergies = 0
-          optionOptimise = 1
-          optionOutput = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: OPTIMISE POTENTIAL [EAM Testing - BM, Alat, EC, EoS]"
-          End If
-        End If
-        If(fileRow(1:4).eq."OPTE")Then
-          optionReadEAM = 1
-          optionReadConf = 1
-          optionNeighbourList = 1
-          optionCalcEnergies = 0
-          optionOptimise = 1
-          optionOutput = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: OPTIMISE POTENTIAL [EXTENSIVE]"
-          End If
-        End If
-        If(fileRow(1:4).eq."EAMP")Then
-          optionReadEAM = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: EAM Potential Prepare"
-          End If
-        End If
-        If(fileRow(1:4).eq."TEST")Then
-          optionReadEAM = 1
-          optionMakeConf = 1
-          optionTestEAM = 1
-          If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-            print *,"Run Type: Test EAM Potential"
-          End If
-        End If
-      End If
-! ----------------------------------
-! MPI Options
-! ----------------------------------
-      If(fileRow(1:10).eq."#MPIENERGY")Then
-        j = j + 1
-        fileRow = userInputData(j)   !read next line
-        Read(fileRow,*) mpiEnergy
+          eampaRunType = fileRow(1:4)  ! EVAL   
+        End If  
       End If
 ! ----------------------------------
 ! EAM Potential
@@ -235,6 +133,11 @@ Module readinput
         j = j + 1
         fileRow = userInputData(j)   !read next line
         eamFilePath = trim(adjustl(fileRow))
+      End If
+      If(fileRow(1:13).eq."#EAMFILETYPE")Then
+        j = j + 1
+        fileRow = userInputData(j)   !read next line
+        Read(fileRow,*) eamFileType
       End If
       If(fileRow(1:12).eq."#EAMPREPFILE")Then
         j = j + 1
@@ -271,22 +174,17 @@ Module readinput
       If(fileRow(1:15).eq."#EAMFORCESPLINE")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
-        Read(fileRow,*) eamForceSpline
+        eamForceSpline = UserTrueFalse(fileRow)
       End If
       If(fileRow(1:12).eq."#EAMFORCEZBL")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
-        Read(fileRow,*) eamForceZBL
+        eamForceZBL = UserTrueFalse(fileRow)
       End If
       If(fileRow(1:13).eq."#EAMMAKEALLOY")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
         Call strToStrArr(fileRow,eamMakeAlloy)
-      End If
-      If(fileRow(1:13).eq."#EAMFILETYPE")Then
-        j = j + 1
-        fileRow = userInputData(j)   !read next line
-        Read(fileRow,*) eamFileType
       End If
 ! ----------------------------------
 ! Config Details
@@ -382,12 +280,12 @@ Module readinput
       If(fileRow(1:11).eq."#SAVEFORCES")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
-        Read(fileRow,*) saveForcesToFile
+        saveForcesToFile = UserTrueFalse(fileRow)
       End If
       If(fileRow(1:7).eq."#SAVENL")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
-        Read(fileRow,*) saveNLToFile
+        saveNLToFile = UserTrueFalse(fileRow)
       End If
 ! ----------------------------------
 ! Optimise options
@@ -478,5 +376,42 @@ Module readinput
     Call cpu_time(timeEndRI)
 ! Store Time
     Call storeTime(8,timeEndRI-timeStartRI)
+! Output    
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      print *,"User input read: ",(timeEndRI-timeStartRI),"s"
+    End If
   End Subroutine readUserInput
+  
+! ------------------------------------------------------------------------!
+!                                                                         !
+! MODULE FUNCTIONS                                                        !
+!                                                                         !
+!                                                                         !
+! ------------------------------------------------------------------------!
+
+  Function UserTrueFalse (inputText) RESULT (outputBool)
+! Takes user input and figures out if they wanted true or false
+    Character(*) :: inputText
+    Character(len=6) :: userChoice
+    Logical :: outputBool
+! Init string
+    userChoice = "      "
+    userChoice = StrToUpper(Trim(Adjustl(inputText)))
+    outputBool = .false.
+    If(userChoice(1:1).eq."1")Then
+      outputBool = .true.
+    End If
+    If(userChoice(1:1).eq."Y")Then
+      outputBool = .true.
+    End If
+    If(userChoice(1:1).eq."+")Then
+      outputBool = .true.
+    End If
+    If(userChoice(1:4).eq."TRUE")Then
+      outputBool = .true.
+    End If
+    If(userChoice(1:6).eq.".TRUE.")Then
+      outputBool = .true.
+    End If
+  End Function UserTrueFalse
 End Module readinput

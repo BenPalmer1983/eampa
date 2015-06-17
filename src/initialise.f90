@@ -79,6 +79,7 @@ Module initialise
     If(mpiProcessID.eq.0)Then
       call idate(theDate)   ! theDate(1)=day, (2)=month, (3)=year
       call itime(theTime)   ! theDate(1)=hour, (2)=minute, (3)=second
+      print *,""
       print *,"----------------------------------------------------------------------"
       print "(A47)","    Activity Code University of Birmingham 2014"
       print "(A14,A24)","    Compiled: ",compileLine
@@ -88,6 +89,8 @@ Module initialise
       print "(A34,F8.4,A5,F8.4,A3)","    Large array memory allocated: ",&
       largeArraySize,"MB  (",(mpiProcessCount*largeArraySize),"MB)"
       print *,"----------------------------------------------------------------------"
+      print *,""
+      print *,""
     End If
 ! Call init subroutines
     Call initVars()
@@ -141,7 +144,6 @@ Module initialise
       write(999,"(A15,I4)") "MPI Processes: ",mpiProcessCount
       write(999,"(A1)") " "
       write(999,"(A1)") " "
-      write(999,"(A19,F8.4)") "Load globals time: ",(globalsTimeEnd-globalsTimeStart)
       write(999,"(A31,F8.4,A5,F8.4,A3)") "Large array memory allocated: ",&
       largeArraySize,"MB  (",(mpiProcessCount*largeArraySize),"MB)"
       write(999,"(A1)") " "
@@ -235,6 +237,22 @@ Module initialise
       open(unit=969,file=trim(outputDirectory)//"/"//"CalcLog.dat")
       write(969,"(A38)") "======================================"
       write(969,"(A38)") "         EoS Fitting Results          "
+      write(969,"(A38)") "      University of Birmingham        "
+      write(969,"(A38)") "             Ben Palmer               "
+      write(969,"(A38)") "======================================"
+      write(969,"(A1)") " "
+      write(969,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+      "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)
+      write(969,"(A1)") " "
+      write(969,"(A1)") " "
+! close output file
+      close(969)
+    End If    
+! Create output file
+    If(mpiProcessID.eq.0)Then
+      open(unit=969,file=trim(outputDirectory)//"/"//"AtomEnergies.dat")
+      write(969,"(A38)") "======================================"
+      write(969,"(A38)") "           Atom Energies              "
       write(969,"(A38)") "      University of Birmingham        "
       write(969,"(A38)") "             Ben Palmer               "
       write(969,"(A38)") "======================================"

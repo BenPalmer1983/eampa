@@ -20,9 +20,6 @@ Module globals
 ! Initialise Subroutine Variable
   Character(len=64) :: compileLine
   Real(kind=DoubleReal) :: programStartTime, programEndTime
-  Real(kind=DoubleReal) :: timeStart, timeEnd, timeDuration
-  Real(kind=DoubleReal) :: globalsTimeStart, globalsTimeEnd
-  Real(kind=DoubleReal) :: nlTime, configLoadTime, efsCalcTime
   Real(kind=DoubleReal), Dimension(1:100) :: cpuTime
   Character(Len=64), Dimension(1:100) :: cpuTimeLabels
   Character(len=255) :: currentWorkingDirectory
@@ -74,8 +71,6 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:6) :: zblHardCore                             ! 1 Pair ZBL end, 2 Pair Spline End, 3 Dens Value, 4 De
   Integer(kind=StandardInteger), Dimension(1:50) :: splineNodeCount
   Integer(kind=StandardInteger) :: splineTotalNodes
-  Integer(kind=StandardInteger) :: eamForceSpline
-  Integer(kind=StandardInteger) :: eamForceZBL
   Character(len=2), Dimension(1:10) :: eamMakeAlloy
   Integer(kind=StandardInteger) :: eamFileType
 ! Config Details - User Input
@@ -94,8 +89,16 @@ Module globals
 ! Calculation details
   Character(len=8) :: calcEqVol
   Character(len=3) :: refineEqVol
-  Integer(kind=StandardInteger) :: saveForcesToFile
-  Integer(kind=StandardInteger) :: saveNLToFile
+
+! Input File Logical
+  Logical :: saveForcesToFile
+  Logical :: saveNLToFile
+  Logical :: eamForceSpline
+  Logical :: eamForceZBL
+  
+  
+  
+  
 ! Optimise options
   Real(kind=DoubleReal), Dimension(1:10) :: varyNodeOptions
   Integer(kind=StandardInteger) :: optLoops
@@ -152,7 +155,7 @@ Module globals
   Character(len=255), Dimension(1:65536) :: configInputDataDFTTemp
   Character(len=16), Dimension(1:1024,1:2) :: configLabelReplace
   Real(kind=DoubleReal), Dimension(1:1024,1:9) :: crystalUnitCell  
-  
+  Integer(kind=StandardInteger) :: configsAtomTotal
   
 
 ! -----------------------
@@ -190,6 +193,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configCalc                      !             1 Energy, 2 EqVol    (maybe)
   Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configRefForces                !       1 fx, 2 fy, 3 fz
   Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configCalcForces
+  Real(kind=DoubleReal), Dimension(1:100000,1:2) :: configAtomEnergy
   Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configRefStresses
   Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configCalcStresses
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEnergies
@@ -202,7 +206,8 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:1024) :: configCalcBM
   Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
   Real(kind=DoubleReal), Dimension(1:20) :: testConfigRSS                          ! 1FccALat,2FccEMin,3FccBM,4FccEoS,5FccC11,6FccC12,7FccC44,8BccALat,9BccEMin,10BccBM,11BccEoS,12BccC11,13BccC12,14BccC44
-  Real(kind=DoubleReal) :: totalRSS, optimumRSS, startRSS, configTotalRSS
+  Real(kind=DoubleReal) :: totalRSS
+  Real(kind=DoubleReal) :: optimumRSS, startRSS, configTotalRSS
 ! Optimisation
   Real(kind=DoubleReal) :: nodeVariationAmount
   Real(kind=DoubleReal) :: saTemp, saMaxVariation
@@ -219,7 +224,7 @@ Module globals
   Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeys               ! 2.0MB
   Integer(kind=StandardInteger) :: neighbourListCount
   Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: neighbourListKey
-  Real(kind=DoubleReal), Dimension(1:1024,1:1) :: neighbourListKeyR
+  Real(kind=DoubleReal), Dimension(1:1024,1:5) :: neighbourListKeyR
   Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListI         ! 12.0MB
   Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListR                     ! 4.0MB
   Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoords             ! 48.0MB
@@ -232,7 +237,9 @@ Module globals
 ! ----------------------------------------------
 ! Calculations
 ! ----------------------------------------------
-  Real(kind=DoubleReal), Dimension(1:50000) :: calculationDensity
+  Real(kind=DoubleReal) :: forceStressSwitch
+  Real(kind=DoubleReal), Dimension(1:50000) :: calculationDensity    ! Electron density, D-band
+  Real(kind=DoubleReal), Dimension(1:50000) :: calculationDensityS   ! S-Band
   Real(kind=DoubleReal), Dimension(1:100000) :: pairForce
 
 ! ----------------------------------------------
@@ -293,6 +300,13 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEnergiesInput
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEVInput
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefBMInput
+  
+  
+! Times  
+  Real(kind=DoubleReal) :: timeStart, timeEnd, timeDuration
+  Real(kind=DoubleReal) :: globInitTime, eamLoadTime, nlTime, configLoadTime, efsCalcTime
+  
+  
 
   Private
 ! -----------------------
@@ -302,10 +316,7 @@ Module globals
 ! Initialise subroutine variables
   Public :: compileLine
   Public :: programStartTime, programEndTime
-  Public :: timeStart, timeEnd, timeDuration
-  Public :: nlTime, configLoadTime, efsCalcTime
   Public :: cpuTime, cpuTimeLabels
-  Public :: globalsTimeStart, globalsTimeEnd
   Public :: outputFile
   Public :: outputFileEnergies
   Public :: outputFileForces
@@ -413,6 +424,7 @@ Module globals
   Public :: configInputDataDFTTemp
   Public :: configLabelReplace
   Public :: crystalUnitCell
+  Public :: configsAtomTotal
   
   
 ! -----------------------
@@ -451,6 +463,7 @@ Module globals
   Public :: configCalc
   Public :: configRefForces
   Public :: configCalcForces
+  Public :: configAtomEnergy
   Public :: configRefStresses
   Public :: configCalcStresses
   Public :: configRefEnergies
@@ -483,7 +496,9 @@ Module globals
   Public :: neighbourListRT
   Public :: neighbourListCoordsT
 ! Calculations
+  Public :: forceStressSwitch
   Public :: calculationDensity
+  Public :: calculationDensityS
   Public :: pairForce
 ! Results
   Public :: calcConfigEnergies
@@ -537,16 +552,21 @@ Module globals
   Public :: configRefEnergiesInput
   Public :: configRefEVInput
   Public :: configRefBMInput
+  
+! Times
+  Public :: timeStart, timeEnd, timeDuration
+  Public :: globInitTime, eamLoadTime, nlTime, configLoadTime, efsCalcTime
 
   Contains
 
 ! Init global variables
   Subroutine initGlobals()
     Implicit None
+    Real(kind=DoubleReal) :: globalsTimeStart, globalsTimeEnd
 ! Global Init Start time
     Call cpu_time(globalsTimeStart)
 ! Initialise Subroutine Variable
-    compileLine = "19:59:22  25/03/2015"
+    compileLine = "15:09:06  17/06/2015"
     PROGRAMEndTime = 0.0D0
       timeStart = 0.0D0
       timeEnd = 0.0D0
@@ -634,8 +654,8 @@ Module globals
       zblHardCore = 0.0D0
       splineNodeCount = 0
       splineTotalNodes = 0
-      eamForceSpline = 0
-      eamForceZBL = 0
+      eamForceSpline = .false.
+      eamForceZBL = .false.
       eamMakeAlloy = BlankStringArray(eamMakeAlloy)
       eamFileType = 1
       
@@ -670,8 +690,8 @@ Module globals
 ! Calculation details
       calcEqVol = BlankString(calcEqVol)
       refineEqVol = "NO "
-      saveForcesToFile = 0
-      saveNLToFile = 0
+      saveNLToFile = .false.
+      saveForcesToFile = .true.
 ! Optimise options
       varyNodeOptions = 0.0D0
       optLoops = 1
@@ -681,13 +701,17 @@ Module globals
       reduceNodes = 0
       
       
+! Calculations
+      forceStressSwitch = 1        ! Calculate stress and force by default
+      calculationDensity = 0.0D0
+      pairForce = 0.0D0
       
 
 
 ! Global Init End Time
       Call cpu_time(globalsTimeEnd)
 ! Store time duration
-      Call storeTime(1,globalsTimeEnd-globalsTimeStart)
+      globInitTime = globalsTimeEnd-globalsTimeStart
     End Subroutine initGlobals
 
 ! Init global variables

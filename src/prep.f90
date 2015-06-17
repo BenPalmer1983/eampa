@@ -71,6 +71,7 @@ Module prep
     End Do
 ! Output to file
     Call outputProcessMap()
+    Call outputProcessMapT()
   End Subroutine setProcessMap
 
 End Module prep

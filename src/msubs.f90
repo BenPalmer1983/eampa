@@ -384,7 +384,7 @@ Module msubs
         If(processID.gt.0)Then
           send = sendIn
           processTo = 0
-          tag = 1000 + processID
+          tag = 5000 + processID
           Call MPI_SEND(send,arrayX,MPI_DOUBLE_PRECISION,processTo,tag,&
           MPI_COMM_WORLD,status,error)
         End If
@@ -392,7 +392,7 @@ Module msubs
         If(processID.eq.0)Then
           Do n=1,processCount-1
             processFrom = n
-            tag = 1000 + n
+            tag = 5000 + n
             Call MPI_RECV(receive,arrayX,MPI_DOUBLE_PRECISION,processFrom,tag,&
             MPI_COMM_WORLD,status,error)
             Do i=startKey,endKey
@@ -408,14 +408,14 @@ Module msubs
         If(processID.eq.selectedProcess)Then
           send = sendIn
           processTo = 0
-          tag = 1000 + processID
+          tag = 5000 + processID
           Call MPI_SEND(send,arrayX,MPI_DOUBLE_PRECISION,processTo,tag,&
           MPI_COMM_WORLD,status,error)
         End If
 ! Collect from selected process by root
         If(processID.eq.0)Then
           processFrom = selectedProcess
-          tag = 1000 + selectedProcess
+          tag = 5000 + selectedProcess
           Call MPI_RECV(receive,arrayX,MPI_DOUBLE_PRECISION,processFrom,tag,&
           MPI_COMM_WORLD,status,error)
           Do i=startKey,endKey

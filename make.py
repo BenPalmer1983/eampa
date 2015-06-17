@@ -162,6 +162,30 @@ for arg in sys.argv:
 # 2 = check compiled OK
 # 3 = Remove unused variables
 
+#========================================================================
+# Update compile line
+#========================================================================
+
+if arguments[2]=="0":
+ directory = "./src"  
+ file = "globals.f90"
+ srcFile = open(directory+"/"+file, 'r')
+ outputFile = open(directory+"/"+file+".temp", 'w')
+ for line in srcFile: 
+   newLine = line 
+   newLine = removeCR(newLine)  # Remove carriage returns  
+   newLineU = newLine.upper()
+   newLineUTrim = trimLeading(newLineU)
+   if(subString(newLineUTrim,1,11)=="COMPILELINE"):
+     leadingSpaces = countLeading(newLine)
+     newLine = spacesString(leadingSpaces)+"compileLine = "+chr(34)+time.strftime("%H:%M:%S  %d/%m/%Y")+chr(34)
+   outputFile.write(newLine+"\n") 
+# Close files
+ srcFile.close() 
+ outputFile.close()      
+# End loop      
+ os.remove(directory+"/"+file)
+ os.rename(directory+"/"+file+".temp",directory+"/"+file)   
 
 #========================================================================
 # Format layout, remove unnecessary tabs, spaces
@@ -356,7 +380,8 @@ if arguments[2]=="1":
 #store "last loop" line
       lastLine = newLine    
 # Close file
-    srcFile.close()      
+    srcFile.close()    
+    outputFile.close()  
 # End loop      
     os.remove(directory+"/"+file)
     os.rename(directory+"/"+file+".temp",directory+"/"+file)     
@@ -474,6 +499,7 @@ if arguments[2]=="3":
         else:      
           outputFile.write(newLine+"\n")
       srcFile.close()    
+      outputFile.close()
     #Replace src files with new files    
     for j in range(1,fileCount+1): 
       os.remove(fileListArr[j])

@@ -32,6 +32,10 @@ Module readConfig
   Contains
   Subroutine readConfigFile()
     Implicit None   ! Force declaration of all variables
+! Print out
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      print *,"READ CONFIG:"
+    End If
 ! Private variables
     Call cpu_time(timeStart)
 ! Load config file into memory
@@ -52,6 +56,10 @@ Module readConfig
     
     Call cpu_time(timeEnd)
     Call timeAcc(configLoadTime,timeStart,timeEnd)
+! Output    
+    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+      print *,"Atom configurations loaded: ",(timeEnd-timeStart),"s"
+    End If
     
     
   End Subroutine readConfigFile
@@ -741,6 +749,7 @@ Module readConfig
     coordStartG = 1
     coordLengthG = 0
     coordEndG = 0
+    configsAtomTotal = 0
 ! Loop through configs 
     Do configID=1,configCount
 ! Clear temp unit cell matrix    
@@ -795,13 +804,8 @@ Module readConfig
       crystalUnitCell(configID,7) = crystalUnitCellTemp(3,1)     
       crystalUnitCell(configID,8) = crystalUnitCellTemp(3,2)    
       crystalUnitCell(configID,9) = crystalUnitCellTemp(3,3)     
-      !If(mpiProcessID.eq.0)Then
-      !print *,configID      
-      !print *,crystalUnitCell(configID,1),crystalUnitCell(configID,2),crystalUnitCell(configID,3)
-      !print *,crystalUnitCell(configID,4),crystalUnitCell(configID,5),crystalUnitCell(configID,6)
-      !print *,crystalUnitCell(configID,7),crystalUnitCell(configID,8),crystalUnitCell(configID,9)
-      !print *,""
-      !End If
+! Volume
+      configVolume(configID) = TripleProductSq(crystalUnitCellTemp)      
 ! Generate co-ordinates
       coordStart = configurationCoordsKey(configID,1)
       coordLength = configurationCoordsKey(configID,2)
@@ -816,6 +820,7 @@ Module readConfig
           Do zLoop=1,zCopies
             Do i=coordStart,coordEnd
               coordG = coordG + 1
+! Atom label
               configurationCoordsIG(coordG,1) = configurationCoordsI(i,1)
               configurationCoordsRG(coordG,1) = &
               (xLoop + configurationCoordsR(i,1) - 1.0D0)/(1.0D0*xCopies)
@@ -823,19 +828,26 @@ Module readConfig
               (yLoop + configurationCoordsR(i,2) - 1.0D0)/(1.0D0*yCopies)
               configurationCoordsRG(coordG,3) = &
               (zLoop + configurationCoordsR(i,3) - 1.0D0)/(1.0D0*zCopies)
+! Forces
+              If(configurationsI(configID,4).eq.0)Then
+                configRefForces(coordG,1) = -2.1D20
+                configRefForces(coordG,2) = -2.1D20
+                configRefForces(coordG,3) = -2.1D20
+              Else
+                configRefForces(coordG,1) = configurationForcesR(i,1)
+                configRefForces(coordG,2) = configurationForcesR(i,2)
+                configRefForces(coordG,3) = configurationForcesR(i,3)
+              End If
             End Do
           End Do
         End Do
       End Do
       coordEndG = coordG
       coordLengthG = coordEndG - coordStartG + 1
+      configsAtomTotal = configsAtomTotal + coordLengthG
       configurationCoordsKeyG(configID,1) = coordStartG
       configurationCoordsKeyG(configID,2) = coordLengthG
       configurationCoordsKeyG(configID,3) = coordEndG
-      
-      !If(mpiProcessID.eq.0)Then
-      !print *,"expanded",coordStartG,coordLengthG,coordEndG
-      !End If
 ! reset start coord count
       coordStartG = coordEndG + 1
     End Do
@@ -866,22 +878,12 @@ Module readConfig
         aVect(3) = 1.0D0*configurationCoordsRG(coordG,3)
 ! Transform coords
         aVect = TransformCoords(aVect,crystalUnitCellTemp)    
-        
-        
-! Store fractional values
+! Set "real" co-ordinates
         configurationCoordsRG(coordG,1) = 1.0D0*aVect(1)
         configurationCoordsRG(coordG,2) = 1.0D0*aVect(2)
         configurationCoordsRG(coordG,3) = 1.0D0*aVect(3)    
       End Do
-    End Do    
-
-    !If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-    !  Do configID=1,configCount
-    !  End Do
-    !End If      
-    
-
-  
+    End Do      
   End Subroutine expandCoordinates  
   
 

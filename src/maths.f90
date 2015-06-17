@@ -69,7 +69,7 @@ Module maths
   Public :: MatAdd
   Public :: MatMult
   Public :: InvertMatrixQ
-! Coordinates  
+! Coordinates
   Public :: TransformCoords
 ! Spline Functions
   Public :: SplineAB
@@ -82,8 +82,6 @@ Module maths
   Public :: GaverStehfestWeighting
   Public :: GaverStehfestWeightingQ
   Public :: MaxTrajDepth
-  
-  
 
 ! --Subroutines--!
   Public :: setRandomSeedArray
@@ -1942,13 +1940,11 @@ Module maths
       End Do
     End If
   End Function IntegerList
-  
-  
 
 ! ------------------------------------------------------------------------!
 ! Physical/Scientific functions
 ! ------------------------------------------------------------------------!
-  
+
   Function TransformCoords (xVect, tVect) RESULT (xPVect)
 ! Transform coords with transformation matrix
     Implicit None  ! Force declaration of all variables
@@ -1956,17 +1952,16 @@ Module maths
     Real(kind=DoubleReal), Dimension(1:3) :: xVect, xPVect
     Real(kind=DoubleReal), Dimension(1:3, 1:3) :: tVect
     xPVect(1) = xVect(1)*tVect(1,1)+&
-                xVect(2)*tVect(1,2)+&
-                xVect(3)*tVect(1,3)
+    xVect(2)*tVect(1,2)+&
+    xVect(3)*tVect(1,3)
     xPVect(2) = xVect(1)*tVect(2,1)+&
-                xVect(2)*tVect(2,2)+&
-                xVect(3)*tVect(2,3)
+    xVect(2)*tVect(2,2)+&
+    xVect(3)*tVect(2,3)
     xPVect(3) = xVect(1)*tVect(3,1)+&
-                xVect(2)*tVect(3,2)+&
-                xVect(3)*tVect(3,3)  
+    xVect(2)*tVect(3,2)+&
+    xVect(3)*tVect(3,3)
   End Function TransformCoords
-  
- 
+
 ! ------------------------------------------------------------------------!
 ! Physical/Scientific functions
 ! ------------------------------------------------------------------------!
@@ -2666,21 +2661,4 @@ Module maths
     End Do
   End Function ArraySize2DDouble
 
-  Function StrToUpper (input) RESULT (output)
-! -- Argument and result
-    CHARACTER(*), INTENT(IN) :: input
-    CHARACTER(LEN(input)) :: output
-    character( * ), PARAMETER :: LOWER_CASE = 'abcdefghijklmnopqrstuvwxyz'
-    character( * ), PARAMETER :: UPPER_CASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-! -- Local variables
-    Integer(kind=StandardInteger) :: i, n
-! -- Copy input string
-    output = input
-! -- Loop over string elements
-    Do i=1,LEN(output)
-      n = INDEX( LOWER_CASE, output( i:i ) )
-      If(n/=0) output( i:i ) = UPPER_CASE( n:n )
-      End Do
-    End Function StrToUpper
-
-  End Module maths
+End Module maths

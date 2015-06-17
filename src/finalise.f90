@@ -11,7 +11,6 @@ Module finalise
 ! Defines the ProgramTime() function
 ! --------------------------------------------------------------!
 
-
 ! Setup Modules
   Use kinds
   Use msubs
@@ -21,7 +20,7 @@ Module finalise
   Use units
   Use globals        ! declare all globals
   Use initialise     ! initialise program
-  
+
 ! Force declaration of all variables
   Implicit None
 ! Include MPI header
@@ -43,9 +42,6 @@ Module finalise
 ! Run all the input subroutines
   Subroutine runFinaliseEval()
 ! Internal subroutine variables
-    
-    
-    
     If(mpiProcessID.eq.0)Then
       print *,""
       print *,"                           Run Time"
@@ -56,18 +52,7 @@ Module finalise
       print *,"Neighbour list:            ",nlTime
       print *,"Energy Calculation:        ",efsCalcTime
       print *,"Total time:                ",ProgramTime()
-  
     End If
-  
   End Subroutine runFinaliseEval
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
 End Module finalise

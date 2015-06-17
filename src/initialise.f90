@@ -11,7 +11,6 @@ Module initialise
 ! Defines the ProgramTime() function
 ! --------------------------------------------------------------!
 
-
 ! Setup Modules
   Use kinds
   Use msubs
@@ -247,7 +246,7 @@ Module initialise
       write(969,"(A1)") " "
 ! close output file
       close(969)
-    End If    
+    End If
 ! Create output file
     If(mpiProcessID.eq.0)Then
       open(unit=969,file=trim(outputDirectory)//"/"//"AtomEnergies.dat")
@@ -263,7 +262,7 @@ Module initialise
       write(969,"(A1)") " "
 ! close output file
       close(969)
-    End If    
+    End If
   End Subroutine initDataFiles
 
 ! ------------------------------------------------------------------------!

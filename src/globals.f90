@@ -95,10 +95,7 @@ Module globals
   Logical :: saveNLToFile
   Logical :: eamForceSpline
   Logical :: eamForceZBL
-  
-  
-  
-  
+
 ! Optimise options
   Real(kind=DoubleReal), Dimension(1:10) :: varyNodeOptions
   Integer(kind=StandardInteger) :: optLoops
@@ -118,20 +115,15 @@ Module globals
   Real(kind=DoubleReal) :: pwbVarianceSigma
   Integer(kind=StandardInteger) :: pwbInterstitialAtom
   Character(len=16), Dimension(1:3) :: pwbInterstitialDetails
-  
-  
 
 ! ----------------------------------------------
 ! Read Input
-! ----------------------------------------------  
+! ----------------------------------------------
   Character(len=255), Dimension(1:1024) :: userInputData
-  
-  
-  
 
 ! ----------------------------------------------
 ! Read EAM
-! ----------------------------------------------  
+! ----------------------------------------------
   Character(len=255), Dimension(1:65536) :: eamInputData
   Character(len=2), Dimension(1:300) :: elements                                   ! 0.6KB
   Integer(kind=StandardInteger) :: elementsCount
@@ -142,21 +134,17 @@ Module globals
   Integer(kind=StandardInteger) :: eamType                                         ! 4bit        1=EAM, 2=2BMEAM
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKey                     ! 1.2KB       1 atomA, 2 atomB, 3 function/al type, 4 func start, 5 func length, 6 func end
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamData                        ! 3.2MB       1 x, 2 y(x), 3 y'(x), 4 y''(x)
-    
-  
-  
 
 ! ----------------------------------------------
 ! Read Config
-! ----------------------------------------------  
+! ----------------------------------------------
   Character(len=255), Dimension(1:65536) :: configInputData
   Character(len=255), Dimension(1:65536) :: configInputDataDFT
   Character(len=255), Dimension(1:65536) :: configInputDataTemp
   Character(len=255), Dimension(1:65536) :: configInputDataDFTTemp
   Character(len=16), Dimension(1:1024,1:2) :: configLabelReplace
-  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: crystalUnitCell  
+  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: crystalUnitCell
   Integer(kind=StandardInteger) :: configsAtomTotal
-  
 
 ! -----------------------
 ! Read EAM File + Read Configuration File    < 20MB
@@ -268,10 +256,6 @@ Module globals
   Real(kind=DoubleReal) :: testingALatRSS, testingEMinRSS
   Real(kind=DoubleReal) :: testingBMRSS, testingECRSS
 
-  
-  
-  
-
 ! ----------------------------------------------
 ! Input Config Neighbour List
 ! ----------------------------------------------
@@ -300,13 +284,10 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEnergiesInput
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEVInput
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefBMInput
-  
-  
-! Times  
+
+! Times
   Real(kind=DoubleReal) :: timeStart, timeEnd, timeDuration
   Real(kind=DoubleReal) :: globInitTime, eamLoadTime, nlTime, configLoadTime, efsCalcTime
-  
-  
 
   Private
 ! -----------------------
@@ -399,34 +380,28 @@ Module globals
   Public :: pwbVarianceSigma
   Public :: pwbInterstitialAtom
   Public :: pwbInterstitialDetails
-  
-
 
 ! ----------------------------------------------
 ! Read Input
-! ----------------------------------------------  
-  Public :: userInputData  
-  
+! ----------------------------------------------
+  Public :: userInputData
+
 ! ----------------------------------------------
 ! Read Input
-! ----------------------------------------------  
-  Public :: eamInputData   
-  
-  
-  
+! ----------------------------------------------
+  Public :: eamInputData
 
 ! ----------------------------------------------
 ! Read Config
-! ----------------------------------------------  
-  Public :: configInputData 
-  Public :: configInputDataDFT 
+! ----------------------------------------------
+  Public :: configInputData
+  Public :: configInputDataDFT
   Public :: configInputDataTemp
   Public :: configInputDataDFTTemp
   Public :: configLabelReplace
   Public :: crystalUnitCell
   Public :: configsAtomTotal
-  
-  
+
 ! -----------------------
 ! Read EAM File + Read Configuration File
   Public :: elements
@@ -552,7 +527,7 @@ Module globals
   Public :: configRefEnergiesInput
   Public :: configRefEVInput
   Public :: configRefBMInput
-  
+
 ! Times
   Public :: timeStart, timeEnd, timeDuration
   Public :: globInitTime, eamLoadTime, nlTime, configLoadTime, efsCalcTime
@@ -566,7 +541,7 @@ Module globals
 ! Global Init Start time
     Call cpu_time(globalsTimeStart)
 ! Initialise Subroutine Variable
-    compileLine = "15:09:06  17/06/2015"
+    compileLine = "17:50:02  17/06/2015"
     PROGRAMEndTime = 0.0D0
       timeStart = 0.0D0
       timeEnd = 0.0D0
@@ -630,19 +605,14 @@ Module globals
       inputFilePathT = BlankString(inputFilePathT)
 ! MPI Options
       mpiEnergy = 0
-      
-      
-
 ! ----------------------------------------------
 ! Read Input
-! ----------------------------------------------  
-      userInputData = BlankStringArray(userInputData)        
-      
- 
+! ----------------------------------------------
+      userInputData = BlankStringArray(userInputData)
 ! ----------------------------------------------
 ! EAM Input
-! ----------------------------------------------       
-      eamInputData = BlankStringArray(eamInputData)   
+! ----------------------------------------------
+      eamInputData = BlankStringArray(eamInputData)
       elements = "ZZ"
       eamType = 0
 ! EAM Details - User Input
@@ -658,23 +628,15 @@ Module globals
       eamForceZBL = .false.
       eamMakeAlloy = BlankStringArray(eamMakeAlloy)
       eamFileType = 1
-      
-      
-
-
 ! ----------------------------------------------
 ! Read Config
-! ----------------------------------------------  
+! ----------------------------------------------
       configInputData = BlankStringArray(configInputData)
-      configInputDataDFT = BlankStringArray(configInputDataDFT) 
+      configInputDataDFT = BlankStringArray(configInputDataDFT)
       configInputDataTemp = BlankStringArray(configInputDataTemp)
       configInputDataDFTTemp = BlankStringArray(configInputDataDFTTemp)
       configLabelReplace = BlankString2DArray(configLabelReplace)
-      crystalUnitCell = 0.0D0  
-      
-      
-      
-      
+      crystalUnitCell = 0.0D0
 ! Config Details - User Input
       globalConfigUnitVector = 0.0D0
       configFilePath = BlankString(configFilePath)
@@ -699,15 +661,10 @@ Module globals
       saTempLoops = 0
       saVarLoops = 0
       reduceNodes = 0
-      
-      
 ! Calculations
       forceStressSwitch = 1        ! Calculate stress and force by default
       calculationDensity = 0.0D0
       pairForce = 0.0D0
-      
-
-
 ! Global Init End Time
       Call cpu_time(globalsTimeEnd)
 ! Store time duration

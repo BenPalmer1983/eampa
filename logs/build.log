@@ -1,0 +1,207 @@
+src/maths.f90:2664:0: warning: ‘strtoupper’ defined but not used [-Wunused-function]
+   Function StrToUpper (input) RESULT (output)
+ ^
+src/maths.f90:2613:0: warning: ‘arraysize1ddouble’ defined but not used [-Wunused-function]
+   Function ArraySize1DDouble (inputArray,arraySize) RESULT (outputArray)
+ ^
+src/maths.f90:2542:0: warning: ‘sort_integer_2d’ defined but not used [-Wunused-function]
+   Subroutine sort_Integer_2D(list, sortRow)
+ ^
+src/maths.f90:2525:0: warning: ‘sort_integer_1d’ defined but not used [-Wunused-function]
+   Subroutine sort_Integer_1D(list)
+ ^
+src/maths.f90:2486:0: warning: ‘swaprows_single_2d’ defined but not used [-Wunused-function]
+   Subroutine swapRows_Single_2D(matrix,rowA,rowB)
+ ^
+src/maths.f90:2475:0: warning: ‘swaprows_single_1d’ defined but not used [-Wunused-function]
+   Subroutine swapRows_Single_1D(matrix,rowA,rowB)
+ ^
+src/maths.f90:1721:0: warning: ‘squaretocol’ defined but not used [-Wunused-function]
+   Function SquareToCol(squareMatrix) RESULT (columnMatrix)
+ ^
+src/maths.f90:1685:0: warning: ‘coltosquare’ defined but not used [-Wunused-function]
+   Function ColToSquare(columnMatrix) RESULT (squareMatrix)
+ ^
+src/maths.f90:1636:0: warning: ‘mataddq’ defined but not used [-Wunused-function]
+   Function MatAddQ(xMatrix,yMatrix) RESULT (oMatrix)
+ ^
+src/maths.f90:1324:0: warning: ‘splinecomplete’ defined but not used [-Wunused-function]
+   Function SplineComplete(inputPoints,interpSizeIn) RESULT (splinePoints)
+ ^
+src/mMaths.f90:168:0: warning: ‘m_birchmurnfitbp’ defined but not used [-Wunused-function]
+   Function M_BirchMurnFitBP(points, coefficientsIn) RESULT (coefficients)
+ ^
+src/initialise.f90:291:0: warning: ‘clocktime’ defined but not used [-Wunused-function]
+   Function ClockTime () RESULT (outputTime)
+ ^
+src/initialise.f90:282:0: warning: ‘outputprogramtime’ defined but not used [-Wunused-function]
+   Function OutputProgramTime () RESULT (outputTime)
+ ^
+src/output.f90:672.51:
+
+    Integer(kind=StandardInteger) :: configID, i, j
+                                                   1
+Warning: Unused variable 'j' declared at (1)
+src/output.f90:674.34:
+
+    Character(len=512) :: testLine
+                                  1
+Warning: Unused variable 'testline' declared at (1)
+src/output.f90:414.45:
+
+    Integer(kind=StandardInteger) :: configID, totalAtoms
+                                             1
+Warning: Unused variable 'configid' declared at (1)
+src/output.f90:414.57:
+
+    Integer(kind=StandardInteger) :: configID, totalAtoms
+                                                         1
+Warning: Unused variable 'totalatoms' declared at (1)
+src/output.f90:347.41:
+
+    Integer(kind=StandardInteger) :: i, j
+                                         1
+Warning: Unused variable 'j' declared at (1)
+src/output.f90:186.72:
+
+    Integer(kind=StandardInteger) :: i, j, n, printOut, startKey, endKey
+                                                                        1
+Warning: Unused variable 'endkey' declared at (1)
+src/output.f90:186.64:
+
+    Integer(kind=StandardInteger) :: i, j, n, printOut, startKey, endKey
+                                                                1
+Warning: Unused variable 'startkey' declared at (1)
+src/output.f90:309:0: warning: ‘outputdata’ defined but not used [-Wunused-function]
+   Subroutine outputData(fileName, dataPoints)
+ ^
+src/output.f90: In function ‘outputatomenergiesfile’:
+src/output.f90:195:0: warning: ‘printout’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+         If(printOut.gt.0)Then
+ ^
+src/eamGen.f90:125.53:
+
+    Integer(kind=StandardInteger) :: atomMin, atomMax
+                                                     1
+Warning: Unused variable 'atommax' declared at (1)
+src/eamGen.f90:125.44:
+
+    Integer(kind=StandardInteger) :: atomMin, atomMax
+                                            1
+Warning: Unused variable 'atommin' declared at (1)
+src/eamGen.f90:128.42:
+
+    Integer(kind=StandardInteger) :: nDden, nSden, nDemb, nSemb
+                                          1
+Warning: Unused variable 'ndden' declared at (1)
+src/eamGen.f90:128.56:
+
+    Integer(kind=StandardInteger) :: nDden, nSden, nDemb, nSemb
+                                                        1
+Warning: Unused variable 'ndemb' declared at (1)
+src/eamGen.f90:127.49:
+
+    Integer(kind=StandardInteger) :: nPair, nDens, nEmbe
+                                                 1
+Warning: Unused variable 'ndens' declared at (1)
+src/eamGen.f90:127.56:
+
+    Integer(kind=StandardInteger) :: nPair, nDens, nEmbe
+                                                        1
+Warning: Unused variable 'nembe' declared at (1)
+src/eamGen.f90:126.43:
+
+    Integer(kind=StandardInteger) :: nE, nF
+                                           1
+Warning: Unused variable 'nf' declared at (1)
+src/eamGen.f90:127.42:
+
+    Integer(kind=StandardInteger) :: nPair, nDens, nEmbe
+                                          1
+Warning: Unused variable 'npair' declared at (1)
+src/eamGen.f90:128.49:
+
+    Integer(kind=StandardInteger) :: nDden, nSden, nDemb, nSemb
+                                                 1
+Warning: Unused variable 'nsden' declared at (1)
+src/eamGen.f90:128.63:
+
+    Integer(kind=StandardInteger) :: nDden, nSden, nDemb, nSemb
+                                                               1
+Warning: Unused variable 'nsemb' declared at (1)
+src/readEAM.f90:615.40:
+
+    Integer(kind=StandardInteger) :: ios, functionCounter, i, m
+                                        1
+Warning: Unused variable 'ios' declared at (1)
+src/readEAM.f90:958:0: warning: ‘seteamsplineopt’ defined but not used [-Wunused-function]
+   Subroutine setEamSplineOpt()
+ ^
+src/readConfig.f90:720.57:
+
+    Real(kind=DoubleReal), Dimension(1:3) :: aVect, bVect
+                                                         1
+Warning: Unused variable 'bvect' declared at (1)
+src/readConfig.f90:714.51:
+
+    Integer(kind=StandardInteger) :: configID, i, j
+                                                   1
+Warning: Unused variable 'j' declared at (1)
+src/readConfig.f90:572.40:
+
+    Integer(kind=StandardInteger) :: ios, i, coordStart, coordLength
+                                        1
+Warning: Unused variable 'ios' declared at (1)
+src/readConfig.f90:232.51:
+
+    Character(len=255) :: dftFilePath, confFilePath
+                                                   1
+Warning: Unused variable 'conffilepath' declared at (1)
+src/readConfig.f90:104.48:
+
+    Real(kind=DoubleReal) :: radiusCutoff, eqVol, confWeight
+                                                1
+Warning: Unused variable 'eqvol' declared at (1)
+src/readConfig.f90:102.40:
+
+    Integer(kind=StandardInteger) :: ios, i, j, m, n, writeFile, tempLastRow, readFlag
+                                        1
+Warning: Unused variable 'ios' declared at (1)
+src/readConfig.f90:924:0: warning: ‘queryfunctiontype’ defined but not used [-Wunused-function]
+   Function QueryFunctionType (functionType) RESULT (output)
+ ^
+src/neighbourList.f90:47.50:
+
+    Real(kind=DoubleReal), Dimension(1:3) :: aVect, bVect
+                                                  1
+Warning: Unused variable 'avect' declared at (1)
+src/neighbourList.f90:47.57:
+
+    Real(kind=DoubleReal), Dimension(1:3) :: aVect, bVect
+                                                         1
+Warning: Unused variable 'bvect' declared at (1)
+src/calcEAM.f90:332.53:
+
+    Real(kind=DoubleReal), Dimension(1:3) :: forceArr
+                                                     1
+Warning: Unused variable 'forcearr' declared at (1)
+src/calcEAM.f90:324.54:
+
+    Integer(kind=StandardInteger) :: configID, n, nKey, i, j, k
+                                                      1
+Warning: Unused variable 'nkey' declared at (1)
+src/calcEAM.f90:122.46:
+
+    Integer(kind=StandardInteger) :: embKeyInc
+                                              1
+Warning: Unused variable 'embkeyinc' declared at (1)
+src/calcEAM.f90:119.53:
+
+    Real(kind=DoubleReal), Dimension(1:3) :: forceArr
+                                                     1
+Warning: Unused variable 'forcearr' declared at (1)
+src/calcEAM.f90:111.54:
+
+    Integer(kind=StandardInteger) :: configID, n, nKey, i, j, k
+                                                      1
+Warning: Unused variable 'nkey' declared at (1)

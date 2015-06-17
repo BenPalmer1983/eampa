@@ -105,7 +105,7 @@ Module output
       End If
 ! Close file
       Close(118)
-    End If    
+    End If
 ! Output to Terminal
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       Print *,"Saved to: ",trim(filePath)
@@ -178,12 +178,12 @@ Module output
       Close(1)
     End If
   End Subroutine outputForcesFile
-  
+
   Subroutine outputAtomEnergiesFile()
 ! Output atom energies to file
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: i, j, n, printOut, startKey, endKey
+    Integer(kind=StandardInteger) :: i,j,n
 ! Only on master process
     If(mpiProcessID.eq.0)Then
       Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"AtomEnergies.dat",&
@@ -192,17 +192,15 @@ Module output
         write(1,"(A14,I8)") "Configuration ",i
         write(1,"(A40)") "----------------------------------------"
         write(1,"(A20)") "Atom Energies:"
-        If(printOut.gt.0)Then
-          n = 0
-          write(1,"(A12,A16,A16,A16)") &
-          "            ","Pair","Embe","Total"
-          Do j=configurationCoordsKeyG(i,1),configurationCoordsKeyG(i,3)
-            n = n + 1
-            write(1,"(I8,A4,F16.8,F16.8,F16.8)") &
-            n,elements(configurationCoordsIG(j,1)),configAtomEnergy(j,1),&
-            configAtomEnergy(j,2),(configAtomEnergy(j,1)+configAtomEnergy(j,2))
-          End Do
-        End If
+        n = 0
+        write(1,"(A12,A16,A16,A16)") &
+        "            ","Pair","Embe","Total"
+        Do j=configurationCoordsKeyG(i,1),configurationCoordsKeyG(i,3)
+          n = n + 1
+          write(1,"(I8,A4,F16.8,F16.8,F16.8)") &
+          n,elements(configurationCoordsIG(j,1)),configAtomEnergy(j,1),&
+          configAtomEnergy(j,2),(configAtomEnergy(j,1)+configAtomEnergy(j,2))
+        End Do
       End Do
       Close(1)
     End If
@@ -344,7 +342,7 @@ Module output
 ! Output neighbour list summary to output file
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: i, j
+    Integer(kind=StandardInteger) :: i
     Character(len=255) :: fileRow
 ! Only on root process
     If(mpiProcessID.eq.0)Then
@@ -355,9 +353,9 @@ Module output
         fileRow = userInputData(i)
         If(fileRow(1:1).eq." ")Then
           EXIT
-        End If         
+        End If
         write(999,"(A)") trim(fileRow)
-      End Do  
+      End Do
       Close(999)
 ! EAM File
       open(unit=999,file=trim(trim(outputDirectory)//"/"//"input.pot"),&
@@ -366,9 +364,9 @@ Module output
         fileRow = eamInputData(i)
         If(fileRow(1:1).eq." ")Then
           EXIT
-        End If         
+        End If
         write(999,"(A)") trim(fileRow)
-      End Do  
+      End Do
       Close(999)
 ! Config File
       open(unit=999,file=trim(trim(outputDirectory)//"/"//"input.config"),&
@@ -377,9 +375,9 @@ Module output
         fileRow = configInputData(i)
         If(fileRow(1:1).eq." ")Then
           EXIT
-        End If         
+        End If
         write(999,"(A)") trim(fileRow)
-      End Do  
+      End Do
       Close(999)
     End If
   End Subroutine outputInputFiles
@@ -411,7 +409,6 @@ Module output
 ! Output ref and calc forces to file
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: configID, totalAtoms
   End Subroutine outputEvaluate
 
   Subroutine outputTimeTaken(textOut,duration)
@@ -664,24 +661,21 @@ Module output
       Close(999)
     End If
   End Subroutine outputCleanupList
-  
-  
-  
+
   Subroutine outputConfigPoints()
 ! Saves the eam file to the output directory
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: configID, i, j
+    Integer(kind=StandardInteger) :: configID,i
     Integer(kind=StandardInteger) :: coordStart, coordLength, coordEnd
-    Character(len=512) :: testLine
     If(mpiProcessID.eq.0)Then
       open(unit=999,file=trim(trim(outputDirectory)//"/"//"configPoints.dat"))
-      write(999,"(A22,I8)") "Configurations:       ", configCount      
+      write(999,"(A22,I8)") "Configurations:       ", configCount
       Do configID=1,configCount
         coordStart = configurationCoordsKeyG(configID,1)
         coordLength = configurationCoordsKeyG(configID,2)
-        coordEnd = configurationCoordsKeyG(configID,3)      
-        write(999,"(A7,I4,A3,I8,I8,A1,I8,A1)") "Config ",configID,"   ",coordStart,coordEnd,"(",coordLength,")"   
+        coordEnd = configurationCoordsKeyG(configID,3)
+        write(999,"(A7,I4,A3,I8,I8,A1,I8,A1)") "Config ",configID,"   ",coordStart,coordEnd,"(",coordLength,")"
         Do i=coordStart,coordEnd
           write(999,"(A8,A4,A2,F14.6,A2,F14.6,A2,F14.6,A4,F14.6,A2,F14.6,A2,F14.6)") &
           "        ",&
@@ -697,9 +691,6 @@ Module output
       Close(999)
     End If
   End Subroutine outputConfigPoints
-  
-  
-  
 
 ! ---------------------------------------------------------------------------------------------------
 ! Output to terminal
@@ -719,14 +710,14 @@ Module output
       Do i=1,maxConfigs
         If(processMap(i).ge.0)Then
           print "(I6,A2,I6)",i,"  ",processMap(i)
-        Else 
-          exit        
+        Else
+          exit
         End If
       End Do
       print *,""
     End If
   End Subroutine outputProcessMapT
-  
+
   Subroutine outputPreCalcSummaryT()
 ! Output ref and calc forces to file
     Implicit None   ! Force declaration of all variables
@@ -748,7 +739,7 @@ Module output
       print *,""
     End If
   End Subroutine outputPreCalcSummaryT
-  
+
   Subroutine outputEnergyT()
 ! Output ref and calc forces to file
     Implicit None   ! Force declaration of all variables
@@ -765,12 +756,10 @@ Module output
         configID,"   ",configurationCoordsKeyG(configID,2)," ",&
         (configCalcEnergies(configID)*1.0D0*&
         configurationCoordsKeyG(configID,2))," ",configCalcEnergies(configID)
-        
       End Do
       print *,""
     End If
-  End Subroutine outputEnergyT  
-
+  End Subroutine outputEnergyT
 
   Subroutine outputConfigSummaryT()
 ! Saves the eam file to the output directory

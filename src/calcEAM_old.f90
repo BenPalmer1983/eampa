@@ -10,8 +10,6 @@ Module calcEAM
 ! Build neighbour list for each configuration
 ! --------------------------------------------------------------!
 
-
-
 ! Setup Modules
   Use kinds
   Use msubs
@@ -52,14 +50,13 @@ Module calcEAM
         Call calcEnergy(configID, configEnergy)
         print *,"Energy ",configEnergy
       End If
-    
-      !If(processMap(configID).eq.mod(mpiProcessID,configCount))Then  ! build in more mpi options here
-      !  print *,"Calc energy ",configID,mpiProcessID
-      !  Call calcEnergy(configID, configEnergy, 1)
-      !  If(processMap(configID).eq.mpiProcessID)Then
-          !configCalcEnergies(configID) = configEnergy  !Store result from primary mpi process
-      !  End If
-      !End If
+! If(processMap(configID).eq.mod(mpiProcessID,configCount))Then  ! build in more mpi options here
+!  print *,"Calc energy ",configID,mpiProcessID
+!  Call calcEnergy(configID, configEnergy, 1)
+!  If(processMap(configID).eq.mpiProcessID)Then
+! configCalcEnergies(configID) = configEnergy  !Store result from primary mpi process
+!  End If
+! End If
     End Do
 ! Distribute energy array
     Call M_collDouble1D(configCalcEnergies)
@@ -94,19 +91,18 @@ Module calcEAM
     Integer(kind=StandardInteger) :: configStart, configLength, configEnd
     Real(kind=DoubleReal) :: pairEnergy, embeddingEnergy, totalEnergy
     Real(kind=DoubleReal), Dimension(1:3) :: yArray
-    
 ! Init variables
     pairEnergy = 0.0D0
     embeddingEnergy = 0.0D0
     totalEnergy = 0.0D0
-! NL Details    
+! NL Details
     nlStart = neighbourListKey(configID,1)
     nlLength = neighbourListKey(configID,2)
     nlEnd = neighbourListKey(configID,3)
-! Config details    
+! Config details
     configStart = configurationCoordsKeyG(configID,1)
     configLength = configurationCoordsKeyG(configID,2)
-    configEnd = configurationCoordsKeyG(configID,3)    
+    configEnd = configurationCoordsKeyG(configID,3)
 ! Init calculation density array for required length
     Do i=1,configLength
       calculationDensity(i) = 0.0D0
@@ -115,22 +111,21 @@ Module calcEAM
     pairEnergy = 0.0D0
     embeddingEnergy = 0.0D0
     totalEnergy = 0.0D0
-    
 ! --------------------------------------------------
 ! Loop 1 - sum pair energy and density
-! --------------------------------------------------   
+! --------------------------------------------------
     print *,nlStart,nlEnd
     Do n=nlStart,nlEnd
       aType = neighbourListI(n,1)
       bType = neighbourListI(n,2)
       aID = neighbourListI(n,3)
-! Pair potential       
+! Pair potential
       yArray = SearchPotentialPoint(aType,bType,1,eamType,neighbourListR(n))
       pairEnergy = pairEnergy + yArray(1)
-! Electron density of each A due to the electrons of the Bs around it      
+! Electron density of each A due to the electrons of the Bs around it
       yArray = SearchPotentialPoint(bType,0,2,eamType,neighbourListR(n))
       calculationDensity(aID) = calculationDensity(aID) + yArray(1)
-    End Do  
+    End Do
 ! --------------------------------------------------
 ! Loop 2 - embedding energy
 ! --------------------------------------------------
@@ -141,7 +136,6 @@ Module calcEAM
     End Do
     print *,pairEnergy,embeddingEnergy,(pairEnergy+embeddingEnergy),&
     ((pairEnergy+embeddingEnergy)/configLength)
-
   End Subroutine calcEnergy
 ! ---------------------------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------!

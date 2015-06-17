@@ -41,7 +41,7 @@ Module eamGen
     nE = elementsCountF
 ! ------------------------
 ! EAM Function Key
-! ------------------------    
+! ------------------------
     If(eamTypeF.eq.1)Then
       nF = FunctionCount(0,1,nE)    !FunctionCount (potType, eamTypeF, elementsCountF)
       nPair = FunctionCount(1,1,nE)
@@ -62,7 +62,7 @@ Module eamGen
     If(eamTypeF.eq.2)Then
 ! ------------------------
 ! 2BEAM/TBEAM Function Key
-! ------------------------    
+! ------------------------
       If(elementsCountF.eq.1)Then      ! One element, separate D-band and S-band
         nF = FunctionCount(0,2,nE)    !FunctionCount (potType, eamTypeF, elementsCountF)
         nPair = FunctionCount(1,2,nE)
@@ -87,7 +87,7 @@ Module eamGen
         If(potType.eq.6)Then          ! DEMB
           funcKey = nPair + nSden + nDden + nSemb + atomA
         End If
-      Else  
+      Else
         nF = FunctionCount(0,2,nE)    !FunctionCount (potType, eamTypeF, elementsCountF)
         nPair = FunctionCount(1,2,nE)
         nSden = FunctionCount(5,2,nE)
@@ -122,10 +122,7 @@ Module eamGen
     Implicit None ! Force declaration of all variables
 ! Declare variables
     Integer(kind=StandardInteger) :: potType, eamTypeF, elementsCountF, funcCount
-    Integer(kind=StandardInteger) :: atomMin, atomMax
-    Integer(kind=StandardInteger) :: nE, nF
-    Integer(kind=StandardInteger) :: nPair, nDens, nEmbe
-    Integer(kind=StandardInteger) :: nDden, nSden, nDemb, nSemb
+    Integer(kind=StandardInteger) :: nE
 ! potType
 ! 0 "ALL"
 ! 1 "PAIR"
@@ -143,7 +140,7 @@ Module eamGen
     nE = elementsCountF
 ! ------------------------
 ! EAM Function Key
-! ------------------------    
+! ------------------------
     If(eamTypeF.eq.1)Then
       If(potType.eq.0)Then          ! All functions
         funcCount = (nE*(nE+5))/2
@@ -161,7 +158,7 @@ Module eamGen
     If(eamTypeF.eq.2)Then
 ! ------------------------
 ! 2BEAM/TBEAM Function Key
-! ------------------------    
+! ------------------------
       If(elementsCountF.eq.1)Then      ! One element, separate D-band and S-band
         If(potType.eq.0)Then          ! All functions
           funcCount = (nE*(nE+7))/2
@@ -181,7 +178,7 @@ Module eamGen
         If(potType.eq.6)Then          ! DEMB
           funcCount = nE
         End If
-      Else  
+      Else
         If(potType.eq.0)Then          ! All functions
           funcCount = (nE*(nE+3))
         End If

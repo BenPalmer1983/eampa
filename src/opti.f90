@@ -31,21 +31,15 @@ Module opti
 ! ---------------------------------------------------------------------------------------------------
   Subroutine optiEAM()
     Implicit None   ! Force declaration of all variables
-    !Integer(kind=StandardInteger) :: configID, keyStart, keyEnd, selectedProcess
-    !Real(kind=DoubleReal) :: configEnergy
-
-    
+! Integer(kind=StandardInteger) :: configID, keyStart, keyEnd, selectedProcess
+! Real(kind=DoubleReal) :: configEnergy
   End Subroutine optiEAM
 
-  
-  
-  
 ! ------------------------------------------------------------------------!
 !                                                                         !
 ! MODULE FUNCTIONS                                                        !
 !                                                                         !
 !                                                                         !
 ! ------------------------------------------------------------------------!
-
 
 End Module opti

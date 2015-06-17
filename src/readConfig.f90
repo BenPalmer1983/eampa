@@ -42,42 +42,32 @@ Module readConfig
     Call loadFile()
 ! Read in any listed DFT files
     Call readDFTFiles()
-    
     Call resetConfigVars()
-    
     Call processFile()
-    
     Call expandCoordinates()
-    
     Call outputConfigPoints()
-    
 ! Synch MPI processes
     Call M_synchProcesses()
-    
     Call cpu_time(timeEnd)
     Call timeAcc(configLoadTime,timeStart,timeEnd)
-! Output    
+! Output
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"Atom configurations loaded: ",(timeEnd-timeStart),"s"
     End If
-    
-    
   End Subroutine readConfigFile
-    
-    
-  
+
   Subroutine loadFile()
 ! Creates a temporary file to contain the config potential
 ! Converts alpha to upper, and strips out comment lines etc
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Integer(kind=StandardInteger) :: ios, i, j
-    Character(len=255) :: fileRow, fileRowCaps 
+    Character(len=255) :: fileRow, fileRowCaps
 ! Output to Terminal
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       Print *,"Loading user config file ",trim(configFilePath)
-    End If    
-! Read config file into memory 
+    End If
+! Read config file into memory
     j = 0
     Open(UNIT=1,FILE=trim(configFilePath))
     Do i=1,maxFileRows
@@ -101,19 +91,17 @@ Module readConfig
         End If
       End If
     End Do
-    Close(1)   
-  End Subroutine loadFile  
-  
-      
-  
+    Close(1)
+  End Subroutine loadFile
+
   Subroutine readDFTFiles()
 ! Creates a temporary file to contain the config potential
 ! Converts alpha to upper, and strips out comment lines etc
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: ios, i, j, m, n, writeFile, tempLastRow, readFlag
+    Integer(kind=StandardInteger) :: i,j,m,n,writeFile,tempLastRow,readFlag
     Integer(kind=StandardInteger) :: replCount
-    Real(kind=DoubleReal) :: radiusCutoff, eqVol, confWeight
+    Real(kind=DoubleReal) :: radiusCutoff,confWeight
     Character(len=255) :: fileRow, fileRowB
     Character(len=255) :: dftFilePath
     Character(len=64) :: bufferA, bufferB, bufferC, bufferD
@@ -124,7 +112,7 @@ Module readConfig
     bufferC = BlankString(bufferC)
     bufferD = BlankString(bufferD)
     confWeight = 1.0D0
-! Loop through file rows    
+! Loop through file rows
     m = 0
     n = 0
     writeFile = 0
@@ -134,34 +122,33 @@ Module readConfig
       If(fileRow(1:1).eq." ")Then
         EXIT
       End If
-! Check if normal or dft config      
+! Check if normal or dft config
       If(fileRow(1:7).eq."#NEWDFT")Then
         writeFile = 2
       ElseIf(fileRow(1:4).eq."#NEW")Then
         writeFile = 1
       End If
-! Save to memory      
+! Save to memory
       If(writeFile.eq.1)Then
         m = m + 1
-        configInputDataTemp(m) = trim(fileRow)        
-      End If  
+        configInputDataTemp(m) = trim(fileRow)
+      End If
       If(writeFile.eq.2)Then
         n = n + 1
-        configInputDataDFT(n) = trim(fileRow)        
+        configInputDataDFT(n) = trim(fileRow)
       End If
- ! reset writeFile flag at end
+! reset writeFile flag at end
       If(fileRow(1:4).eq."#END")Then
         writeFile = 0
       End If
     End Do
     tempLastRow = m
-    
     Do i=1,maxFileRows
       fileRow = configInputDataTemp(i)     !read line
 ! Break out
       If(fileRow(1:1).eq." ")Then
         EXIT
-      End If 
+      End If
     End Do
     Do i=1,maxFileRows
       fileRow = configInputDataDFT(i)     !read line
@@ -169,10 +156,9 @@ Module readConfig
       If(fileRow(1:1).eq." ")Then
         EXIT
       End If
-      !print *,trim(fileRow)     
+! print *,trim(fileRow)
     End Do
-    
-! Clear dft temp array    
+! Clear dft temp array
     configInputDataDFTTemp = BlankStringArray(configInputDataDFTTemp)
 ! Loop through DFT files
     readFlag = 0
@@ -187,7 +173,7 @@ Module readConfig
           readFlag = 1
           configLabelReplace = BlankString2DArray(configLabelReplace)
         End If
-      Else      
+      Else
         If(fileRow(1:3).eq."#RC")Then
           Read(fileRow,*) bufferA, bufferB, bufferC
           Read(bufferB,*) radiusCutoff
@@ -208,25 +194,25 @@ Module readConfig
             fileRowB = configLabelReplace(j,1)
             If(fileRowB(1:1).eq." ")Then
               EXIT
-            End If        
+            End If
           End Do
           configLabelReplace(replCount,1) = trim(StrToUpper(bufferB))
-          configLabelReplace(replCount,2) = trim(StrToUpper(bufferC))      
+          configLabelReplace(replCount,2) = trim(StrToUpper(bufferC))
         End If
         If(fileRow(1:7).eq."#ENDDFT")Then
-          readFlag = 0            
+          readFlag = 0
           Do j=1,maxFileRows
             fileRowB = configLabelReplace(j,1)
             If(fileRowB(1:1).eq." ")Then
               EXIT
-            End If              
-          End Do          
+            End If
+          End Do
 ! Read in file
-            Call readPWSCFFile(dftFilePath, radiusCutoff, confWeight)
+          Call readPWSCFFile(dftFilePath, radiusCutoff, confWeight)
         End If
       End If
-    End Do            
-! Merge arrays    
+    End Do
+! Merge arrays
     Do i=1,maxFileRows
       fileRow = configInputDataDFTTemp(i)     !read line
 ! Break out
@@ -236,20 +222,16 @@ Module readConfig
       configInputDataTemp(tempLastRow+i) = trim(fileRow)
     End Do
     configInputData = configInputDataTemp
-
-
   End Subroutine readDFTFiles
-  
-    
 
   Subroutine readPWSCFFile(dftFilePath, dftInRadiusCutoff, confWeight)
 ! Read in configuration file
     Implicit None  ! Force declaration of all variables
 ! Declare private variables
     Integer(kind=StandardInteger) :: ios, i, j, k, m
-    Character(len=255) :: dftFilePath, confFilePath
+    Character(len=255) :: dftFilePath
     Character(len=255) :: fileRow, fileLineBuffer
-    Character(len=16) :: labelTemp 
+    Character(len=16) :: labelTemp
     Character(len=255) :: bufferA, bufferB, bufferC
     Integer(kind=StandardInteger) :: readType, lastScf, numberOfAtoms
     Real(kind=DoubleReal) :: aLat, dftInRadiusCutoff
@@ -394,11 +376,11 @@ Module readConfig
               labelTemp = configLabelReplace(k,1)
               If(labelTemp(1:1).eq." ")Then
                 EXIT
-              End If    
+              End If
               If(Adjustl(StrToUpper(labelTemp)).eq.&
-               Adjustl(StrToUpper(atomType(j))))Then
-                atomType(j) = Adjustl(StrToUpper(labelTemp))  
-              End If                  
+                Adjustl(StrToUpper(atomType(j))))Then
+                atomType(j) = Adjustl(StrToUpper(labelTemp))
+              End If
             End Do
             fileLineBuffer = fileRow(39:75)
             read(fileLineBuffer,*) bufferA, bufferB, bufferC
@@ -416,11 +398,11 @@ Module readConfig
               labelTemp = configLabelReplace(k,1)
               If(labelTemp(1:1).eq." ")Then
                 EXIT
-              End If    
+              End If
               If(Adjustl(StrToUpper(labelTemp)).eq.&
-               Adjustl(StrToUpper(atomType(j))))Then
-                atomType(j) = Adjustl(StrToUpper(labelTemp))  
-              End If                  
+                Adjustl(StrToUpper(atomType(j))))Then
+                atomType(j) = Adjustl(StrToUpper(labelTemp))
+              End If
             End Do
             fileLineBuffer = fileRow(8:48)
             read(fileLineBuffer,*) bufferA, bufferB, bufferC
@@ -474,11 +456,10 @@ Module readConfig
         EXIT
       End If
     End Do
-    
-! Save to file    
+! Save to file
     fileRow = BlankString(fileRow)
     write(fileRow,"(A27,I8,A9,E20.10)") "#NEW  !added config, atoms ",numberOfAtoms,&
-    ", energy ",configTotalEnergy   
+    ", energy ",configTotalEnergy
     configInputDataDFTTemp(m) = trim(fileRow)
     m = m + 1
 !
@@ -536,19 +517,19 @@ Module readConfig
     write(fileRow,"(A5,F10.7,A3)") "#EPA ",configEnergyPerAtom," EV"
     configInputDataDFTTemp(m) = trim(fileRow)
     m = m + 1
-!   
+!
     If(dftInEqVol.gt.-2.0D20)Then
       fileRow = BlankString(fileRow)
       write(fileRow,"(A4,F16.7,A5)") "#EV ",dftInEqVol," ANG3"
       configInputDataDFTTemp(m) = trim(fileRow)
       m = m + 1
     End If
-!   
+!
     fileRow = BlankString(fileRow)
     write(fileRow,"(A4)") "#F Y"
     configInputDataDFTTemp(m) = trim(fileRow)
     m = m + 1
-!   
+!
     Do i=1,numberOfAtoms
       fileRow = BlankString(fileRow)
       write(fileRow,"(A3,A2,F16.10,A1,F16.10,A1,F16.10,A1,F16.10,A1,F16.10,A1,F16.10)") &
@@ -557,14 +538,13 @@ Module readConfig
       configInputDataDFTTemp(m) = trim(fileRow)
       m = m + 1
     End Do
-!    
+!
     fileRow = BlankString(fileRow)
     write(fileRow,"(A4)") "#END"
     configInputDataDFTTemp(m) = trim(fileRow)
     m = m + 1
-  End Subroutine readPWSCFFile    
-    
-  
+  End Subroutine readPWSCFFile
+
   Subroutine resetConfigVars()
 ! Reset arrays used to store coords etc
     Implicit None   ! Force declaration of all variables
@@ -584,17 +564,16 @@ Module readConfig
     configVolume = 0.0D0
     configVolumeOpt = -2.1D0
   End Subroutine resetConfigVars
-    
-  
+
   Subroutine processFile()
-! 
+!
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: ios, i, coordStart, coordLength
+    Integer(kind=StandardInteger) :: i,coordStart,coordLength
     Integer(kind=StandardInteger) :: configID
     Character(len=255) :: fileRow
     Character(len=64) :: bufferA, bufferB, bufferC, bufferD, bufferE, bufferF, bufferG
-! Read config file into memory 
+! Read config file into memory
     configID = 0
     configCount = 0
     coordStart = 1
@@ -723,36 +702,35 @@ Module readConfig
         coordStart = coordStart + coordLength
         If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
           print *,"Loaded: ",configID,coordStart,(coordStart+coordLength-1),"(",coordLength,")"
-        End If  
+        End If
         coordLength = 0
       End If
     End Do
-  End Subroutine processFile   
-  
-  
+  End Subroutine processFile
+
   Subroutine expandCoordinates()
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: configID, i, j
+    Integer(kind=StandardInteger) :: configID,i
     Integer(kind=StandardInteger) :: coordStart, coordLength, coordEnd
     Integer(kind=StandardInteger) :: coordG, coordStartG, coordLengthG, coordEndG
     Integer(kind=StandardInteger) :: xLoop, yLoop, zLoop
     Integer(kind=StandardInteger) :: xCopies, yCopies, zCopies
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: crystalUnitCellTemp
-    Real(kind=DoubleReal), Dimension(1:3) :: aVect, bVect
-! Blank arrays    
+    Real(kind=DoubleReal), Dimension(1:3) :: aVect
+! Blank arrays
     configurationCoordsKeyG = 0
     configurationCoordsIG = 0
     configurationCoordsRG = 0.0D0
-! Initialise counters    
+! Initialise counters
     coordG = 0
     coordStartG = 1
     coordLengthG = 0
     coordEndG = 0
     configsAtomTotal = 0
-! Loop through configs 
+! Loop through configs
     Do configID=1,configCount
-! Clear temp unit cell matrix    
+! Clear temp unit cell matrix
       crystalUnitCellTemp = 0.0D0
 ! Store user input
       crystalUnitCellTemp(1,1) = configurationsR(configID,2)   !xx
@@ -767,54 +745,52 @@ Module readConfig
 ! Multiply by global unit cell vector
       crystalUnitCellTemp = MatMul(globalConfigUnitVector,crystalUnitCellTemp)
 ! Lattice parameter configurationsR(configID,1)
-! copies x dir      configurationsI(configID,1)   
-! copies y dir      configurationsI(configID,2)  
-! copies z dir      configurationsI(configID,3)     
-      xCopies = configurationsI(configID,1)   
-      yCopies = configurationsI(configID,2)   
-      zCopies = configurationsI(configID,3) 
+! copies x dir      configurationsI(configID,1)
+! copies y dir      configurationsI(configID,2)
+! copies z dir      configurationsI(configID,3)
+      xCopies = configurationsI(configID,1)
+      yCopies = configurationsI(configID,2)
+      zCopies = configurationsI(configID,3)
 ! x vector
       crystalUnitCellTemp(1,1) = crystalUnitCellTemp(1,1) * &
-      configurationsR(configID,1) * configurationsI(configID,1)  
+      configurationsR(configID,1) * configurationsI(configID,1)
       crystalUnitCellTemp(1,2) = crystalUnitCellTemp(1,2) * &
-      configurationsR(configID,1) * configurationsI(configID,2)    
+      configurationsR(configID,1) * configurationsI(configID,2)
       crystalUnitCellTemp(1,3) = crystalUnitCellTemp(1,3) * &
-      configurationsR(configID,1) * configurationsI(configID,3)   
+      configurationsR(configID,1) * configurationsI(configID,3)
 ! y vector
       crystalUnitCellTemp(2,1) = crystalUnitCellTemp(2,1) * &
-      configurationsR(configID,1) * configurationsI(configID,1)  
+      configurationsR(configID,1) * configurationsI(configID,1)
       crystalUnitCellTemp(2,2) = crystalUnitCellTemp(2,2) * &
-      configurationsR(configID,1) * configurationsI(configID,2)    
+      configurationsR(configID,1) * configurationsI(configID,2)
       crystalUnitCellTemp(2,3) = crystalUnitCellTemp(2,3) * &
-      configurationsR(configID,1) * configurationsI(configID,3)   
+      configurationsR(configID,1) * configurationsI(configID,3)
 ! z vector
       crystalUnitCellTemp(3,1) = crystalUnitCellTemp(3,1) * &
-      configurationsR(configID,1) * configurationsI(configID,1)  
+      configurationsR(configID,1) * configurationsI(configID,1)
       crystalUnitCellTemp(3,2) = crystalUnitCellTemp(3,2) * &
-      configurationsR(configID,1) * configurationsI(configID,2)    
+      configurationsR(configID,1) * configurationsI(configID,2)
       crystalUnitCellTemp(3,3) = crystalUnitCellTemp(3,3) * &
-      configurationsR(configID,1) * configurationsI(configID,3)   
+      configurationsR(configID,1) * configurationsI(configID,3)
 ! store
-      crystalUnitCell(configID,1) = crystalUnitCellTemp(1,1)     
-      crystalUnitCell(configID,2) = crystalUnitCellTemp(1,2)    
-      crystalUnitCell(configID,3) = crystalUnitCellTemp(1,3)   
-      crystalUnitCell(configID,4) = crystalUnitCellTemp(2,1)     
-      crystalUnitCell(configID,5) = crystalUnitCellTemp(2,2)    
-      crystalUnitCell(configID,6) = crystalUnitCellTemp(2,3)  
-      crystalUnitCell(configID,7) = crystalUnitCellTemp(3,1)     
-      crystalUnitCell(configID,8) = crystalUnitCellTemp(3,2)    
-      crystalUnitCell(configID,9) = crystalUnitCellTemp(3,3)     
+      crystalUnitCell(configID,1) = crystalUnitCellTemp(1,1)
+      crystalUnitCell(configID,2) = crystalUnitCellTemp(1,2)
+      crystalUnitCell(configID,3) = crystalUnitCellTemp(1,3)
+      crystalUnitCell(configID,4) = crystalUnitCellTemp(2,1)
+      crystalUnitCell(configID,5) = crystalUnitCellTemp(2,2)
+      crystalUnitCell(configID,6) = crystalUnitCellTemp(2,3)
+      crystalUnitCell(configID,7) = crystalUnitCellTemp(3,1)
+      crystalUnitCell(configID,8) = crystalUnitCellTemp(3,2)
+      crystalUnitCell(configID,9) = crystalUnitCellTemp(3,3)
 ! Volume
-      configVolume(configID) = TripleProductSq(crystalUnitCellTemp)      
+      configVolume(configID) = TripleProductSq(crystalUnitCellTemp)
 ! Generate co-ordinates
       coordStart = configurationCoordsKey(configID,1)
       coordLength = configurationCoordsKey(configID,2)
-      coordEnd = configurationCoordsKey(configID,3)       
-
-      !If(mpiProcessID.eq.0)Then
-      !print *,"input",coordStart,coordLength,coordEnd
-      !End If
-      
+      coordEnd = configurationCoordsKey(configID,3)
+! If(mpiProcessID.eq.0)Then
+! print *,"input",coordStart,coordLength,coordEnd
+! End If
       Do xLoop=1,xCopies
         Do yLoop=1,yCopies
           Do zLoop=1,zCopies
@@ -851,10 +827,9 @@ Module readConfig
 ! reset start coord count
       coordStartG = coordEndG + 1
     End Do
-    
-! Transform coordinates    
+! Transform coordinates
     Do configID=1,configCount
-! Load transformation matrix      
+! Load transformation matrix
       crystalUnitCellTemp(1,1) = crystalUnitCell(configID,1)
       crystalUnitCellTemp(1,2) = crystalUnitCell(configID,2)
       crystalUnitCellTemp(1,3) = crystalUnitCell(configID,3)
@@ -877,15 +852,14 @@ Module readConfig
         aVect(2) = 1.0D0*configurationCoordsRG(coordG,2)
         aVect(3) = 1.0D0*configurationCoordsRG(coordG,3)
 ! Transform coords
-        aVect = TransformCoords(aVect,crystalUnitCellTemp)    
+        aVect = TransformCoords(aVect,crystalUnitCellTemp)
 ! Set "real" co-ordinates
         configurationCoordsRG(coordG,1) = 1.0D0*aVect(1)
         configurationCoordsRG(coordG,2) = 1.0D0*aVect(2)
-        configurationCoordsRG(coordG,3) = 1.0D0*aVect(3)    
+        configurationCoordsRG(coordG,3) = 1.0D0*aVect(3)
       End Do
-    End Do      
-  End Subroutine expandCoordinates  
-  
+    End Do
+  End Subroutine expandCoordinates
 
   Subroutine AddUniqueElement(element)
     Character(len=2) :: element
@@ -916,7 +890,6 @@ Module readConfig
       End Do
     End If
   End Subroutine AddUniqueElement
-
 
 ! ------------------------------------------------------------------------!
 !                                                                        !

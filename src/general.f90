@@ -348,7 +348,7 @@ Module general
     End Do
   End Subroutine strToStrArr
 
-! Time Accumulator subroutine  
+! Time Accumulator subroutine
   Subroutine timeAcc(time,timeStart,timeEnd)
 ! Take space separated integers and convert to array
     Implicit None   ! Force declaration of all variables
@@ -356,8 +356,7 @@ Module general
     Real(kind=DoubleReal) :: time,timeStart,timeEnd
     time = time + timeEnd - timeStart
   End Subroutine timeAcc
-  
-  
+
 ! ------------------------------------------------------------------------!
 !                                                                        !
 ! MODULE FUNCTIONS                                                     !

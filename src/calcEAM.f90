@@ -37,9 +37,6 @@ Module calcEAM
 ! Start time
     Call cpu_time(energyTimeStart)
 ! Init variables
-    !configCalcEnergies = -2.1D20
-    !configCalcForces = -2.1D20
-    !configCalcStresses = -2.1D20
     Call resetESF()  ! Reset energy, stress and force arrays
 ! MPI Processes per energy calculation
 ! Loop through configurations
@@ -110,8 +107,8 @@ Module calcEAM
   Subroutine calcEnergy_EAM(configID, configEnergy)
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: aType, bType, aID_R, bID_R, aID_A, bID_A 
-    Integer(kind=StandardInteger) :: configID, n, nKey, i, j, k
+    Integer(kind=StandardInteger) :: aType, bType, aID_R, bID_R, aID_A, bID_A
+    Integer(kind=StandardInteger) :: configID,n,i,j,k
     Integer(kind=StandardInteger) :: nlStart, nlLength, nlEnd
     Integer(kind=StandardInteger) :: configStart, configLength, configEnd
     Real(kind=DoubleReal) :: configEnergy
@@ -119,13 +116,11 @@ Module calcEAM
     Real(kind=DoubleReal) :: rIJ, fX, fY, fZ
     Real(kind=DoubleReal) :: stressNX, stressNY, stressNZ
     Real(kind=DoubleReal) :: pairEnergy, embeddingEnergy
-    Real(kind=DoubleReal), Dimension(1:3) :: forceArr
     Real(kind=DoubleReal), Dimension(1:3) :: yArray
     Real(kind=DoubleReal) :: densDerivAB, densDerivBA, embeDerivA, embeDerivB, forceM
-    Integer(kind=StandardInteger) :: embKeyInc
-!-----------------
-! Init 
-!-----------------
+! -----------------
+! Init
+! -----------------
 ! Init variables
     rCutoff = configurationsR(configID,11)
     pairEnergy = 0.0D0
@@ -142,20 +137,20 @@ Module calcEAM
       calculationDensity(i) = 0.0D0     ! density at each atom, length = number of atoms in configuration
     End Do
     If(forceStressSwitch.eq.1)Then
-      !Do i=1,nlLength
-      !  pairForce(i) = 0.0D0            ! Pair forces, length of neighbour list
-      !End Do
-      !Do i=configStart,configEnd        ! store directly into global array
-        !configCalcForces(i,1) = 0.0D0   ! Force x component atom i
-        !configCalcForces(i,2) = 0.0D0   ! Force y component atom i
-        !configCalcForces(i,3) = 0.0D0   ! Force z component atom i
-        !configAtomEnergy(i,1) = 0.0D0   ! Atom energy from pair
-        !configAtomEnergy(i,2) = 0.0D0   ! Atom energy from embedding
-      !End Do
+! Do i=1,nlLength
+!  pairForce(i) = 0.0D0            ! Pair forces, length of neighbour list
+! End Do
+! Do i=configStart,configEnd        ! store directly into global array
+! configCalcForces(i,1) = 0.0D0   ! Force x component atom i
+! configCalcForces(i,2) = 0.0D0   ! Force y component atom i
+! configCalcForces(i,3) = 0.0D0   ! Force z component atom i
+! configAtomEnergy(i,1) = 0.0D0   ! Atom energy from pair
+! configAtomEnergy(i,2) = 0.0D0   ! Atom energy from embedding
+! End Do
 ! Init stress array for this config
-      !Do i=1,9                                  ! store directly into global array
-        !configCalcStresses(configID,i) = 0.0D0  ! xx, xy...zy, zz for config i
-      !End Do
+! Do i=1,9                                  ! store directly into global array
+! configCalcStresses(configID,i) = 0.0D0  ! xx, xy...zy, zz for config i
+! End Do
     End If
 !     neighbourListI(n,1)  Atom A type
 !     neighbourListI(n,2)  Atom B type
@@ -166,7 +161,7 @@ Module calcEAM
 ! --------------------------------------------------
     Do n=nlStart,nlEnd
       aType = neighbourListI(n,1)
-      bType = neighbourListI(n,2)      
+      bType = neighbourListI(n,2)
       aID_R = neighbourListI(n,3)   ! ID Relatice (pos in this config)
       bID_R = neighbourListI(n,4)
       aID_A = aID_R+configStart-1   ! ID Absolute (pos in in all configs)
@@ -191,7 +186,7 @@ Module calcEAM
 ! Pair force on atom B
           configCalcForces(bID_A,1) = configCalcForces(bID_A,1) - fX
           configCalcForces(bID_A,2) = configCalcForces(bID_A,2) - fY
-          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ     
+          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ
 ! Virial Stress pair force
           Do i=1,3  ! Loop through coordinate axis x,y,z
             j=1     ! force x
@@ -207,16 +202,16 @@ Module calcEAM
             configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
-            End If            
+            End If
             j=3     ! force z
             k = 3*(i-1)+j  ! 1,1=1 1,2=2 1,3=3 2,1=4 ... 3,3=9
             stressNZ = neighbourListCoords(n,6+i)*fZ
-            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ       
+            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
-            End If         
-! Atom i (Atom A) are always in the volume            
-          End Do          
+            End If
+! Atom i (Atom A) are always in the volume
+          End Do
         End If
 ! Electron density each A is embedded in due to the electrons of the Bs around it
         yArray = SearchPotentialPoint(bType,0,2,eamType,elementsCount,rIJ)
@@ -264,7 +259,7 @@ Module calcEAM
           embeDerivB = yArray(2)
 ! @Pij(r)/@r
           yArray = SearchPotentialPoint(aType,0,2,eamType,elementsCount,rIJ)
-          densDerivAB = yArray(2)          
+          densDerivAB = yArray(2)
 ! Forces
           forceM = -1.0D0*(embeDerivA*densDerivBA+embeDerivB*densDerivAB)
           fX = -1.0D0*neighbourListCoords(n,10)*forceM
@@ -277,7 +272,7 @@ Module calcEAM
 ! Pair force on atom B
           configCalcForces(bID_A,1) = configCalcForces(bID_A,1) - fX
           configCalcForces(bID_A,2) = configCalcForces(bID_A,2) - fY
-          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ   
+          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ
 ! Virial Stress pair force
           Do i=1,3  ! Loop through coordinate axis x,y,z
             j=1     ! force x
@@ -293,17 +288,17 @@ Module calcEAM
             configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
-            End If            
+            End If
             j=3     ! force z
             k = 3*(i-1)+j  ! 1,1=1 1,2=2 1,3=3 2,1=4 ... 3,3=9
             stressNZ = neighbourListCoords(n,6+i)*fZ
-            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ       
+            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
-            End If         
-! Atom i (Atom A) are always in the volume            
-          End Do  
-        End If        
+            End If
+! Atom i (Atom A) are always in the volume
+          End Do
+        End If
       End Do
 ! Multiply stress values by factor of volume of domain
       Do i=1,3
@@ -323,8 +318,8 @@ Module calcEAM
   Subroutine calcEnergy_TBEAM(configID, configEnergy)
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Integer(kind=StandardInteger) :: aType, bType, aID_R, bID_R, aID_A, bID_A 
-    Integer(kind=StandardInteger) :: configID, n, nKey, i, j, k
+    Integer(kind=StandardInteger) :: aType, bType, aID_R, bID_R, aID_A, bID_A
+    Integer(kind=StandardInteger) :: configID,n,i,j,k
     Integer(kind=StandardInteger) :: nlStart, nlLength, nlEnd
     Integer(kind=StandardInteger) :: configStart, configLength, configEnd
     Real(kind=DoubleReal) :: configEnergy
@@ -332,14 +327,13 @@ Module calcEAM
     Real(kind=DoubleReal) :: rIJ, fX, fY, fZ
     Real(kind=DoubleReal) :: stressNX, stressNY, stressNZ
     Real(kind=DoubleReal) :: pairEnergy, embeddingEnergy
-    Real(kind=DoubleReal), Dimension(1:3) :: forceArr
     Real(kind=DoubleReal), Dimension(1:3) :: yArray
     Real(kind=DoubleReal) :: densDerivAB, densDerivBA, embeDerivA, embeDerivB, forceM
-!-----------------
-! Init 
-!-----------------
-    !FunctionKey (atomA, atomB, potType, eamTypeF, elementsCountF)
-    !print *,FunctionKey (1, 1, potType, 2)
+! -----------------
+! Init
+! -----------------
+! FunctionKey (atomA, atomB, potType, eamTypeF, elementsCountF)
+! print *,FunctionKey (1, 1, potType, 2)
 !    print *,"1",FunctionKey (1, 1, 1, 2, 1)
 !    print *,"4",FunctionKey (1, 1, 4, 2, 1)
 !    print *,"5",FunctionKey (1, 1, 5, 2, 1)
@@ -362,20 +356,20 @@ Module calcEAM
       calculationDensityS(i) = 0.0D0
     End Do
     If(forceStressSwitch.eq.1)Then
-      !Do i=1,nlLength
-      !  pairForce(i) = 0.0D0            ! Pair forces, length of neighbour list
-      !End Do
-      !Do i=configStart,configEnd        ! store directly into global array
-      !  configCalcForces(i,1) = 0.0D0   ! Force x component atom i
-      !  configCalcForces(i,2) = 0.0D0   ! Force y component atom i
-      !  configCalcForces(i,3) = 0.0D0   ! Force z component atom i
-      !  configAtomEnergy(i,1) = 0.0D0   ! Atom energy from pair
-      !  configAtomEnergy(i,2) = 0.0D0   ! Atom energy from embedding
-      !End Do
+! Do i=1,nlLength
+!  pairForce(i) = 0.0D0            ! Pair forces, length of neighbour list
+! End Do
+! Do i=configStart,configEnd        ! store directly into global array
+!  configCalcForces(i,1) = 0.0D0   ! Force x component atom i
+!  configCalcForces(i,2) = 0.0D0   ! Force y component atom i
+!  configCalcForces(i,3) = 0.0D0   ! Force z component atom i
+!  configAtomEnergy(i,1) = 0.0D0   ! Atom energy from pair
+!  configAtomEnergy(i,2) = 0.0D0   ! Atom energy from embedding
+! End Do
 ! Init stress array for this config
-      !Do i=1,9                                  ! store directly into global array
-      !  configCalcStresses(configID,i) = 0.0D0  ! xx, xy...zy, zz for config i
-      !End Do
+! Do i=1,9                                  ! store directly into global array
+!  configCalcStresses(configID,i) = 0.0D0  ! xx, xy...zy, zz for config i
+! End Do
     End If
 !     neighbourListI(n,1)  Atom A type
 !     neighbourListI(n,2)  Atom B type
@@ -386,7 +380,7 @@ Module calcEAM
 ! --------------------------------------------------
     Do n=nlStart,nlEnd
       aType = neighbourListI(n,1)
-      bType = neighbourListI(n,2)      
+      bType = neighbourListI(n,2)
       aID_R = neighbourListI(n,3)   ! ID Relatice (pos in this config)
       bID_R = neighbourListI(n,4)
       aID_A = aID_R+configStart-1   ! ID Absolute (pos in in all configs)
@@ -396,9 +390,9 @@ Module calcEAM
       If(neighbourListR(n).le.rCutoff)Then
 ! Pair potential v(r) and v'(r)
         yArray = SearchPotentialPoint(aType,bType,1,eamType,elementsCount,rIJ)   ! 1: Pair
-        !delete If(n.le.20)Then
-        !delete print *,aType,bType,1,eamType,elementsCount,rIJ,yArray(1)
-        !delete End If
+! delete If(n.le.20)Then
+! delete print *,aType,bType,1,eamType,elementsCount,rIJ,yArray(1)
+! delete End If
         pairEnergy = pairEnergy + yArray(1)
         configAtomEnergy(aID_A,1) = configAtomEnergy(aID_A,1) + 0.5D0 * yArray(1)
         configAtomEnergy(bID_A,1) = configAtomEnergy(bID_A,1) + 0.5D0 * yArray(1)
@@ -414,7 +408,7 @@ Module calcEAM
 ! Pair force on atom B
           configCalcForces(bID_A,1) = configCalcForces(bID_A,1) - fX
           configCalcForces(bID_A,2) = configCalcForces(bID_A,2) - fY
-          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ     
+          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ
 ! Virial Stress pair force
           Do i=1,3  ! Loop through coordinate axis x,y,z
             j=1     ! force x
@@ -430,16 +424,16 @@ Module calcEAM
             configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
-            End If            
+            End If
             j=3     ! force z
             k = 3*(i-1)+j  ! 1,1=1 1,2=2 1,3=3 2,1=4 ... 3,3=9
             stressNZ = neighbourListCoords(n,6+i)*fZ
-            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ       
+            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
-            End If         
-! Atom i (Atom A) are always in the volume            
-          End Do          
+            End If
+! Atom i (Atom A) are always in the volume
+          End Do
         End If
 ! D-Band 4 "DDEN"
 ! Electron density each A is embedded in due to the electrons of the Bs around it
@@ -464,11 +458,11 @@ Module calcEAM
       aID_R = i                     ! ID Relatice (pos in this config)
       aID_A = aID_R+configStart-1   ! ID Absolute (pos in in all configs)
       aType = configurationCoordsIG(aID_A,1)
-! D-band      
+! D-band
       yArray = SearchPotentialPoint(aType,0,6,eamType,elementsCount,calculationDensity(aID_R))  ! 6: DEMB
       embeddingEnergy = embeddingEnergy + yArray(1)
       configAtomEnergy(aID_A,2) = configAtomEnergy(aID_A,2) + yArray(1)
-! S-band      
+! S-band
       yArray = SearchPotentialPoint(aType,0,7,eamType,elementsCount,calculationDensityS(aID_R))  ! 7: SEMB
       embeddingEnergy = embeddingEnergy + yArray(1)
       configAtomEnergy(aID_A,2) = configAtomEnergy(aID_A,2) + yArray(1)
@@ -501,7 +495,7 @@ Module calcEAM
           embeDerivB = yArray(2)
 ! @Pij(r)/@r
           yArray = SearchPotentialPoint(aType,0,4,eamType,elementsCount,rIJ)
-          densDerivAB = yArray(2)          
+          densDerivAB = yArray(2)
 ! Forces
           forceM = -1.0D0*(embeDerivA*densDerivBA+embeDerivB*densDerivAB)
           fX = -1.0D0*neighbourListCoords(n,10)*forceM
@@ -514,7 +508,7 @@ Module calcEAM
 ! Pair force on atom B
           configCalcForces(bID_A,1) = configCalcForces(bID_A,1) - fX
           configCalcForces(bID_A,2) = configCalcForces(bID_A,2) - fY
-          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ   
+          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ
 ! Virial Stress pair force
           Do i=1,3  ! Loop through coordinate axis x,y,z
             j=1     ! force x
@@ -530,16 +524,16 @@ Module calcEAM
             configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
-            End If            
+            End If
             j=3     ! force z
             k = 3*(i-1)+j  ! 1,1=1 1,2=2 1,3=3 2,1=4 ... 3,3=9
             stressNZ = neighbourListCoords(n,6+i)*fZ
-            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ       
+            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
-            End If         
-! Atom i (Atom A) are always in the volume            
-          End Do  
+            End If
+! Atom i (Atom A) are always in the volume
+          End Do
 ! S-Band
 ! @Fi(p)/@p
           yArray = SearchPotentialPoint(aType,0,7,eamType,elementsCount,calculationDensityS(aID_R))
@@ -552,7 +546,7 @@ Module calcEAM
           embeDerivB = yArray(2)
 ! @Pij(r)/@r
           yArray = SearchPotentialPoint(aType,0,5,eamType,elementsCount,rIJ)
-          densDerivAB = yArray(2)          
+          densDerivAB = yArray(2)
 ! Forces
           forceM = -1.0D0*(embeDerivA*densDerivBA+embeDerivB*densDerivAB)
           fX = -1.0D0*neighbourListCoords(n,10)*forceM
@@ -565,7 +559,7 @@ Module calcEAM
 ! Pair force on atom B
           configCalcForces(bID_A,1) = configCalcForces(bID_A,1) - fX
           configCalcForces(bID_A,2) = configCalcForces(bID_A,2) - fY
-          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ         
+          configCalcForces(bID_A,3) = configCalcForces(bID_A,3) - fZ
 ! Virial Stress pair force
           Do i=1,3  ! Loop through coordinate axis x,y,z
             j=1     ! force x
@@ -581,17 +575,17 @@ Module calcEAM
             configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNY
-            End If            
+            End If
             j=3     ! force z
             k = 3*(i-1)+j  ! 1,1=1 1,2=2 1,3=3 2,1=4 ... 3,3=9
             stressNZ = neighbourListCoords(n,6+i)*fZ
-            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ       
+            configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
             If(neighbourListI(n,6).eq.1)Then  ! If atom j (atom B) is in the volume
               configCalcStresses(configID,k) = configCalcStresses(configID,k) + stressNZ
-            End If         
-! Atom i (Atom A) are always in the volume            
-          End Do  
-        End If        
+            End If
+! Atom i (Atom A) are always in the volume
+          End Do
+        End If
       End Do
 ! Multiply stress values by factor of volume of domain
       Do i=1,3
@@ -605,7 +599,7 @@ Module calcEAM
       End Do
     End If
   End Subroutine calcEnergy_TBEAM
-  
+
   Subroutine resetESF()
     Implicit None   ! Force declaration of all variables
     Integer(kind=StandardInteger) :: i, j
@@ -614,27 +608,26 @@ Module calcEAM
     Do i=1,configCount
       configCalcEnergies(i) = -2.1D20
     End Do
-! Stresses    
+! Stresses
     Do i=1,configCount
       Do j=1,9
         configCalcStresses(i,j) = -2.1D20
       End Do
-    End Do 
-! Forces    
+    End Do
+! Forces
     Do i=1,configsAtomTotal
       Do j=1,3
         configCalcForces(i,j) = -2.1D20
       End Do
-    End Do    
+    End Do
 ! Atom energies
     Do i=1,configsAtomTotal
       Do j=1,2
         configAtomEnergy(i,j) = 0.0D0
       End Do
-    End Do  
+    End Do
   End Subroutine resetESF
-    
-    
+
 ! ------------------------------------------------------------------------!
 !                                                                         !
 ! MODULE FUNCTIONS                                                        !

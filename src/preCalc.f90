@@ -9,7 +9,6 @@ Module preCalc
 ! Sits between reading input files and calculation
 ! --------------------------------------------------------------!
 
-
 ! Setup Modules
   Use kinds
   Use msubs
@@ -20,7 +19,7 @@ Module preCalc
   Use globals        ! declare all globals
   Use initialise     ! initialise program
   Use output
-  
+
 ! Force declaration of all variables
   Implicit None
 ! Include MPI header
@@ -43,26 +42,13 @@ Module preCalc
   Subroutine runPreCalc()
 ! Internal subroutine variables
     Integer(kind=StandardInteger) :: configID
-
-   
 ! Assign config to process map
-    Do configID=1,configCount    
-      processMap(configID) = mod(configID-1,mpiProcessCount)      
+    Do configID=1,configCount
+      processMap(configID) = mod(configID-1,mpiProcessCount)
     End Do
     Call outputProcessMapT()
-    
-    
 ! Synch MPI processes
-    Call M_synchProcesses()    
+    Call M_synchProcesses()
   End Subroutine
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
 End Module preCalc

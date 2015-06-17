@@ -51,8 +51,8 @@ Module readinput
       write(999,"(F8.4,A2,A24,A60)") ProgramTime(),"  ",&
       "Reading user input file ",inputFilePath
     End If
-! Step 1 - read to memory and strip input file of comment lines etc   
-! Read input file into memory 
+! Step 1 - read to memory and strip input file of comment lines etc
+! Read input file into memory
     j = 0
     Open(UNIT=1,FILE=trim(inputFilePath))
     Do i=1,maxFileRows
@@ -72,9 +72,9 @@ Module readinput
         Else
           userInputData(j) = Trim(Adjustl(fileRow))
         End If
-          !if(mpiProcessID.eq.0)Then
-          !  print *,j,trim(userInputData(j))
-          !End If
+! if(mpiProcessID.eq.0)Then
+!  print *,j,trim(userInputData(j))
+! End If
       End If
     End Do
     Close(1)
@@ -104,7 +104,7 @@ Module readinput
 !
 ! Step 3 - Read In User Settings
 !
-!------------------
+! ------------------
 ! Set some default values
     eampaRunType = "EVAL"
 ! Read in user variables
@@ -123,8 +123,8 @@ Module readinput
         fileRow = StrToUpper(Trim(Adjustl(fileRow)))
 ! Only allow certain run types
         If(fileRow(1:4).eq."EVAL")Then
-          eampaRunType = fileRow(1:4)  ! EVAL   
-        End If  
+          eampaRunType = fileRow(1:4)  ! EVAL
+        End If
       End If
 ! ----------------------------------
 ! EAM Potential
@@ -376,12 +376,12 @@ Module readinput
     Call cpu_time(timeEndRI)
 ! Store Time
     Call storeTime(8,timeEndRI-timeStartRI)
-! Output    
+! Output
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"User input read: ",(timeEndRI-timeStartRI),"s"
     End If
   End Subroutine readUserInput
-  
+
 ! ------------------------------------------------------------------------!
 !                                                                         !
 ! MODULE FUNCTIONS                                                        !

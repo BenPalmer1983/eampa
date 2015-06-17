@@ -44,12 +44,11 @@ Module neighbourList
     Real(kind=DoubleReal) :: rMin, rMax
     Real(kind=DoubleReal) :: totalSeperation
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: crystalUnitCellTemp
-    Real(kind=DoubleReal), Dimension(1:3) :: aVect, bVect
 ! Output
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      !print *,""
-      !print *,"----------------------------------------------------------------------"
-      !print *,"Neighbour list"
+! print *,""
+! print *,"----------------------------------------------------------------------"
+! print *,"Neighbour list"
     End If
 ! Start time
     Call cpu_time(timeStart)
@@ -71,7 +70,7 @@ Module neighbourList
       rMax = -2.0D21
 ! Check config is there
       If(configurationCoordsKeyG(configID,1).gt.0)Then
-! Load transformation matrix      
+! Load transformation matrix
         crystalUnitCellTemp(1,1) = crystalUnitCell(configID,1)
         crystalUnitCellTemp(1,2) = crystalUnitCell(configID,2)
         crystalUnitCellTemp(1,3) = crystalUnitCell(configID,3)
@@ -89,11 +88,11 @@ Module neighbourList
         coordStart = configurationCoordsKeyG(configID,1)
         coordLength = configurationCoordsKeyG(configID,2)
         coordEnd = configurationCoordsKeyG(configID,3)
-        !If(nlCutoff.lt.0.0D0)Then
-          rCutoffSq = configurationsR(configID,11)**2
-        !Else
-        !  rCutoffSq = nlCutoff**2
-        !End If
+! If(nlCutoff.lt.0.0D0)Then
+        rCutoffSq = configurationsR(configID,11)**2
+! Else
+!  rCutoffSq = nlCutoff**2
+! End If
         xCopy = configurationsI(configID,1)
         yCopy = configurationsI(configID,2)
         zCopy = configurationsI(configID,3)
@@ -101,7 +100,7 @@ Module neighbourList
 ! loop through Atom B 3x3x3
         Do l=-1,1
           Do m=-1,1
-            Do n=-1,1      
+            Do n=-1,1
 ! Set co-ordinate shift
               xShift = aLat * xCopy * l
               yShift = aLat * yCopy * m
@@ -114,23 +113,21 @@ Module neighbourList
                   If(l.eq.0.and.m.eq.0.and.n.eq.0.and.atomA.eq.atomB)Then  ! Don't self count atom
                   Else
 ! calculate the key of the atom A atom B combination
-! half length list A=i,B=j == A=j,B=i                  
+! half length list A=i,B=j == A=j,B=i
                     If(atomA.lt.atomB)Then
                       nlKey = (atomB-1)*(atomB-2)/2+atomA
                     Else
                       nlKey = (atomA-1)*(atomA-2)/2+atomB
                     End If
-! 
+!
                     If(nlUniqueKeys(nlKey).eq.0)Then
                       nlUniqueKeys(nlKey) = 1
-
                       xA = 1.0D0*configurationCoordsRG(coordStart+atomA-1,1)
                       xB = 1.0D0*(xshift + configurationCoordsRG(coordStart+atomB-1,1))
                       yA = 1.0D0*configurationCoordsRG(coordStart+atomA-1,2)
                       yB = 1.0D0*(yshift + configurationCoordsRG(coordStart+atomB-1,2))
                       zA = 1.0D0*configurationCoordsRG(coordStart+atomA-1,3)
-                      zB = 1.0D0*(zshift + configurationCoordsRG(coordStart+atomB-1,3))  
-                      
+                      zB = 1.0D0*(zshift + configurationCoordsRG(coordStart+atomB-1,3))
                       xdSq = (xA-xB)**2
                       If(xdSq.le.rCutoffSq)Then
                         ydSq = (yA-yB)**2
@@ -138,7 +135,7 @@ Module neighbourList
                           zdSq = (zA-zB)**2
                           If(zdSq.le.rCutoffSq)Then
                             rdSq = xdSq + ydSq + zdSq
-                            If(rdSq.le.rCutoffSq)Then       
+                            If(rdSq.le.rCutoffSq)Then
                               totalSeperation = totalSeperation + rdSq
                               neighbourListCount = neighbourListCount + 1
                               configLength = configLength + 1
@@ -200,22 +197,22 @@ Module neighbourList
         neighbourListKey(configID,1) = configStart
         neighbourListKey(configID,2) = configLength
         neighbourListKey(configID,3) = configStart+configLength-1
-! Store other data       
-        neighbourListKeyR(configID,1) = rCutoffSq**0.5D0 
-        neighbourListKeyR(configID,2) = rMin 
-        neighbourListKeyR(configID,3) = rMax 
+! Store other data
+        neighbourListKeyR(configID,1) = rCutoffSq**0.5D0
+        neighbourListKeyR(configID,2) = rMin
+        neighbourListKeyR(configID,3) = rMax
 ! Increment configStart for next loop/config
         configStart = configStart + configLength
       End If
       Call cpu_time(timeEnd)
       Call timeAcc(nlTime,timeStart,timeEnd)
-    End Do  ! End loop configs    
+    End Do  ! End loop configs
 ! Output
-    !If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-    !  print *,"----------------------------------------------------------------------"
-    !End If
+! If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+!  print *,"----------------------------------------------------------------------"
+! End If
     If(mpiProcessID.eq.0)Then
-! save to file    
+! save to file
       Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"nlFile.dat",&
       status="old",position="append",action="write")
       Do configID=1,configCount
@@ -227,16 +224,9 @@ Module neighbourList
           neighbourListR(i)
         End Do
       End Do
-    End If  
+    End If
 ! Synch MPI processes
     Call M_synchProcesses()
-    
   End Subroutine makeNeighbourList
-
-  
-  
-  
-  
-  
 
 End Module neighbourList

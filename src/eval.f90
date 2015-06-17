@@ -31,10 +31,8 @@ Module eval
   Subroutine evalEAM()
     Implicit None   ! Force declaration of all variables
     Integer(kind=StandardInteger) :: configID
-    
-    !Real(kind=DoubleReal) :: configEnergy
-   
-! Calculate config energies, 
+! Real(kind=DoubleReal) :: configEnergy
+! Calculate config energies,
     Call calcEnergies()
 ! Loop through configs
     totalRSS = 0.0D0
@@ -45,19 +43,17 @@ Module eval
     If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
       print *,"Total RSS: ",totalRSS
     End If
-    
   End Subroutine evalEAM
 
-  
   Subroutine evalEAM_RSS(configID)
     Implicit None   ! Force declaration of all variables
     Integer(kind=StandardInteger) :: configID, i, j, coordStartG, coordEndG
     Real(kind=DoubleReal) :: energyRSS, stressRSS, forceRSS
     Logical :: calcRSS
 ! Clear config RSS arrays
-    energyRSS = 0.0D0   
-    stressRSS = 0.0D0   
-    forceRSS = 0.0D0    
+    energyRSS = 0.0D0
+    stressRSS = 0.0D0
+    forceRSS = 0.0D0
     Do i=1,10
       configRSS(configID,i) = 0.0D0                      ! 1 energy, 2 forces, 3 stresses, 10 All
     End Do
@@ -114,13 +110,12 @@ Module eval
       configRSS(configID,10) = configRSS(configID,10) + configRSS(configID,i)                       ! 1 energy, 2 forces, 3 stresses, 10 All
     End Do
   End Subroutine evalEAM_RSS
-  
+
 ! ------------------------------------------------------------------------!
 !                                                                         !
 ! MODULE FUNCTIONS                                                        !
 !                                                                         !
 !                                                                         !
 ! ------------------------------------------------------------------------!
-
 
 End Module eval

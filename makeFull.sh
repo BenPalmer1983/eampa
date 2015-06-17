@@ -13,9 +13,9 @@ src/neighbourList.f90 src/preCalc.f90 \
 src/calcEAM.f90 src/eval.f90 src/opti.f90 \
 src/finalise.f90 \
 src/eampa.f90"
-commandLineA="mpif90 -g -Wall -Wno-unused-function \
+commandLineA="mpif90 -g -Wall \
 -fbounds-check -fcheck=all -mtune=native "
-commandLineB="mpif90 -O3 -g -Wall -Wno-unused-function \
+commandLineB="mpif90 -O3 -g -Wall \
 -fbounds-check -fcheck=all -mtune=native "
 commandLineC=" &> logs/build.log"
 #----------------------------------------------------------------------------------
@@ -25,11 +25,11 @@ binPathOnlyLong=$workingDir"/"$binDir
 #----------------------------------------------------------------------------------
 # Make section:
 echo "Check code formatting and layout? (Default: N) [Y/N]"
-#read checkCode
+read checkCode
 echo "Remove unused variables? (Default: N) [Y/N]"
-#read checkUnused
+read checkUnused
 echo "Level 3 Optimise? (Default: N) [Y/N]"
-#read optimise
+read optimise
 echo "Make link to /bin? (Default: N) [Y/N]"
 #read linkToBin
 echo "Current working directory:"

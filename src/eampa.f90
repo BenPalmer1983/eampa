@@ -65,27 +65,27 @@ PROGRAM eampa
   Call readUserInput()
 ! --- Run Type: EVAL
   If(eampaRunType.eq."EVAL")Then
-! Read the EAM functions/functionals into memory  
+! Read the EAM functions/functionals into memory
     Call readEAMFile()
-! Read config file, dft output files and save these as one config file  
+! Read config file, dft output files and save these as one config file
     Call readConfigFile()
 ! Save input files
     Call outputInputFiles()
 ! Make neighbour list
     Call makeNeighbourList()
-! Pre calculation  
+! Pre calculation
     Call runPreCalc()
 ! Pre calc summary
     Call outputPreCalcSummaryT()
 ! Calculate stress/energy/force of configuration/s
     Call evalEAM()
-! Finalise   
+! Finalise
     Call runFinaliseEval()
   End If
-    
+
 ! Store end time
   Call cpu_time(programEndTime)
-  
+
 ! Finalise MPI
   Call MPI_Finalize(error)
 

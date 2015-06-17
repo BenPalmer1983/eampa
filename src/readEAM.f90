@@ -18,6 +18,7 @@ Module readEAM
   Use maths
   Use general
   Use units
+  Use plot
   Use initialise
   Use loadData
   Use globals

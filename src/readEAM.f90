@@ -926,11 +926,6 @@ Module readEAM
               splineNodesData(nodeKey,6) = 1.0D0
             End If
           End If
-! If(mpiProcessID.eq.0)Then
-! print *,nodeKey,splineNodesData(nodeKey,1),splineNodesData(nodeKey,2),&
-! splineNodesData(nodeKey,3),splineNodesData(nodeKey,4),&
-! splineNodesData(nodeKey,5),splineNodesData(nodeKey,6)
-! End If
         End Do
       End If
       If(functionCounter.eq.eamFunctionCount )Then

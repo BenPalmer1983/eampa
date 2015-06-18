@@ -45,18 +45,6 @@ Module globals
   Integer(kind=StandardInteger) :: printToTerminal
 ! Declare variables - run options
   Character(len=4) :: eampaRunType
-  Integer(kind=StandardInteger) :: optionReadConf
-  Integer(kind=StandardInteger) :: optionMakeConf
-  Integer(kind=StandardInteger) :: optionReadEAM
-  Integer(kind=StandardInteger) :: optionRunPrep
-  Integer(kind=StandardInteger) :: optionNeighbourList
-  Integer(kind=StandardInteger) :: optionCalcEnergies
-  Integer(kind=StandardInteger) :: optionEval
-  Integer(kind=StandardInteger) :: optionEvalFull
-  Integer(kind=StandardInteger) :: optionOptimise
-  Integer(kind=StandardInteger) :: optionTestEAM
-  Integer(kind=StandardInteger) :: optionRunPWBatch
-  Integer(kind=StandardInteger) :: optionOutput
 ! Input File - User Input
   Character(len=255) :: inputFilePath
   Character(len=255) :: inputFilePathT
@@ -318,18 +306,7 @@ Module globals
   Public :: printToTerminal
 ! Public Variables - run options
   Public :: eampaRunType
-  Public :: optionReadEAM
-  Public :: optionReadConf
-  Public :: optionMakeConf
-  Public :: optionRunPrep
-  Public :: optionNeighbourList
-  Public :: optionCalcEnergies
-  Public :: optionEval
-  Public :: optionEvalFull
-  Public :: optionTestEAM
-  Public :: optionOptimise
-  Public :: optionRunPWBatch
-  Public :: optionOutput
+  
 ! Input File - User Input
   Public :: inputFilePath, inputFilePathT
 ! MPI Options
@@ -588,18 +565,7 @@ Module globals
       printToTerminal = 0
 ! Run options
       eampaRunType = BlankString(eampaRunType)
-      optionReadConf = 0
-      optionMakeConf = 0
-      optionReadEAM = 0
-      optionRunPrep = 0
-      optionNeighbourList = 0
-      optionCalcEnergies = 0
-      optionEval = 0
-      optionEvalFull = 0
-      optionTestEAM = 0
-      optionOptimise = 0
-      optionRunPWBatch = 0
-      optionOutput = 0
+      
 ! Input File - User Input
       inputFilePath = BlankString(inputFilePath)
       inputFilePathT = BlankString(inputFilePathT)

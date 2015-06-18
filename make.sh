@@ -3,7 +3,8 @@ cd ${0%/*}
 workingDir=$(pwd)
 binDir="bin"
 binFile="eampaDev.x "
-buildFiles="src/kinds.f90 src/msubs.f90 src/constants.f90 \
+buildFiles="src/kinds.f90 src/types.f90 \
+src/msubs.f90 src/constants.f90 \
 src/maths.f90 src/mMaths.f90 src/general.f90 src/units.f90 \
 src/plot.f90 \
 src/globals.f90  \

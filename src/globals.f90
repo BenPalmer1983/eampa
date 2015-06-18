@@ -541,7 +541,7 @@ Module globals
 ! Global Init Start time
     Call cpu_time(globalsTimeStart)
 ! Initialise Subroutine Variable
-    compileLine = "17:50:02  17/06/2015"
+    compileLine = "14:34:00  18/06/2015"
     PROGRAMEndTime = 0.0D0
       timeStart = 0.0D0
       timeEnd = 0.0D0

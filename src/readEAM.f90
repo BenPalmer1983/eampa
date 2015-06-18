@@ -13,6 +13,7 @@ Module readEAM
 
 ! Setup Modules
   Use kinds
+  Use types
   Use msubs
   Use constants
   Use maths
@@ -38,6 +39,7 @@ Module readEAM
 ! Public functions
   Public :: QueryUniqueElement
 
+  
   Contains
   Subroutine readEAMFile()
     Implicit None   ! Force declaration of all variables
@@ -79,6 +81,7 @@ Module readEAM
     Call eamDataDump()
 ! Synchronise Processes
     Call M_synchProcesses()
+    Call eamCharts()
 ! End Time
     Call cpu_time(timeEndEAM)
 ! Store Time
@@ -746,7 +749,7 @@ Module readEAM
 ! Store this function elements and type
         eamKey(eamFunctionKey,1) = QueryUniqueElement(elementA)    ! Element A id
         eamKey(eamFunctionKey,2) = QueryUniqueElement(elementB)    ! Element B id
-        eamKey(eamFunctionKey,3) = QueryFunctionType(functionType)
+        eamKey(eamFunctionKey,3) = QueryFunctionType(functionType) ! Type of EAM function
 ! ----------------
 ! DENS, EMBE, DDEN, DEMB, SEMB
       ElseIf(fileRow(1:4).eq."DENS".or.fileRow(1:4).eq."EMBE".or.&
@@ -1118,6 +1121,62 @@ Module readEAM
       End Do
     End If
   End Subroutine eamDataDump
+  
+  Subroutine eamCharts()
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: functionCounter, i
+    Character(len=24) :: fileName
+    Type(chart) :: eamChart
+! Create output file
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"eam.dat"))
+! Calculate y'(x) and y''(x)
+      FunctionCounter = 0
+      Do i=1,size(eamKey,1)
+        If(eamKey(i,1).gt.0)Then
+          FunctionCounter = functionCounter + 1
+          write(fileName,"(I4)") FunctionCounter
+          fileName = "Input_EAM_"//adjustl(trim(fileName))
+          fileName = trim(fileName)//"_"//eamFunctionTypes(eamKey(i,3))
+! Set chart values
+          eamChart%title = "Plot for "//eamFunctionTypes(eamKey(i,3))
+          eamChart%xAxis = "Radius"
+          eamChart%yAxis = "Energy"     
+          eamChart%yMin = 1.1D99   ! No yMin    
+          eamChart%yMax = -1.1D99  ! No yMax  
+! Make chart          
+          Call makePlot(outputDirectory, trim(fileName), tempDirectory, &
+          eamData, 1, 2, eamKey(i,4), eamKey(i,6), eamChart)
+          If(eamKey(i,3).eq.1)Then  ! Do a "close up" of the pair potential            
+            write(fileName,"(I4)") FunctionCounter
+            fileName = "Input_EAM_"//adjustl(trim(fileName))
+            fileName = trim(fileName)//"_"//eamFunctionTypes(eamKey(i,3))//"_C"
+! Set chart values
+            eamChart%title = "Plot for "//eamFunctionTypes(eamKey(i,3))
+            eamChart%xAxis = "Radius"
+            eamChart%yAxis = "Energy"   
+            eamChart%yMin = -1.0D0       
+            eamChart%yMax = 10.0D0        
+! Make chart            
+            Call makePlot(outputDirectory, trim(fileName), tempDirectory, &
+            eamData, 1, 2, eamKey(i,4), eamKey(i,6), eamChart)
+          End If
+        End If
+        If(functionCounter.eq.eamFunctionCount )Then
+          Exit  ! Exit, all functions cycled through
+        End If
+      End Do
+    End If
+    
+    
+    !If(mpiProcessID.eq.0)Then
+    !  Call makePlot(outputDirectory, "eam1", tempDirectory, eamData, 1, 2, 1, 1001)
+    !  Call makePlot(outputDirectory, "eam2", tempDirectory, eamData, 1, 2, 1002, 2003)
+    !  Call makePlot(outputDirectory, "eam3", tempDirectory, eamData, 1, 2, 2004, 3005)
+    !End If
+  End Subroutine eamCharts
 
   Subroutine AddUniqueElement(element)
     Character(len=2) :: element

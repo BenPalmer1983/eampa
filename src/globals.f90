@@ -8,24 +8,42 @@ Module globals
 ! Declare all global variables
 
 ! ----------------------------------------
-! Updated: 12th Aug 2014
+! Updated: 18th June 2015
 ! ----------------------------------------
 
 ! Setup Modules
   Use kinds
+  Use types
   Use msubs
   Use general
+  
 ! Force declaration of all variables
   Implicit None
-! Initialise Subroutine Variable
+!------------------------------------------------------------------------------ 
+! Global Parameters
+!
+  Integer(kind=StandardInteger), Parameter :: maxConfigs = 1024
+  Integer(kind=StandardInteger), Parameter :: maxConfigsBP = 32
+  Integer(kind=StandardInteger), Parameter :: bpCopies = 4
+  Integer(kind=StandardInteger), Parameter :: aLatSamples = 7
+  Real(kind=DoubleReal), Parameter :: fccAlatBP = 4.0D0
+  Real(kind=DoubleReal), Parameter :: bccAlatBP = 2.6D0
+  Real(kind=DoubleReal), Parameter :: bpCutoffNL = 6.5D0
+  Real(kind=DoubleReal), Parameter :: bpCutoff = 6.5D0
+  Character(len=4), Parameter, Dimension(1:10) :: eamFunctionTypes = &
+  ["PAIR","DENS","EMBE","DDEN","SDEN","DEMB","SEMB","    ","    ","    "]
+!     1      2      3      4      5      6      7      8      9     10  
+!------------------------------------------------------------------------------ 
+
+
+!------------------------------------------------------------------------------ 
+! My standard variables
+!
   Character(len=64) :: compileLine
   Real(kind=DoubleReal) :: programStartTime, programEndTime
   Real(kind=DoubleReal), Dimension(1:100) :: cpuTime
   Character(Len=64), Dimension(1:100) :: cpuTimeLabels
   Character(len=255) :: currentWorkingDirectory
-  Character(len=255) :: outputFile
-  Character(len=255) :: outputFileEnergies
-  Character(len=255) :: outputFileForces
   Character(len=512), Dimension(1:100) :: fileCleanupList
   Character(len=255) :: outputDirectory
   Character(len=255) :: tempDirectory
@@ -35,24 +53,37 @@ Module globals
   Real(kind=DoubleReal) :: largeArraySize
   Integer(kind=StandardInteger), Dimension(1:1024) :: processMap
   Integer(kind=StandardInteger), Dimension(1:1024,1:10) :: processMapE
-! Parameters
-  Integer(kind=StandardInteger), Parameter :: maxConfigs = 1024
+! Other useful flags
+  Logical :: quietOverride  
 
-! -----------------------
-! Default variables
-  Character(len=4), Dimension(1:10) :: eamFunctionTypes
-! Declare variables - debug options
-  Integer(kind=StandardInteger) :: printToTerminal
-! Declare variables - run options
+  
+!------------------------------------------------------------------------------ 
+! Initialise
+! 
+  Character(len=255) :: outputFile
+  Character(len=255) :: outputFileEnergies
+  Character(len=255) :: outputFileForces
+  
+  
+!------------------------------------------------------------------------------ 
+! Load isotope data
+!   
+  
+  
+  
+!------------------------------------------------------------------------------ 
+! Read Input
+!   
+! user file array
+  Character(len=255), Dimension(1:1024) :: userInputData
+! Verbose
+  !Integer(kind=StandardInteger) :: printToTerminal
+  Logical :: printToTerminal
   Character(len=4) :: eampaRunType
-! Input File - User Input
+! Input File - User Input  
   Character(len=255) :: inputFilePath
-  Character(len=255) :: inputFilePathT
-! MPI Options
-  Integer(kind=StandardInteger) :: mpiEnergy
 ! EAM Details - User Input
   Character(len=255) :: eamFilePath
-  Character(len=255) :: eamFilePathT
   Character(len=255) :: eamNodesFilePath
   Character(len=64) :: eamSaveFile
   Integer(kind=StandardInteger) :: eamInterpPoints
@@ -61,6 +92,7 @@ Module globals
   Integer(kind=StandardInteger) :: splineTotalNodes
   Character(len=2), Dimension(1:10) :: eamMakeAlloy
   Integer(kind=StandardInteger) :: eamFileType
+  Logical :: makeEAMCharts
 ! Config Details - User Input
   Real(kind=DoubleReal), Dimension(1:3,1:3) :: globalConfigUnitVector
   Character(len=255) :: configFilePath
@@ -77,13 +109,12 @@ Module globals
 ! Calculation details
   Character(len=8) :: calcEqVol
   Character(len=3) :: refineEqVol
-
 ! Input File Logical
   Logical :: saveForcesToFile
   Logical :: saveNLToFile
   Logical :: eamForceSpline
   Logical :: eamForceZBL
-
+  Logical :: eosChart
 ! Optimise options
   Real(kind=DoubleReal), Dimension(1:10) :: varyNodeOptions
   Integer(kind=StandardInteger) :: optLoops
@@ -102,16 +133,13 @@ Module globals
   Real(kind=DoubleReal) :: pwbVarianceMax
   Real(kind=DoubleReal) :: pwbVarianceSigma
   Integer(kind=StandardInteger) :: pwbInterstitialAtom
-  Character(len=16), Dimension(1:3) :: pwbInterstitialDetails
-
-! ----------------------------------------------
-! Read Input
-! ----------------------------------------------
-  Character(len=255), Dimension(1:1024) :: userInputData
-
-! ----------------------------------------------
-! Read EAM
-! ----------------------------------------------
+  Character(len=16), Dimension(1:3) :: pwbInterstitialDetails  
+  Type(bulkProperties), Dimension(1:maxConfigsBP) :: refBulkProperties
+    
+!------------------------------------------------------------------------------ 
+! Read EAM File
+!   
+! EAM file array  
   Character(len=255), Dimension(1:65536) :: eamInputData
   Character(len=2), Dimension(1:300) :: elements                                   ! 0.6KB
   Integer(kind=StandardInteger) :: elementsCount
@@ -122,64 +150,201 @@ Module globals
   Integer(kind=StandardInteger) :: eamType                                         ! 4bit        1=EAM, 2=2BMEAM
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKey                     ! 1.2KB       1 atomA, 2 atomB, 3 function/al type, 4 func start, 5 func length, 6 func end
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamData                        ! 3.2MB       1 x, 2 y(x), 3 y'(x), 4 y''(x)
-
-! ----------------------------------------------
-! Read Config
-! ----------------------------------------------
-  Character(len=255), Dimension(1:65536) :: configInputData
-  Character(len=255), Dimension(1:65536) :: configInputDataDFT
-  Character(len=255), Dimension(1:65536) :: configInputDataTemp
-  Character(len=255), Dimension(1:65536) :: configInputDataDFTTemp
-  Character(len=16), Dimension(1:1024,1:2) :: configLabelReplace
-  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: crystalUnitCell
-  Integer(kind=StandardInteger) :: configsAtomTotal
-
-! -----------------------
-! Read EAM File + Read Configuration File    < 20MB
-  Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKey
-  Real(kind=DoubleReal), Dimension(1:10000,1:6) :: splineNodesData
+! Spline arrays
+  Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKey, splineNodesKeyTemp
+  Real(kind=DoubleReal), Dimension(1:10000,1:6) :: splineNodesData, splineNodesDataTemp
   Real(kind=DoubleReal), Dimension(1:10000,1:2) :: splineNodesResponse
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyInput
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataInput
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyOpt
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataOpt
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKeyOpt
-  Real(kind=DoubleReal), Dimension(1:10000,1:6) :: splineNodesDataOpt
-! Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKeyIn
-! Real(kind=DoubleReal), Dimension(1:10000,1:4) :: splineNodesDataIn
-! Read Configuration File
-  Integer(kind=StandardInteger) :: configCount, configCountT, configCountRI                      ! 4bit
-  Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsI         ! 41KB        1 xcopy, 2 ycopy, 3 zcopy, 4 forces,
-  Real(kind=DoubleReal), Dimension(1:1024,1:30) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 BM   21-29 configUnitVector
+  Real(kind=DoubleReal), Dimension(1:10000,1:6) :: splineNodesDataOpt 
+    
+!------------------------------------------------------------------------------ 
+! Read Config File
+!   
+! Arrays to read config file and dft files into
+  Character(len=255), Dimension(1:65536) :: configInputData
+  Character(len=255), Dimension(1:65536) :: configInputDataDFT
+  Character(len=255), Dimension(1:65536) :: configInputDataTemp
+  Character(len=255), Dimension(1:65536) :: configInputDataDFTTemp
+! atom labels to replace
+  Character(len=16), Dimension(1:maxConfigs,1:2) :: configLabelReplace
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:9) :: crystalUnitCell
+! Counter  
+  Integer(kind=StandardInteger) :: configCount
 ! Input coords and forces
   Integer(kind=StandardInteger) :: coordCount                                      ! 4bit
-  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKey   ! 13KB        1 start, 2 length, 3 end
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:3) :: configurationCoordsKey   ! 13KB        1 start, 2 length, 3 end
   Integer(kind=StandardInteger), Dimension(1:50000,1:1) :: configurationCoordsI   !             1 atomID
   Real(kind=DoubleReal), Dimension(1:50000,1:3) :: configurationCoordsR           !             1 x, 2 y, 3 z
-  Real(kind=DoubleReal), Dimension(1:50000,1:3) :: configurationForcesR           !             1 fx, 2 fy, 3 fz
+  Real(kind=DoubleReal), Dimension(1:50000,1:3) :: configurationForcesR     
 ! Generated/expanded coords and forces
   Integer(kind=StandardInteger) :: coordCountG                                     ! 4bit
-  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKeyG  ! 13KB        1 start, 2 length, 3 end
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:3) :: configurationCoordsKeyG  ! 13KB        1 start, 2 length, 3 end
   Integer(kind=StandardInteger), Dimension(1:100000,1:1) :: configurationCoordsIG  !          1 atomID
   Real(kind=DoubleReal), Dimension(1:100000,1:6) :: configurationCoordsRG          !       1 x, 2 y, 3 z
-  Real(kind=DoubleReal), Dimension(1:1024) :: configVolume
-  Real(kind=DoubleReal), Dimension(1:1024) :: configVolumeOpt
+! Volumes, total atoms 
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configVolume
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configVolumeOpt      !             1 fx, 2 fy, 3 fz
+  Integer(kind=StandardInteger) :: configsAtomTotal
+    
+!------------------------------------------------------------------------------ 
+! Bulk Properties Config
+!   
+! Counter  
+  Integer(kind=StandardInteger) :: configCountBP
+  Integer(kind=StandardInteger), Dimension(1:maxConfigsBP,1:3) :: configurationCoordsKeyBP  !     1 start, 2 length, 3 end
+  Integer(kind=StandardInteger), Dimension(1:8192,1:1) :: configurationCoordsIBP  !     1 atomID
+  Real(kind=DoubleReal), Dimension(1:8192,1:6) :: configurationCoordsRBP          !     1 x, 2 y, 3 z
+  Integer(kind=StandardInteger) :: configsAtomTotalBP
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP) :: aLatBP
+  Integer(kind=StandardInteger), Dimension(1:maxConfigsBP) :: bpUnitCellCount
+  Type(bulkProperties), Dimension(1:maxConfigsBP) :: calcBulkProperties
+
+!------------------------------------------------------------------------------ 
+! Neighbour List
+!   
+! 
+  Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeys               ! 2.0MB
+  Integer(kind=StandardInteger) :: neighbourListCount
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:3) :: neighbourListKey
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:5) :: neighbourListKeyR
+  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListI         ! 12.0MB
+  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListR                     ! 4.0MB
+  Real(kind=DoubleReal), Dimension(1:800000,1:12) :: neighbourListCoords             ! 48.0MB
+  Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpread
+! Temporary NL arrays
+ ! Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIT         ! 16.0MB
+ ! Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRT                     ! 5.0MB
+ ! Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoordsT             ! 60.0MB
+
+
+!------------------------------------------------------------------------------ 
+! Neighbour List for Bulk Property Configs
+!   
+! 
+  Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeysBP              ! 2.0MB
+  Integer(kind=StandardInteger) :: neighbourListCountBP
+  Integer(kind=StandardInteger), Dimension(1:maxConfigsBP,1:3) :: neighbourListKeyBP
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:5) :: neighbourListKeyRBP
+  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIBP      ! 12.0MB
+  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRBP               ! 4.0MB
+  Real(kind=DoubleReal), Dimension(1:800000,1:12) :: neighbourListCoordsBP             ! 48.0MB
+  Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpreadBP
+! Temporary NL arrays
+  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRBP_T  
+  Real(kind=DoubleReal), Dimension(1:800000,1:6) :: neighbourListCoordsBP_T  
+
+!------------------------------------------------------------------------------ 
+! Precalc
+!   
+!
+
+
+!------------------------------------------------------------------------------ 
+! Evaluate EAM
+!   
+!
+  Type(rssConfig), Dimension(1:maxConfigs) :: rssConfigsArr
+  
+
+
+!------------------------------------------------------------------------------ 
+! CalcEAM
+!   
+!    
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configCalcEnergies  
+  Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configCalcForces  
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:9) :: configCalcStresses
+  
+  
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:20) :: configCalc  
+    
+  
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configCalcEV
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configCalcEE
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configCalcEL
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configCalcBM
+  
+  
+
+
+!------------------------------------------------------------------------------ 
+! Evaluate BP
+!   
+!
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:aLatSamples) :: alatEnergies 
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:aLatSamples) :: configVolBP
+  Type(rssBP), Dimension(1:maxConfigsBP) :: rssBPArr
+    
+
+!------------------------------------------------------------------------------ 
+! BpCalcEAM
+!   
+!  
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP) :: configCalcEnergiesBP  
+  
+  
+  
+!------------------------------------------------------------------------------ 
+! Optimise
+!   
+!   
+  Type(saConfig) :: saConfigIn
+  Integer(kind=StandardInteger) :: optLogCounter
+  Logical :: optForceZBL
+! LMA calc and ref values
+  Real(kind=DoubleReal), Dimension(1:100000,1:2) :: calcRef
+  Integer(kind=StandardInteger) :: countCalcRef
+  Integer(kind=StandardInteger) :: crCount
+
+! -----------------------
+! Default variables
+  
+! Declare variables - debug options
+
+! Declare variables - run options
+
+
+
+! ----------------------------------------------
+! Read Input
+! ----------------------------------------------
+
+! ----------------------------------------------
+! Read EAM
+! ----------------------------------------------
+
+! ----------------------------------------------
+! Read Config
+! ----------------------------------------------
+
+
+! -----------------------
+! Read EAM File + Read Configuration File    < 20MB
+
+! Read Configuration File
+  Integer(kind=StandardInteger) :: configCountT, configCountRI                      ! 4bit
+  Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsI         ! 41KB        1 xcopy, 2 ycopy, 3 zcopy, 4 forces,
+  Real(kind=DoubleReal), Dimension(1:1024,1:30) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 BM   21-29 configUnitVector
+
+
 ! Configuration Reference/Calculated Values
   Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configRef                       !             1 Energy PA, 2 EqVol
-  Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configCalc                      !             1 Energy, 2 EqVol    (maybe)
+                    !             1 Energy, 2 EqVol    (maybe)
   Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configRefForces                !       1 fx, 2 fy, 3 fz
-  Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configCalcForces
+
   Real(kind=DoubleReal), Dimension(1:100000,1:2) :: configAtomEnergy
   Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configRefStresses
-  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configCalcStresses
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEnergies
-  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEnergies
+
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefEV                          ! Equilibrium volume
-  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEV
-  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEE
-  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcEL
+
+
   Real(kind=DoubleReal), Dimension(1:1024) :: configRefBM
-  Real(kind=DoubleReal), Dimension(1:1024) :: configCalcBM
+
   Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
   Real(kind=DoubleReal), Dimension(1:20) :: testConfigRSS                          ! 1FccALat,2FccEMin,3FccBM,4FccEoS,5FccC11,6FccC12,7FccC44,8BccALat,9BccEMin,10BccBM,11BccEoS,12BccC11,13BccC12,14BccC44
   Real(kind=DoubleReal) :: totalRSS
@@ -197,18 +362,7 @@ Module globals
 ! ----------------------------------------------
 ! Neighbour List
 ! ----------------------------------------------
-  Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeys               ! 2.0MB
-  Integer(kind=StandardInteger) :: neighbourListCount
-  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: neighbourListKey
-  Real(kind=DoubleReal), Dimension(1:1024,1:5) :: neighbourListKeyR
-  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListI         ! 12.0MB
-  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListR                     ! 4.0MB
-  Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoords             ! 48.0MB
-  Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpread
-! Temporary NL arrays
-  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIT         ! 16.0MB
-  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRT                     ! 5.0MB
-  Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoordsT             ! 60.0MB
+
 
 ! ----------------------------------------------
 ! Calculations
@@ -227,7 +381,7 @@ Module globals
 ! ----------------------------------------------
 ! EAM Testing
 ! ----------------------------------------------
-  Real(kind=DoubleReal), Dimension(1:12) :: fccReferenceValues, bccReferenceValues
+
   Real(kind=DoubleReal), Dimension(1:12) :: fccCalcValues, bccCalcValues
   Real(kind=DoubleReal) :: fccALat, fccEMin, fccVolMin, fccBM, fccBMP
   Real(kind=DoubleReal) :: bccALat, bccEMin, bccVolMin, bccBM, bccBMP
@@ -253,6 +407,7 @@ Module globals
   Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIInput
   Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRInput
   Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoordsInput
+  
   Integer(kind=StandardInteger) :: configCountInput
   Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsIInput
   Real(kind=DoubleReal), Dimension(1:1024,1:30) :: configurationsRInput
@@ -275,7 +430,8 @@ Module globals
 
 ! Times
   Real(kind=DoubleReal) :: timeStart, timeEnd, timeDuration
-  Real(kind=DoubleReal) :: globInitTime, eamLoadTime, nlTime, configLoadTime, efsCalcTime
+  Real(kind=DoubleReal) :: globInitTime, eamLoadTime, nlTime, nlTimeBP, configLoadTime
+  Real(kind=DoubleReal) :: efsCalcTime, efsCalcTimeBP, evalTimeBP
 
   Private
 ! -----------------------
@@ -296,33 +452,22 @@ Module globals
 ! MPI Variables
   Public :: mpiProcessCount
   Public :: mpiProcessID
+  Public :: quietOverride
+  
 ! System Variables
   Public :: largeArraySize
   Public :: processMap, processMapE
-  Public :: maxConfigs
+  Public :: maxConfigs, maxConfigsBP
+  Public :: bpCopies, fccAlatBP, bccAlatBP, bpCutoffNL, bpCutoff
+  Public :: aLatSamples
 ! Default variables
   Public :: eamFunctionTypes
 ! Set defaults - debug options
-  Public :: printToTerminal
-! Public Variables - run options
-  Public :: eampaRunType
   
-! Input File - User Input
-  Public :: inputFilePath, inputFilePathT
-! MPI Options
-  Public :: mpiEnergy
-! EAM Details - User Input
-  Public :: eamFilePath, eamFilePathT
-  Public :: eamNodesFilePath
-  Public :: eamSaveFile
-  Public :: eamInterpPoints
-  Public :: zblHardCore
-  Public :: splineNodeCount
-  Public :: splineTotalNodes
+
+
   Public :: eamForceSpline
   Public :: eamForceZBL
-  Public :: eamMakeAlloy
-  Public :: eamFileType
 ! Config Details - User Input
   Public :: globalConfigUnitVector
   Public :: configFilePath, configFilePathT
@@ -338,6 +483,7 @@ Module globals
   Public :: calcEqVol
   Public :: refineEqVol
   Public :: saveForcesToFile, saveNLToFile
+  Public :: eosChart
 ! Optimise options
   Public :: varyNodeOptions
   Public :: optLoops
@@ -358,15 +504,7 @@ Module globals
   Public :: pwbInterstitialAtom
   Public :: pwbInterstitialDetails
 
-! ----------------------------------------------
-! Read Input
-! ----------------------------------------------
-  Public :: userInputData
 
-! ----------------------------------------------
-! Read Input
-! ----------------------------------------------
-  Public :: eamInputData
 
 ! ----------------------------------------------
 ! Read Config
@@ -390,8 +528,8 @@ Module globals
   Public :: eamType
   Public :: eamKey
   Public :: eamData
-  Public :: splineNodesData
-  Public :: splineNodesKey
+  Public :: splineNodesData, splineNodesDataTemp
+  Public :: splineNodesKey, splineNodesKeyTemp
   Public :: splineNodesResponse
   Public :: eamKeyInput
   Public :: eamDataInput
@@ -410,6 +548,108 @@ Module globals
   Public :: configurationCoordsRG
   Public :: configVolume
   Public :: configVolumeOpt
+
+
+!------------------------------------------------------------------------------ 
+! Read Input
+!   
+! user file array
+  Public :: userInputData
+! Verbose
+  Public :: printToTerminal, eampaRunType
+! Input File - User Input  
+  Public :: inputFilePath
+! EAM Details - User Input
+  Public :: eamFilePath, eamNodesFilePath, eamSaveFile
+  Public :: eamInterpPoints, zblHardCore, splineNodeCount
+  Public :: splineTotalNodes, eamMakeAlloy, eamFileType
+  Public :: makeEAMCharts
+  Public :: refBulkProperties
+
+  
+!------------------------------------------------------------------------------ 
+! Read EAM File
+!   
+! EAM file array  
+  Public :: eamInputData
+
+  
+  
+!------------------------------------------------------------------------------ 
+! Bulk Properties Config
+!     
+  Public :: configCountBP, configurationCoordsKeyBP, configurationCoordsIBP
+  Public :: configurationCoordsRBP, configsAtomTotalBP, aLatBP, bpUnitCellCount
+  Public :: calcBulkProperties
+  
+!------------------------------------------------------------------------------ 
+! Neighbour List
+!   
+  Public :: nlUniqueKeys, neighbourListCount
+  Public :: neighbourListKey, neighbourListKeyR
+  Public :: neighbourListI, neighbourListR
+  Public :: neighbourListCoords, atomSeparationSpread
+    
+!------------------------------------------------------------------------------ 
+! Neighbour List for Bulk Property Configs
+! 
+  Public :: nlUniqueKeysBP, neighbourListCountBP
+  Public :: neighbourListKeyBP, neighbourListKeyRBP
+  Public :: neighbourListIBP, neighbourListRBP
+  Public :: neighbourListCoordsBP, atomSeparationSpreadBP  
+! Temporary NL arrays
+  Public :: neighbourListRBP_T, neighbourListCoordsBP_T  
+  
+!------------------------------------------------------------------------------ 
+! Precalc
+!   
+!
+
+
+
+!------------------------------------------------------------------------------ 
+! Evaluate EAM
+!   
+!
+  Public :: rssConfigsArr
+
+
+!------------------------------------------------------------------------------ 
+! CalcEAM
+!   
+!      
+  
+  
+  
+!------------------------------------------------------------------------------ 
+! Evaluate BP
+!   
+!
+  Public :: alatEnergies 
+  Public :: configVolBP
+  Public :: rssBPArr
+  
+
+
+!------------------------------------------------------------------------------ 
+! BpCalcEAM
+!   
+!  
+  
+  Public :: configCalcEnergiesBP  
+  
+!------------------------------------------------------------------------------ 
+! Optimise
+!   
+!   
+  Public :: saConfigIn 
+  Public :: optLogCounter
+  Public :: optForceZBL
+! LMA calc and ref values
+  Public :: calcRef
+  Public :: countCalcRef
+  Public :: crCount
+  
 ! Configuration Reference/Calculated Values
   Public :: configRef
   Public :: configCalc
@@ -428,6 +668,10 @@ Module globals
   Public :: configCalcBM
   Public :: configRSS, configTotalRSS, testConfigRSS
   Public :: totalRSS, optimumRSS, startRSS
+  
+  
+  
+  
 ! Optimisation
   Public :: nodeVariationAmount
   Public :: saTemp
@@ -435,18 +679,11 @@ Module globals
   Public :: varyFixedNodes
   Public :: jumbleNodesOpt
 ! Neighbour List
-  Public :: nlUniqueKeys
-  Public :: neighbourListCount
-  Public :: neighbourListKey
-  Public :: neighbourListKeyR
-  Public :: neighbourListI
-  Public :: neighbourListR
-  Public :: neighbourListCoords
-  Public :: atomSeparationSpread
+
 ! Temporary NL arrays
-  Public :: neighbourListIT
-  Public :: neighbourListRT
-  Public :: neighbourListCoordsT
+  !Public :: neighbourListIT
+  !Public :: neighbourListRT
+  !Public :: neighbourListCoordsT
 ! Calculations
   Public :: forceStressSwitch
   Public :: calculationDensity
@@ -456,7 +693,6 @@ Module globals
   Public :: calcConfigEnergies
   Public :: calcConfigForces
 ! EAM Testing
-  Public :: fccReferenceValues, bccReferenceValues
   Public :: fccCalcValues, bccCalcValues
   Public :: fccALat, fccEMin, fccVolMin, fccBM, fccBMP
   Public :: bccALat, bccEMin, bccVolMin, bccBM, bccBMP
@@ -507,7 +743,8 @@ Module globals
 
 ! Times
   Public :: timeStart, timeEnd, timeDuration
-  Public :: globInitTime, eamLoadTime, nlTime, configLoadTime, efsCalcTime
+  Public :: globInitTime, eamLoadTime, nlTime, nlTimeBP, configLoadTime
+  Public :: efsCalcTime, efsCalcTimeBP, evalTimeBP
 
   Contains
 
@@ -518,14 +755,18 @@ Module globals
 ! Global Init Start time
     Call cpu_time(globalsTimeStart)
 ! Initialise Subroutine Variable
-    compileLine = "14:34:00  18/06/2015"
+    compileLine = "13:05:15  29/07/2015"
     PROGRAMEndTime = 0.0D0
+      quietOverride = .false.
       timeStart = 0.0D0
       timeEnd = 0.0D0
       timeDuration = 0.0D0
       nlTime = 0.0D0
+      nlTimeBP = 0.0D0
       configLoadTime = 0.0D0
       efsCalcTime = 0.0D0
+      efsCalcTimeBP = 0.0D0
+      evalTimeBP = 0.0D0
       cpuTime = 0.0D0
       cpuTimeLabels(1) = "Globals Init"
       cpuTimeLabels(2) = "Evaluation Calculations"
@@ -552,29 +793,19 @@ Module globals
       largeArraySize = 0.0D0
       processMap = -1
       processMapE = -1
-! Default variables
-      eamFunctionTypes = BlankStringArray(eamFunctionTypes)
-      eamFunctionTypes(1) = "PAIR"
-      eamFunctionTypes(2) = "DENS"
-      eamFunctionTypes(3) = "EMBE"
-      eamFunctionTypes(4) = "DDEN"
-      eamFunctionTypes(5) = "SDEN"
-      eamFunctionTypes(6) = "DEMB"
-      eamFunctionTypes(7) = "SEMB"
 ! Debug options
-      printToTerminal = 0
+      printToTerminal = .false.
 ! Run options
       eampaRunType = BlankString(eampaRunType)
       
 ! Input File - User Input
       inputFilePath = BlankString(inputFilePath)
-      inputFilePathT = BlankString(inputFilePathT)
-! MPI Options
-      mpiEnergy = 0
 ! ----------------------------------------------
 ! Read Input
 ! ----------------------------------------------
       userInputData = BlankStringArray(userInputData)
+      makeEAMCharts = .true.
+      eosChart = .false.
 ! ----------------------------------------------
 ! EAM Input
 ! ----------------------------------------------
@@ -583,7 +814,6 @@ Module globals
       eamType = 0
 ! EAM Details - User Input
       eamFilePath = BlankString(eamFilePath)
-      eamFilePathT = BlankString(eamFilePathT)
       eamSaveFile = BlankString(eamSaveFile)
       eamNodesFilePath = BlankString(eamNodesFilePath)
       eamInterpPoints = 4
@@ -620,6 +850,10 @@ Module globals
       refineEqVol = "NO "
       saveNLToFile = .false.
       saveForcesToFile = .true.
+!------------------------------------------------------------------------------ 
+! Optimise
+!   
+!       
 ! Optimise options
       varyNodeOptions = 0.0D0
       optLoops = 1
@@ -631,6 +865,8 @@ Module globals
       forceStressSwitch = 1        ! Calculate stress and force by default
       calculationDensity = 0.0D0
       pairForce = 0.0D0
+      optLogCounter = 0
+      optForceZBL = .true.
 ! Global Init End Time
       Call cpu_time(globalsTimeEnd)
 ! Store time duration

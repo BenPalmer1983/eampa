@@ -24,6 +24,7 @@ Module general
   Public :: makeDir, rmFile, rmDir, randFileName, tempFileName
   Public :: strToIntArr, strToDPArr, strToStrArr
   Public :: timeAcc
+  Public :: readFile
 ! Public functions
   Public :: dpToString, intToString
   Public :: GetClockTime
@@ -356,6 +357,50 @@ Module general
     Real(kind=DoubleReal) :: time,timeStart,timeEnd
     time = time + timeEnd - timeStart
   End Subroutine timeAcc
+  
+  
+! ---------------------------------------------------------------------------------------------------
+  Subroutine readFile(inputFilePath, fileArray, n)
+! Subroutine to read file into an array
+! Removes comments !.....
+! Removes blank lines
+! Removes leading spaces
+    Implicit None ! Force declaration of all variables
+! Private variables
+    Character(*) :: inputFilePath
+    Integer(kind=StandardInteger) :: i, j, n, ios
+    Character(*), Dimension(:) :: fileArray
+    Character(len=255) :: fileRow, fileRowTemp
+    Logical :: commentsFlag
+! open file
+    Open(UNIT=4323,FILE=trim(inputFilePath))
+    n = 0
+    Do i=1,size(fileArray,1)
+      Read(4323,"(A255)",IOSTAT=ios) fileRow
+      If(ios /= 0)Then
+        EXIT
+      End If
+! remove comments
+      commentsFlag = .false.
+      Do j=1,255
+        If(fileRow(j:j).eq."!")Then
+          commentsFlag = .true.
+        End If
+        If(commentsFlag)Then
+          fileRow(j:j) = " "
+        End If
+      End Do  
+! remove blank lines
+      fileRowTemp = trim(adjustl(fileRow))
+      If(fileRowTemp(1:1).ne." ")Then
+        n = n + 1
+        fileArray(n) = fileRowTemp
+      End If
+    End Do  
+! Close file    
+    close(4323)
+  End Subroutine readFile
+
 
 ! ------------------------------------------------------------------------!
 !                                                                        !

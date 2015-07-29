@@ -6,14 +6,18 @@ binFile="eampaDev.x "
 buildFiles="src/kinds.f90 src/types.f90 \
 src/msubs.f90 src/constants.f90 \
 src/maths.f90 src/mMaths.f90 src/general.f90 src/units.f90 \
-src/plot.f90 \
+src/plot.f90 src/typesM.f90 \
 src/globals.f90  \
 src/initialise.f90 \
 src/loadData.f90 src/output.f90 \
 src/eamGen.f90 \
-src/readInput.f90 src/readEAM.f90 src/readConfig.f90 \
-src/neighbourList.f90 src/preCalc.f90 \
-src/calcEAM.f90 src/eval.f90 src/opti.f90 \
+src/readInput.f90 src/readEAM.f90 src/eamOpt.f90 \
+src/readConfig.f90 src/bpConfig.f90 \
+src/neighbourList.f90 src/neighbourListBP.f90 \
+src/preCalc.f90 \
+src/calcEAM.f90 src/bpCalcEAM.f90 \
+src/eval.f90 src/evalBP.f90 \
+src/opti.f90 \
 src/finalise.f90 \
 src/eampa.f90"
 commandLineA="mpif90 -g -Wall -Wno-unused-function \

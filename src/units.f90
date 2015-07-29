@@ -203,7 +203,7 @@ Module units
       factorOutput = 1.0D-9
     End If
     If(outputUnit(1:5).eq."EVAN3")Then
-      factorOutput = 1.0D0/1.602176568D-11
+      factorOutput = 6.241508D-12
     End If
 ! -------------------------
 ! Forces

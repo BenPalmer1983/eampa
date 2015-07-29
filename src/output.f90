@@ -48,6 +48,8 @@ Module output
   Public :: outputTestingSummary
   Public :: outputCleanupList
   Public :: outputConfigPoints
+  Public :: outputConfigBPPoints
+  Public :: outputOptLine
 ! Public Subroutines - Output to terminal
   Public :: outputConfigSummaryT
   Public :: outputNLSummaryT
@@ -58,7 +60,10 @@ Module output
   Public :: outputProcessMapT
   Public :: outputPreCalcSummaryT
   Public :: outputEnergyT
-
+  Public :: outputBpT
+  
+  
+  
   Contains
 
 ! ---------------------------------------------------------------------------------------------------
@@ -69,15 +74,15 @@ Module output
 ! Saves the eam file to the output directory
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Character(len=32) :: fileName
+    Character(*) :: fileName
     Character(len=255) :: filePath
     Integer(kind=StandardInteger) :: i, j, k, functionCounter
 ! Only on master process
     If(mpiProcessID.eq.0)Then
-      fileName = Trim(Adjustl(fileName))
+      !fileName = Trim(Adjustl(fileName))
       FunctionCounter = 0
       If(fileName(1:1).ne." ")Then
-        filePath = Trim(outputDirectory)//"/"//Trim(fileName)
+        filePath = Trim(outputDirectory)//"/"//fileName
         Open(UNIT=118,FILE=Trim(filePath))
 ! Loop through EAM Functions
         Do i=1,size(eamKey,1)
@@ -107,7 +112,7 @@ Module output
       Close(118)
     End If
 ! Output to Terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *,"Saved to: ",trim(filePath)
     End If
   End Subroutine saveEamFile
@@ -186,23 +191,25 @@ Module output
     Integer(kind=StandardInteger) :: i,j,n
 ! Only on master process
     If(mpiProcessID.eq.0)Then
-      Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"AtomEnergies.dat",&
+      Open(UNIT=173,FILE=Trim(outputDirectory)//"/"//"AtomEnergies1.dat",&
       status="old",position="append",action="write")
       Do i=1,configCount
-        write(1,"(A14,I8)") "Configuration ",i
-        write(1,"(A40)") "----------------------------------------"
-        write(1,"(A20)") "Atom Energies:"
+        write(173,"(A14,I8)") "Configuration ",i
+        write(173,"(A40)") "----------------------------------------"
+        write(173,"(A20)") "Atom Energies:"
         n = 0
-        write(1,"(A12,A16,A16,A16)") &
+        write(173,"(A12,A16,A16,A16)") &
         "            ","Pair","Embe","Total"
         Do j=configurationCoordsKeyG(i,1),configurationCoordsKeyG(i,3)
           n = n + 1
-          write(1,"(I8,A4,F16.8,F16.8,F16.8)") &
+          write(173,"(I8,A4,F16.8,F16.8,F16.8)") &
           n,elements(configurationCoordsIG(j,1)),configAtomEnergy(j,1),&
           configAtomEnergy(j,2),(configAtomEnergy(j,1)+configAtomEnergy(j,2))
         End Do
       End Do
-      Close(1)
+      write(173,"(A1)") " "
+      write(173,"(A1)") " "
+      Close(173)
     End If
   End Subroutine outputAtomEnergiesFile
 
@@ -679,7 +686,7 @@ Module output
         Do i=coordStart,coordEnd
           write(999,"(A8,A4,A2,F14.6,A2,F14.6,A2,F14.6,A4,F14.6,A2,F14.6,A2,F14.6)") &
           "        ",&
-          elements(configurationCoordsIG(coordCount,1)),"  ",&
+          elements(configurationCoordsIG(i,1)),"  ",&
           configurationCoordsRG(i,1),"  ",&
           configurationCoordsRG(i,2),"  ",&
           configurationCoordsRG(i,3),"    ",&
@@ -692,6 +699,62 @@ Module output
     End If
   End Subroutine outputConfigPoints
 
+  Subroutine outputConfigBPPoints()
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: configID,i
+    Integer(kind=StandardInteger) :: coordStart, coordLength, coordEnd
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"configPointsBP.dat"))
+      write(999,"(A22,I8)") "Configurations:       ", configCountBP
+      Do configID=1,configCountBP
+        coordStart = configurationCoordsKeyBP(configID,1)
+        coordLength = configurationCoordsKeyBP(configID,2)
+        coordEnd = configurationCoordsKeyBP(configID,3)
+        write(999,"(A7,I4,A3,I8,I8,A1,I8,A1)") "Config ",configID,"   ",coordStart,coordEnd,"(",coordLength,")"
+        Do i=coordStart,coordEnd
+          write(999,"(A8,A4,A2,F14.6,A2,F14.6,A2,F14.6,A4,F14.6,A2,F14.6,A2,F14.6)") &
+          "        ",&
+          elements(configurationCoordsIBP(i,1)),"  ",&
+          configurationCoordsRBP(i,1),"  ",&
+          configurationCoordsRBP(i,2),"  ",&
+          configurationCoordsRBP(i,3)
+        End Do
+      End Do
+      Close(999)
+    End If
+  End Subroutine outputConfigBPPoints
+  
+  
+  
+  Subroutine outputOptLine()
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: configID
+    If(mpiProcessID.eq.0)Then
+      optLogCounter = optLogCounter + 1
+      open(unit=999,file=trim(outputDirectory)//"/"//"OptLog.dat",&
+      status="old",position="append",action="write")
+      write(999,"(I8,A20)") optLogCounter,"Input Configurations"
+      Do configID=1,configCount
+        write(999,"(I4,A1,F16.8,A1,F16.8)")&
+        configID," ",&
+        configCalcEnergies(configID)," ",rssConfigsArr(configID)%total
+      End Do
+      write(999,"(I8,A20)") optLogCounter,"BP Configurations"
+      Do configID=1,configCountBP
+       write(999,"(I4,A1,F16.8,A1,F16.8,A1,F16.8,A1,F16.8)") &
+       configID," ",&
+       calcBulkProperties(configID)%alat," ",calcBulkProperties(configID)%e0," ",&
+       calcBulkProperties(configID)%b0," ",rssBPArr(configID)%total
+      End Do   
+      write(999,"(A12,F16.8)") "Total RSS:  ",totalRSS
+      write(999,"(A1)") " "
+      Close(999)
+    End If  
+  End Subroutine outputOptLine
 ! ---------------------------------------------------------------------------------------------------
 ! Output to terminal
 ! ---------------------------------------------------------------------------------------------------
@@ -702,7 +765,7 @@ Module output
 ! Private variables
     Integer(kind=StandardInteger) :: i
 ! Only on root process
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       print *,""
       print *,"                         Process Map                            "
       print *,"----------------------------------------------------------------"
@@ -724,7 +787,7 @@ Module output
 ! Private variables
     Integer(kind=StandardInteger) :: configID
 ! Only on root process
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       print *,""
       print *,"                         Config Summary                         "
       print *,"----------------------------------------------------------------"
@@ -746,7 +809,7 @@ Module output
 ! Private variables
     Integer(kind=StandardInteger) :: configID
 ! Only on root process
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       print *,""
       print *,"                     Config Energies                         "
       print *,"----------------------------------------------------------------"
@@ -760,6 +823,47 @@ Module output
       print *,""
     End If
   End Subroutine outputEnergyT
+  
+  
+  Subroutine outputBpT()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: configID
+! Only on root process
+    If(TerminalPrint())Then
+      Print *,"Energies:"
+      Do configID=1,configCount
+        print "(I4,A3,I8,A1,F14.7,A1,F14.7,A2,F14.7,A1,A2,F14.7,A1)",&
+        configID,"   ",configurationCoordsKeyG(configID,2)," ",&
+        (configCalcEnergies(configID)*1.0D0*&
+        configurationCoordsKeyG(configID,2)),&
+        " ",configCalcEnergies(configID),&
+        " (",configRefEnergies(configID),")",&
+        " [",rssConfigsArr(configID)%energy,"]"
+      End Do
+      print *,"Bulk Protperties: FCC"
+      print *,"aLat: ",calcBulkProperties(1)%aLat,&
+      " (ref: ",refBulkProperties(1)%aLat,")"," [",rssBPArr(1)%aLat,"]"
+      print *,"e0: ",calcBulkProperties(1)%e0,&
+      " (ref: ",refBulkProperties(1)%e0,")"," [",rssBPArr(1)%e0,"]"
+      print *,"b0: ",calcBulkProperties(1)%b0,&
+      " (ref: ",refBulkProperties(1)%b0,")"," [",rssBPArr(1)%b0,"]"
+      print *,"Total RSS: ",totalRSS
+      print *,""
+    End If
+  End Subroutine outputBpT 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
   Subroutine outputConfigSummaryT()
 ! Saves the eam file to the output directory
@@ -767,7 +871,7 @@ Module output
 ! Private variables
     Integer(kind=StandardInteger) :: i
 ! Print out
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *, "Configuration Summary"
       Print *, "Count: ",configCount,configCountT
       Do i=1,1024
@@ -788,7 +892,7 @@ Module output
 ! Private variables
     Integer(kind=StandardInteger) :: i
 ! Only on root process
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       print *,"Neighbour List Summary"
       print *,"ID    Start   End     Length  Rcutoff "
       Do i=1,1024
@@ -805,7 +909,7 @@ Module output
     Implicit None   ! Force declaration of all variables
 ! Private variables
 ! Print out
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *,"----------------------------------------------------------------"
       Print *, "The program is about to terminate."
       Print *, "Program time: ",ProgramTime()
@@ -819,7 +923,7 @@ Module output
 ! Private variables
     Real(kind=DoubleReal) :: rMin, rMax
 ! Print out
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *,"Neighbour List min/max atom separation:"
       Print *,"rMin/Angstrom:  ",rMin
       Print *,"rMax/Angstrom:  ",rMax
@@ -833,7 +937,7 @@ Module output
     Real(kind=DoubleReal) :: aLatResult, minEnergyResult, minVolResult, bmResult
     Character(*) :: textIn
 ! Print out
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       print *," "
       Print *, textIn
       Print *, "Lattice Parameter(ang)/Min Energy(eV):   ", aLatResult, "  ", minEnergyResult

@@ -603,21 +603,21 @@ Module calcEAM
   Subroutine resetESF()
     Implicit None   ! Force declaration of all variables
     Integer(kind=StandardInteger) :: i, j
-! Init arrays
+! Clears entire useable energies, stress, force and atom energy arrays
 ! Energy
     Do i=1,configCount
-      configCalcEnergies(i) = -2.1D20
+      configCalcEnergies(i) = 0.0D20
     End Do
 ! Stresses
     Do i=1,configCount
       Do j=1,9
-        configCalcStresses(i,j) = -2.1D20
+        configCalcStresses(i,j) = 0.0D20
       End Do
     End Do
 ! Forces
     Do i=1,configsAtomTotal
       Do j=1,3
-        configCalcForces(i,j) = -2.1D20
+        configCalcForces(i,j) = 0.0D20
       End Do
     End Do
 ! Atom energies

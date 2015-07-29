@@ -9,13 +9,101 @@ Module eamGen
 ! ----------------------------------------
 ! Setup Modules
   Use kinds
+  Use maths
 ! Force declaration of all variables
   Implicit None
+! Public subroutines
+  Public :: completeEAMSpline
+  Public :: varyEAMNodes  
+  Public :: varyEAMNode
 ! Public Functions
   Public :: FunctionKey
   Public :: FunctionCount
   Contains
+! ------------------------------------------------------------------------!
+!                                                                         !
+! MODULE SUBROUTINES                                                      !
+!                                                                         !
+!                                                                         !
+! ------------------------------------------------------------------------!  
+
+
+  Subroutine completeEAMSpline(nodesKey, nodesData)
+! completes the y'(x) and y''(x) values of the spline nodes
+    Implicit None   ! Force declaration of all variables
+! Private variables 
+    Integer(kind=StandardInteger), Dimension(1:50,1:6) :: nodesKey
+    Real(kind=DoubleReal), Dimension(1:10000,1:6) :: nodesData
+    Integer(kind=StandardInteger) :: i
+    Do i=1,size(nodesKey,1)
+      If(nodesKey(i,1).gt.0)Then
+        Call CompleteNodeData(nodesData, nodesKey(i,4), nodesKey(i,6)) ! maths.f90
+      Else
+        Exit  ! Exit, all functions cycled through
+      End If
+    End Do 
+  End Subroutine completeEAMSpline
+  
+
+  Subroutine varyEAMNodes(varyAmount, nodesKey, nodesData)
+! Varies eam function  
+    Implicit None   ! Force declaration of all variables
+! Private variables 
+    Integer(kind=StandardInteger) :: i, j
+    Real(kind=DoubleReal) :: varyAmount
+    Integer(kind=StandardInteger), Dimension(1:50,1:6) :: nodesKey
+    Real(kind=DoubleReal), Dimension(1:10000,1:6) :: nodesData
+! Vary nodes 
+    Do i=1,size(nodesKey,1)
+      If(nodesKey(i,1).gt.0)Then
+        Do j=nodesKey(i,4), nodesKey(i,6)
+          nodesData(j,2) = VaryNode(nodesData(j,2), varyAmount)
+        End Do
+      Else
+        Exit
+      End If
+    End Do        
+! complete the data - y'(x) and y''(x)
+    Call completeEAMSpline(nodesKey, nodesData)
+  End Subroutine varyEAMNodes
+    
+
+  Subroutine varyEAMNode(varyAmount, nodeToVary, nodesKey, nodesData)
+! Varies eam function  
+    Implicit None   ! Force declaration of all variables
+! Private variables 
+    Integer(kind=StandardInteger) :: i, j, nodeToVary
+    Real(kind=DoubleReal) :: varyAmount
+    Integer(kind=StandardInteger), Dimension(1:50,1:6) :: nodesKey
+    Real(kind=DoubleReal), Dimension(1:10000,1:6) :: nodesData
+! Vary nodes 
+    Do i=1,size(nodesKey,1)
+      If(nodesKey(i,1).gt.0)Then
+        Do j=nodesKey(i,4), nodesKey(i,6)
+          If(j.eq.nodeToVary)Then
+            nodesData(j,2) = nodesData(j,2)+varyAmount
+          End If
+        End Do
+      Else
+        Exit
+      End If
+    End Do        
+! complete the data - y'(x) and y''(x)
+    Call completeEAMSpline(nodesKey, nodesData)
+  End Subroutine varyEAMNode
+  
+  
+
 ! ---------------------------------------------------------------------------------------------------
+
+
+
+! ------------------------------------------------------------------------!
+!                                                                         !
+! MODULE FUNCTIONS                                                        !
+!                                                                         !
+!                                                                         !
+! ------------------------------------------------------------------------!
   Function FunctionKey (atomA, atomB, potType, eamTypeF, elementsCountF) RESULT (funcKey)
 ! Returns the potential key
     Implicit None ! Force declaration of all variables

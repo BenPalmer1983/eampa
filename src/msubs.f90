@@ -19,6 +19,7 @@ Module msubs
   Public :: M_distChar
   Public :: M_distInt
   Public :: M_distDouble
+  Public :: M_distLogical
   Public :: M_distInt1D
   Public :: M_distDouble1D
   Public :: M_distDouble2D
@@ -26,6 +27,8 @@ Module msubs
   Public :: M_collDouble1DMap
   Public :: M_collDouble2D
   Public :: M_sumDouble
+  
+! Distribute custom types  
 
 ! Functions
 
@@ -56,7 +59,7 @@ Module msubs
           processTo = i
           tag = 97220 + i
           Call MPI_SSEND(send,1,MPI_INTEGER,processTo,tag,&
-          MPI_COMM_WORLD,error)
+          MPI_COMM_WORLD,error) ! Mpi_ssend always waits
         End Do
       End If
 ! Collect from root by workers
@@ -212,6 +215,41 @@ Module msubs
       End If
     End If
   End Subroutine M_distInt
+    
+! ------------------------------
+! M_distInt
+! ------------------------------
+  Subroutine M_distLogical(sendIn)
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Logical :: sendIn, send, receive
+    Integer(kind=StandardInteger) :: i, processTo, processFrom, tag
+    Integer(kind=StandardInteger) :: processID,processCount,error
+    Integer, Dimension(MPI_STATUS_SIZE) :: status
+! Call mpi subroutines
+    Call MPI_Comm_rank(MPI_COMM_WORLD,processID,error)
+    Call MPI_Comm_size(MPI_COMM_WORLD,processCount,error)
+    If(processCount.gt.1)Then
+! Send out data to all processes from root
+      If(processID.eq.0)Then
+        Do i=1,(processCount-1)
+          send = sendIn
+          processTo = i
+          tag = 1000 + i
+          Call MPI_SEND(send,1,MPI_LOGICAL,processTo,tag,&
+          MPI_COMM_WORLD,error)
+        End Do
+      End If
+! Collect from root by workers
+      If(processID.gt.0)Then
+        processFrom = 0
+        tag = 1000 + processID
+        Call MPI_RECV(receive,1,MPI_LOGICAL,processFrom,tag,&
+        MPI_COMM_WORLD,status,error)
+        sendIn = receive
+      End If
+    End If
+  End Subroutine M_distLogical
 
 ! ---------------------------------------------------------------------------------------------------
 ! Distribute array subroutines

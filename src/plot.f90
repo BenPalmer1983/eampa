@@ -10,16 +10,19 @@ Module plot
 ! Setup Modules
   Use kinds
   Use types
+  Use maths
 ! Force declaration of all variables
   Implicit None
 ! Privacy of variables/functions/subroutines
   Private
+!  
+  
 ! Public Subroutines
   Public :: makePlot
   Contains
 ! ---------------------------------------------------------------------------------------------------
   Subroutine makePlot(outputDirectory, outputName, tempDirectory,&
-    dataArrayIn, colStart, colEnd, rowStart, rowEnd, chartInput)
+    dataArrayIn, colStart, colEnd, rowStart, rowEnd, chartInput, polyFitFlag_in)
     Implicit None  ! Force declaration of all variables
 ! Private variables
     Integer(kind=StandardInteger) :: i, j, iA, jA
@@ -27,12 +30,24 @@ Module plot
     Character(*) :: outputDirectory, tempDirectory, outputName
     Real(kind=DoubleReal), Dimension( : , : ) :: dataArrayIn
     Real(kind=DoubleReal), Dimension(1:(rowEnd-rowStart+1),1:(colEnd-colStart+1)) :: dataArray
+    Real(kind=DoubleReal), Dimension(1:100,1:2) :: polyFitData
+    Real(kind=DoubleReal), Dimension(1:3) :: coefficientsA
+    Real(kind=DoubleReal), Dimension(1:4) :: coefficientsB
+    Real(kind=DoubleReal), Dimension(1:5) :: coefficientsC
+    Real(kind=DoubleReal), Dimension(1:6) :: coefficientsD
     Character(len=8) :: fileName
     Character(len=14) :: dpStr, dpStrA, dpStrB
     Character(len=32768) :: xLine, yLine
     Character(len=65536) :: outputLine
     Integer(kind=StandardInteger) :: termExitStat
     Type(chart) :: chartInput
+    Logical, Optional :: polyFitFlag_in
+    Logical :: polyFitFlag
+! Optional variables    
+    polyFitFlag = .false.
+    If(Present(polyFitFlag_in))Then
+      polyFitFlag = polyFitFlag_in
+    End If
 ! Prepare data array
     Do i=rowStart,rowEnd
       iA = i-rowStart+1
@@ -44,16 +59,43 @@ Module plot
 ! Reset end
     rowEndA = rowEnd-rowStart+1   
     colEndA = colEnd-colStart+1
+! If polyFit selected  
+    If(polyFitFlag)Then
+      If(rowEndA.eq.3)Then
+        coefficientsA = PolyFit(dataArray,2)
+        polyFitData = PolyPoints(coefficientsA,dataArray(1,1),dataArray(rowEndA,1),100) 
+      Else If(rowEndA.eq.4)Then
+        coefficientsB = PolyFit(dataArray,3)
+        polyFitData = PolyPoints(coefficientsB,dataArray(1,1),dataArray(rowEndA,1),100) 
+      Else If(rowEndA.eq.5)Then
+        coefficientsC = PolyFit(dataArray,4)
+        polyFitData = PolyPoints(coefficientsC,dataArray(1,1),dataArray(rowEndA,1),100) 
+      Else If(rowEndA.eq.6)Then
+        coefficientsD = PolyFit(dataArray,5)
+        polyFitData = PolyPoints(coefficientsD,dataArray(1,1),dataArray(rowEndA,1),100) 
+      End If
+    End If  
+    !PolyPoints(coefficients,xStart,xEnd,points)
 ! Prepare x-values
     xLine = BlankString(xLine)
 ! Insert x-values
-    Do i=1,rowEndA 
-      write(dpStr,"(E14.6)") dataArray(i,1)
-      xLine((i-1)*15+1:(i-1)*15+14) = dpStr
-      If(i.lt.rowEndA)Then
-        xLine((i-1)*15+15:(i-1)*15+15) = ","
-      End If  
-    End Do 
+    If(polyFitFlag)Then
+      Do i=1,100 
+        write(dpStr,"(E14.6)") polyFitData(i,1)
+        xLine((i-1)*15+1:(i-1)*15+14) = dpStr
+        If(i.lt.100)Then
+          xLine((i-1)*15+15:(i-1)*15+15) = ","
+        End If  
+      End Do 
+    Else
+      Do i=1,rowEndA 
+        write(dpStr,"(E14.6)") dataArray(i,1)
+        xLine((i-1)*15+1:(i-1)*15+14) = dpStr
+        If(i.lt.rowEndA)Then
+         xLine((i-1)*15+15:(i-1)*15+15) = ","
+        End If  
+      End Do 
+    End If  
 ! Make temp random name
     fileName = RandName()    
 ! Open file
@@ -70,13 +112,23 @@ Module plot
     outputLine = BlankString(outputLine)
     yLine = BlankString(yLine)
 ! Insert y-values
-    Do i=1,rowEndA 
-      write(dpStr,"(E14.6)") dataArray(i,2)
-      yLine((i-1)*15+1:(i-1)*15+14) = dpStr
-      If(i.lt.rowEndA)Then
-        yLine((i-1)*15+15:(i-1)*15+15) = ","
-      End If  
-    End Do 
+    If(polyFitFlag)Then
+      Do i=1,100 
+        write(dpStr,"(E14.6)") polyFitData(i,2)
+        yLine((i-1)*15+1:(i-1)*15+14) = dpStr
+        If(i.lt.100)Then
+          yLine((i-1)*15+15:(i-1)*15+15) = ","
+        End If  
+      End Do
+    Else
+      Do i=1,rowEndA 
+        write(dpStr,"(E14.6)") dataArray(i,2)
+        yLine((i-1)*15+1:(i-1)*15+14) = dpStr
+        If(i.lt.rowEndA)Then
+          yLine((i-1)*15+15:(i-1)*15+15) = ","
+        End If  
+      End Do 
+    End If  
 ! Make plot line and write
     outputLine = "plt.plot(["//trim(xLine)//"],["//trim(yLine)//"],label=' ')"  
     write(701,"(A)") trim(RemoveSpaces(outputLine))   

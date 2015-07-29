@@ -35,6 +35,7 @@ Module initialise
 
 ! Functions
   Public :: ProgramTime             !Function
+  Public :: TerminalPrint
 
 ! ------------------------------------------------------------------------!
 !                                                                        !
@@ -51,6 +52,9 @@ Module initialise
     Integer(kind=StandardInteger) :: error
     Character(len=255) :: inputFileName
     Integer(kind=StandardInteger), Dimension(1:3) :: theTime, theDate
+! MPI variables (public)
+    Call MPI_Comm_size(MPI_COMM_WORLD,mpiProcessCount,error)
+    Call MPI_Comm_rank(MPI_COMM_WORLD,mpiProcessID,error)
 ! Initialise variables
     inputFileName = BlankString(inputFileName)
 ! Check for input file, exit if no file
@@ -68,9 +72,6 @@ Module initialise
 ! Set output and temp/scratch directories
     outputDirectory = Trim(currentWorkingDirectory)//"/output"
     tempDirectory = Trim(currentWorkingDirectory)//"/temp"
-! MPI variables (public)
-    Call MPI_Comm_size( MPI_COMM_WORLD ,mpiProcessCount,error)
-    Call MPI_Comm_rank(MPI_COMM_WORLD,mpiProcessID,error)
 ! Call date subroutines
     Call idate(theDate)   ! theDate(1)=day, (2)=month, (3)=year
     Call itime(theTime)   ! theDate(1)=hour, (2)=minute, (3)=second
@@ -215,6 +216,22 @@ Module initialise
 ! close output file
       close(969)
     End If
+! save output file name
+    If(mpiProcessID.eq.0)Then
+      open(unit=969,file=trim(trim(outputDirectory)//"/"//"nlFileBP.dat"))
+      write(969,"(A38)") "======================================"
+      write(969,"(A38)") "        Neighbour List             "
+      write(969,"(A38)") "      University of Birmingham        "
+      write(969,"(A38)") "             Ben Palmer               "
+      write(969,"(A38)") "======================================"
+      write(969,"(A1)") " "
+      write(969,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+      "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)
+      write(969,"(A1)") " "
+      write(969,"(A1)") " "
+! close output file
+      close(969)
+    End If
 ! Create output file
     If(mpiProcessID.eq.0)Then
       open(unit=969,file=trim(outputDirectory)//"/"//"EoSFitting.dat")
@@ -249,9 +266,25 @@ Module initialise
     End If
 ! Create output file
     If(mpiProcessID.eq.0)Then
-      open(unit=969,file=trim(outputDirectory)//"/"//"AtomEnergies.dat")
+      open(unit=969,file=trim(outputDirectory)//"/"//"AtomEnergies1.dat")
       write(969,"(A38)") "======================================"
       write(969,"(A38)") "           Atom Energies              "
+      write(969,"(A38)") "      University of Birmingham        "
+      write(969,"(A38)") "             Ben Palmer               "
+      write(969,"(A38)") "======================================"
+      write(969,"(A1)") " "
+      write(969,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+      "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)
+      write(969,"(A1)") " "
+      write(969,"(A1)") " "
+! close output file
+      close(969)
+    End If
+! Create output file
+    If(mpiProcessID.eq.0)Then
+      open(unit=969,file=trim(outputDirectory)//"/"//"OptLog.dat")
+      write(969,"(A38)") "======================================"
+      write(969,"(A38)") "          Optimisation Log            "
       write(969,"(A38)") "      University of Birmingham        "
       write(969,"(A38)") "             Ben Palmer               "
       write(969,"(A38)") "======================================"
@@ -293,5 +326,19 @@ Module initialise
     Real(kind=DoubleReal) :: outputTime
     Call cpu_time(outputTime)
   End Function ClockTime
+  
+  Function TerminalPrint() RESULT (output)
+    Implicit None   ! Force declaration of all variables
+! Private variables  
+    Logical :: output
+! Default False
+    output = .false.    
+    If(mpiProcessID.eq.0.and.printToTerminal)Then
+      output = .true.  
+    End If
+    If(quietOverride)Then
+      output = .false. 
+    End If
+  End Function TerminalPrint
 
 End Module initialise

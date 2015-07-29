@@ -33,7 +33,7 @@ Module readConfig
   Subroutine readConfigFile()
     Implicit None   ! Force declaration of all variables
 ! Print out
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       print *,"READ CONFIG:"
     End If
 ! Private variables
@@ -51,7 +51,7 @@ Module readConfig
     Call cpu_time(timeEnd)
     Call timeAcc(configLoadTime,timeStart,timeEnd)
 ! Output
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       print *,"Atom configurations loaded: ",(timeEnd-timeStart),"s"
     End If
   End Subroutine readConfigFile
@@ -64,7 +64,7 @@ Module readConfig
     Integer(kind=StandardInteger) :: ios, i, j
     Character(len=255) :: fileRow, fileRowCaps
 ! Output to Terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *,"Loading user config file ",trim(configFilePath)
     End If
 ! Read config file into memory
@@ -700,7 +700,7 @@ Module readConfig
         configurationCoordsKey(configID,2) = coordLength
         configurationCoordsKey(configID,3) = coordStart+coordLength-1
         coordStart = coordStart + coordLength
-        If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+        If(TerminalPrint())Then
           print *,"Loaded: ",configID,coordStart,(coordStart+coordLength-1),"(",coordLength,")"
         End If
         coordLength = 0

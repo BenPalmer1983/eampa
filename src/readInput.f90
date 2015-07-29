@@ -36,6 +36,7 @@ Module readinput
     Real(kind=DoubleReal) :: timeStartRI, timeEndRI
     Real(kind=DoubleReal) :: dftEnergyTemp
     Integer(kind=StandardInteger) :: dftAtomCountTemp
+    Real(kind=DoubleReal), Dimension(1:12) :: fccReferenceValues, bccReferenceValues
 ! Print out
     If(mpiProcessID.eq.0)Then
       print *,"READ INPUT:"
@@ -91,15 +92,13 @@ Module readinput
       If(fileRow(1:6).eq."#PRINT")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
-        If(StrToUpper(fileRow(1:1)).eq."Y")Then
-          printToTerminal = 1
-        End If
+        printToTerminal = UserTrueFalse(fileRow)
       End If
       j = j + 1
     End Do
 ! Verbose
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-      Print *,"Reading user input file ",trim(inputFilePathT)
+    If(TerminalPrint())Then
+      Print *,"Reading user input file ",trim(inputFilePath)
     End If
 !
 ! Step 3 - Read In User Settings
@@ -124,6 +123,9 @@ Module readinput
 ! Only allow certain run types
         If(fileRow(1:4).eq."EVAL")Then
           eampaRunType = fileRow(1:4)  ! EVAL
+        End If
+        If(fileRow(1:4).eq."OPTI")Then
+          eampaRunType = fileRow(1:4)  ! OPTI
         End If
       End If
 ! ----------------------------------
@@ -185,6 +187,11 @@ Module readinput
         j = j + 1
         fileRow = userInputData(j)   !read next line
         Call strToStrArr(fileRow,eamMakeAlloy)
+      End If
+      If(fileRow(1:10).eq."#EAMCHARTS")Then
+        j = j + 1
+        fileRow = userInputData(j)   !read next line
+        makeEAMCharts = UserTrueFalse(fileRow)
       End If
 ! ----------------------------------
 ! Config Details
@@ -287,9 +294,19 @@ Module readinput
         fileRow = userInputData(j)   !read next line
         saveNLToFile = UserTrueFalse(fileRow)
       End If
+      If(fileRow(1:9).eq."#EOSCHART")Then
+        j = j + 1
+        fileRow = userInputData(j)   !read next line
+        eosChart = UserTrueFalse(fileRow)
+      End If
 ! ----------------------------------
 ! Optimise options
 ! ----------------------------------
+      If(fileRow(1:12).eq."#OPTFORCEZBL")Then
+        j = j + 1
+        fileRow = userInputData(j)   !read next line
+        optForceZBL = UserTrueFalse(fileRow)
+      End If
       If(fileRow(1:10).eq."#VARYNODES")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
@@ -308,11 +325,12 @@ Module readinput
       If(fileRow(1:7).eq."#SAOPTS")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
-        Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
-        Read(bufferA,*) saTemp
-        Read(bufferB,*) saTempLoops
-        Read(bufferC,*) saVarLoops
-        Read(bufferD,*) saMaxVariation
+        Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE
+        Read(bufferA,*) saConfigIn%temp
+        Read(bufferB,*) saConfigIn%tempLoops
+        Read(bufferC,*) saConfigIn%varLoops
+        Read(bufferD,*) saConfigIn%maxVar  
+        Read(bufferE,*) saConfigIn%refinementLoops
       End If
       If(fileRow(1:15).eq."#VARYFIXEDNODES")Then
         j = j + 1
@@ -361,12 +379,23 @@ Module readinput
         Read(fileRow,*) eosFitRSSOption
       End If
 ! ----------------------------------
-! Testing Reference Data
+! BP Reference Data
 ! ----------------------------------
       If(fileRow(1:7).eq."#FCCREF")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
         Call strToDPArr(fileRow,fccReferenceValues)
+        refBulkProperties(1)%alat = fccReferenceValues(1)
+        refBulkProperties(1)%e0 = fccReferenceValues(2)
+        refBulkProperties(1)%b0 = fccReferenceValues(3)
+      End If
+      If(fileRow(1:7).eq."#BCCREF")Then
+        j = j + 1
+        fileRow = userInputData(j)   !read next line
+        Call strToDPArr(fileRow,bccReferenceValues)
+        refBulkProperties(2)%alat = bccReferenceValues(1)
+        refBulkProperties(2)%e0 = bccReferenceValues(2)
+        refBulkProperties(2)%b0 = bccReferenceValues(3)
       End If
       j = j + 1
     End Do
@@ -377,7 +406,7 @@ Module readinput
 ! Store Time
     Call storeTime(8,timeEndRI-timeStartRI)
 ! Output
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       print *,"User input read: ",(timeEndRI-timeStartRI),"s"
     End If
   End Subroutine readUserInput

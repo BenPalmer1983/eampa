@@ -33,9 +33,12 @@ Module readEAM
   Public :: readEAMFile
   Public :: eamDerivatives
   Public :: setEamNodes
+  Public :: countEamNodes
   Public :: setEamSpline
   Public :: eamZblHardCore
+  Public :: eamPairZbl
   Public :: AddUniqueElement
+  Public :: loadInputEAM
 ! Public functions
   Public :: QueryUniqueElement
 
@@ -58,7 +61,7 @@ Module readEAM
 ! Synchronise Processes
     Call M_synchProcesses()
 ! Read the temporary eam file
-    Call readFile()
+    Call readFileE()
 ! Calculate y'(x) and y''(x)
     Call eamDerivatives()
 ! Store input potential functions
@@ -81,7 +84,10 @@ Module readEAM
     Call eamDataDump()
 ! Synchronise Processes
     Call M_synchProcesses()
-    Call eamCharts()
+    If(makeEAMCharts)Then
+      Call eamCharts()
+    End If  
+    Call M_synchProcesses()
 ! End Time
     Call cpu_time(timeEndEAM)
 ! Store Time
@@ -99,7 +105,7 @@ Module readEAM
     Integer(kind=StandardInteger) :: ios, i, n
     Character(len=255) :: fileRow
 ! Output to Terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *,"Reading user eam file ",trim(eamFilePath)
     End If
     Open(UNIT=1,FILE=Trim(eamFilePath))
@@ -142,7 +148,7 @@ Module readEAM
       End If
     End Do
     Close(1)
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *,"EAM loaded into memory.  Type: ",eamType
     End If
   End Subroutine prepFile
@@ -612,7 +618,7 @@ Module readEAM
 ! Read file data into eam arrays
 ! -----------------------------------------------
 
-  Subroutine readFile()
+  Subroutine readFileE()
 ! Reads in the eam potential from the ew temporary EAM file
     Implicit None   ! Force declaration of all variables
 ! Private variables
@@ -630,7 +636,7 @@ Module readEAM
     FunctionStart = 1
     FunctionLength = 0
 ! Output to Terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *,"Reading data to eam arrays"
     End If
 ! ---------------------------
@@ -659,7 +665,7 @@ Module readEAM
       End If
     End Do
 ! Output to Terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *,"Elements loaded from potential:"
       Do i=1,size(elements,1)
         If(elements(i).eq."ZZ")Then
@@ -701,7 +707,7 @@ Module readEAM
       End If
     End If
 ! Output to Terminal
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       Print *,"EAM elements: ",elementsCount
       Print *,"EAM type: ",eamType
       Print *,"Expected functions: ",eamFunctionCount
@@ -801,7 +807,7 @@ Module readEAM
       eamKey(eamFunctionKey,5) = functionLength
       eamKey(eamFunctionKey,6) = (functionStart + functionLength - 1)
     End If
-  End Subroutine readFile
+  End Subroutine readFileE
 
   Subroutine eamDerivatives()
 ! Fills in first and second order derivatives
@@ -851,12 +857,12 @@ Module readEAM
 ! Init variables
     splineNodesKey = -1         ! reset key array
     splineNodesData = 0.0D0     ! reset node array
-    FunctionCounter = 0
+    functionCounter = 0
     nodeKey = 0
 ! Loop through EAM functions
     Do i=1,size(eamKey,1)
       If(eamKey(i,1).gt.0)Then
-        FunctionCounter = functionCounter + 1
+        functionCounter = functionCounter + 1
         nodes = splineNodeCount(eamKey(i,3))
         FunctionType = eamKey(i,3)
         eamStart = eamKey(i,4)
@@ -876,9 +882,9 @@ Module readEAM
             splineNodesData(nodeKey,4) = eamData(eamStart,4)
             splineNodesData(nodeKey,5) = 1.0D0*j
             splineNodesData(nodeKey,6) = 0.0D0
-            splineNodesKey(i,1) = eamKey(i,1)
-            splineNodesKey(i,2) = eamKey(i,2)
-            splineNodesKey(i,3) = eamKey(i,3)
+            splineNodesKey(i,1) = eamKey(i,1)           ! Type A
+            splineNodesKey(i,2) = eamKey(i,2)           ! Type B
+            splineNodesKey(i,3) = eamKey(i,3)           ! Function type
             splineNodesKey(i,4) = nodeKey               ! Start
             splineNodesKey(i,5) = nodes                 ! Length
             splineNodesKey(i,6) = nodeKey + nodes - 1   ! End
@@ -897,7 +903,7 @@ Module readEAM
             xStart = eamData(eamStart,1)
             xEnd = eamData(eamEnd,1)
             x = xStart+1.0D0*(j-1)*((xEnd-xStart)/(nodes-1))
-            yArray = PointInterp(eamData,x,eamInterpPoints,1,eamStart,eamLength)
+            yArray = PointInterp(eamData,x,eamInterpPoints,2,eamStart,eamLength)
             splineNodesData(nodeKey,1) = x
             splineNodesData(nodeKey,2) = yArray(1)
             splineNodesData(nodeKey,3) = yArray(2)
@@ -924,6 +930,24 @@ Module readEAM
       Call outputSplineNodes(eamNodesFilePath)
     End If
   End Subroutine setEamNodes
+
+  Subroutine countEamNodes(totalNodes)
+! Set nodes
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: totalNodes, i, j
+! Count nodes    
+    totalNodes = 0
+    Do i=1,size(splineNodesKey,1)
+      If(splineNodesKey(i,1).gt.0)Then    
+        Do j=splineNodesKey(i,4), splineNodesKey(i,6)
+          totalNodes = totalNodes + 1
+        End Do
+      Else
+        Exit
+      End If
+    End Do 
+  End Subroutine countEamNodes
 
   Subroutine setEamSpline()
 ! Force ZBL Core
@@ -1004,11 +1028,11 @@ Module readEAM
     Real(kind=DoubleReal), Dimension(1:4) :: pointA, pointB
     Real(kind=DoubleReal), Dimension(1:6) :: splineCoeffs
 ! Loop through EAM functions
-    If(zblHardCore(1).gt.0.0D0.and.eamForceZBL)Then
-      FunctionCounter = 0
+    If(zblHardCore(1).gt.0.0D0)Then
+      functionCounter = 0
       Do i=1,size(eamKey,1)
         If(eamKey(i,1).gt.0)Then
-          FunctionCounter = functionCounter + 1
+          functionCounter = functionCounter + 1
 ! Pair potentials
           If(eamKey(i,3).eq.1)Then
 ! ZBL parameters
@@ -1047,7 +1071,7 @@ Module readEAM
               End If
             End Do
 ! Store to file
-            Call outputZBL(zA, zB, pointA, pointB, splineCoeffs)
+            !Call outputZBL(zA, zB, pointA, pointB, splineCoeffs)
           End If
         End If
         If(functionCounter.eq.eamFunctionCount )Then
@@ -1056,6 +1080,69 @@ Module readEAM
       End Do
     End If
   End Subroutine eamZblHardCore
+  
+  Subroutine eamPairZbl()
+! Force ZBL Core
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: functionCounter, i, j, zA, zB
+    Real(kind=DoubleReal) :: xA, xB
+    Real(kind=DoubleReal), Dimension(1:3) :: yArray
+    Real(kind=DoubleReal), Dimension(1:4) :: pointA, pointB
+    Real(kind=DoubleReal), Dimension(1:6) :: splineCoeffs
+! Loop through EAM functions
+    If(zblHardCore(1).gt.0.0D0)Then
+      functionCounter = 0
+      Do i=1,size(eamKey,1)
+        If(eamKey(i,1).gt.0)Then
+          functionCounter = functionCounter + 1
+! Pair potentials
+          If(eamKey(i,3).eq.1)Then
+! ZBL parameters
+            zA = elementsCharge(eamKey(i,1))
+            zB = elementsCharge(eamKey(i,2))
+            xA = zblHardCore(1)
+! Point A
+            yArray = ZblFull (xA, zA, zB)
+            pointA(1) = xA
+            pointA(2) = yArray(1)
+            pointA(3) = yArray(2)
+            pointA(4) = yArray(3)
+! Point B
+            xB = zblHardCore(2)
+            yArray = PointInterp(eamData,xB,eamInterpPoints,2,eamKey(i,4),eamKey(i,5))
+            pointB(1) = xB
+            pointB(2) = yArray(1)
+            pointB(3) = yArray(2)
+            pointB(4) = yArray(3)
+! Get spline coefficients
+            splineCoeffs = SplineAB(pointA, pointB)
+! Alter eamData
+            Do j=eamKey(i,4),eamKey(i,6)
+              If(eamData(j,1).lt.pointA(1))Then   ! ZBL Core
+                xA = eamData(j,1)
+                yArray = ZblFull (xA, zA, zB)
+                eamData(j,2) = yArray(1)
+                eamData(j,3) = yArray(2)
+                eamData(j,4) = yArray(3)
+              End If
+              If(eamData(j,1).ge.pointA(1).and.eamData(j,1).le.pointB(1))Then   ! Spline
+                xA = eamData(j,1)
+                eamData(j,2) = CalcPolynomial(splineCoeffs, xA, 0)
+                eamData(j,3) = CalcPolynomial(splineCoeffs, xA, 1)
+                eamData(j,4) = CalcPolynomial(splineCoeffs, xA, 2)
+              End If
+            End Do
+! Store to file
+            !Call outputZBL(zA, zB, pointA, pointB, splineCoeffs)
+          End If
+        End If
+        If(functionCounter.eq.eamFunctionCount )Then
+          Exit  ! Exit, all functions cycled through
+        End If
+      End Do
+    End If
+  End Subroutine eamPairZbl
 
   Subroutine outputSummary()
 ! Saves the eam file to the output directory
@@ -1063,7 +1150,7 @@ Module readEAM
 ! Private variables
     Integer(kind=StandardInteger) :: i, functionCounter
 ! Print out
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
+    If(TerminalPrint())Then
       print *,"Read EAM Potential Functions"
       print *,"EAM Type: ",eamType
       If(eamType.eq.1)Then
@@ -1071,19 +1158,19 @@ Module readEAM
         ", Dens: ",eamEmbeCount,", Total: ",eamFunctionCount
       End If
       print *,"EAM Potential Functions Summary"
-      FunctionCounter = 0
+      functionCounter = 0
       Do i=1,size(eamKey,1)
         If(eamKey(i,1).gt.0)Then
-          FunctionCounter = functionCounter + 1
+          functionCounter = functionCounter + 1
           If(eamKey(i,2).gt.0)Then
             print "(I4,A1,A4,A1,I2,A2,A2,A1,I2,A2,A2,A1,I2,A2,I7,A1,I7,A1,I7)",&
-            FunctionCounter," ",eamFunctionTypes(eamKey(i,3)),"(",eamKey(i,3),") ",&
+            functionCounter," ",eamFunctionTypes(eamKey(i,3)),"(",eamKey(i,3),") ",&
             elements(eamKey(i,1)),"(",eamKey(i,1),") ",&
             elements(eamKey(i,2)),"(",eamKey(i,2),") ",&
             eamKey(i,4)," ",eamKey(i,5)," ",eamKey(i,6)
           Else
             print "(I4,A1,A4,A1,I2,A2,A2,A1,I2,A2,A7,I7,A1,I7,A1,I7)",&
-            FunctionCounter," ",eamFunctionTypes(eamKey(i,3)),"(",eamKey(i,3),") ",&
+            functionCounter," ",eamFunctionTypes(eamKey(i,3)),"(",eamKey(i,3),") ",&
             elements(eamKey(i,1)),"(",eamKey(i,1),") ",&
             "       ",&
             eamKey(i,4)," ",eamKey(i,5)," ",eamKey(i,6)
@@ -1105,11 +1192,11 @@ Module readEAM
     If(mpiProcessID.eq.0)Then
       open(unit=999,file=trim(trim(outputDirectory)//"/"//"eam.dat"))
 ! Calculate y'(x) and y''(x)
-      FunctionCounter = 0
+      functionCounter = 0
       Do i=1,size(eamKey,1)
         If(eamKey(i,1).gt.0)Then
-          FunctionCounter = functionCounter + 1
-          write(999,*) "EAM Function ",FunctionCounter,eamKey(i,1),eamKey(i,2),&
+          functionCounter = functionCounter + 1
+          write(999,*) "EAM Function ",functionCounter,eamKey(i,1),eamKey(i,2),&
           eamKey(i,3),eamKey(i,4),eamKey(i,5),eamKey(i,6)
           Do j=eamKey(i,4),eamKey(i,6)
             write(999,*) j,eamData(j,1),eamData(j,2),eamData(j,3),eamData(j,4)
@@ -1133,11 +1220,11 @@ Module readEAM
     If(mpiProcessID.eq.0)Then
       open(unit=999,file=trim(trim(outputDirectory)//"/"//"eam.dat"))
 ! Calculate y'(x) and y''(x)
-      FunctionCounter = 0
+      functionCounter = 0
       Do i=1,size(eamKey,1)
         If(eamKey(i,1).gt.0)Then
-          FunctionCounter = functionCounter + 1
-          write(fileName,"(I4)") FunctionCounter
+          functionCounter = functionCounter + 1
+          write(fileName,"(I4)") functionCounter
           fileName = "Input_EAM_"//adjustl(trim(fileName))
           fileName = trim(fileName)//"_"//eamFunctionTypes(eamKey(i,3))
 ! Set chart values
@@ -1150,7 +1237,7 @@ Module readEAM
           Call makePlot(outputDirectory, trim(fileName), tempDirectory, &
           eamData, 1, 2, eamKey(i,4), eamKey(i,6), eamChart)
           If(eamKey(i,3).eq.1)Then  ! Do a "close up" of the pair potential            
-            write(fileName,"(I4)") FunctionCounter
+            write(fileName,"(I4)") functionCounter
             fileName = "Input_EAM_"//adjustl(trim(fileName))
             fileName = trim(fileName)//"_"//eamFunctionTypes(eamKey(i,3))//"_C"
 ! Set chart values
@@ -1169,13 +1256,6 @@ Module readEAM
         End If
       End Do
     End If
-    
-    
-    !If(mpiProcessID.eq.0)Then
-    !  Call makePlot(outputDirectory, "eam1", tempDirectory, eamData, 1, 2, 1, 1001)
-    !  Call makePlot(outputDirectory, "eam2", tempDirectory, eamData, 1, 2, 1002, 2003)
-    !  Call makePlot(outputDirectory, "eam3", tempDirectory, eamData, 1, 2, 2004, 3005)
-    !End If
   End Subroutine eamCharts
 
   Subroutine AddUniqueElement(element)
@@ -1207,6 +1287,17 @@ Module readEAM
       End Do
     End If
   End Subroutine AddUniqueElement
+  
+  
+  
+
+  Subroutine loadInputEAM()
+    Implicit None   ! Force declaration of all variables
+! Load from input arrays
+    eamKey = eamKeyInput
+    eamData = eamDataInput
+  End Subroutine loadInputEAM
+  
 
 ! ------------------------------------------------------------------------!
 !                                                                        !

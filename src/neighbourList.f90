@@ -42,20 +42,11 @@ Module neighbourList
     Real(kind=DoubleReal) :: aLat, xShift, yShift, zShift
     Real(kind=DoubleReal) :: xA, xB, yA, yB, zA, zB, xdSq, ydSq, zdSq, rdSq
     Real(kind=DoubleReal) :: rMin, rMax
-    Real(kind=DoubleReal) :: totalSeperation
-    Real(kind=DoubleReal), Dimension(1:3,1:3) :: crystalUnitCellTemp
-! Output
-    If(mpiProcessID.eq.0.and.printToTerminal.eq.1)Then
-! print *,""
-! print *,"----------------------------------------------------------------------"
-! print *,"Neighbour list"
-    End If
 ! Start time
     Call cpu_time(timeStart)
 ! Init variables
     neighbourListCount = 0
     configStart = 1
-    totalSeperation = 0.0D0
 ! Prepare NL key array - clear all above configIDStart
     Do i=1,maxConfigs
       neighbourListKey(i,1) = 0
@@ -70,16 +61,6 @@ Module neighbourList
       rMax = -2.0D21
 ! Check config is there
       If(configurationCoordsKeyG(configID,1).gt.0)Then
-! Load transformation matrix
-        crystalUnitCellTemp(1,1) = crystalUnitCell(configID,1)
-        crystalUnitCellTemp(1,2) = crystalUnitCell(configID,2)
-        crystalUnitCellTemp(1,3) = crystalUnitCell(configID,3)
-        crystalUnitCellTemp(2,1) = crystalUnitCell(configID,4)
-        crystalUnitCellTemp(2,2) = crystalUnitCell(configID,5)
-        crystalUnitCellTemp(2,3) = crystalUnitCell(configID,6)
-        crystalUnitCellTemp(3,1) = crystalUnitCell(configID,7)
-        crystalUnitCellTemp(3,2) = crystalUnitCell(configID,8)
-        crystalUnitCellTemp(3,3) = crystalUnitCell(configID,9)
 ! Init looping variables
         atomA = 0
         atomB = 0
@@ -136,7 +117,6 @@ Module neighbourList
                           If(zdSq.le.rCutoffSq)Then
                             rdSq = xdSq + ydSq + zdSq
                             If(rdSq.le.rCutoffSq)Then
-                              totalSeperation = totalSeperation + rdSq
                               neighbourListCount = neighbourListCount + 1
                               configLength = configLength + 1
 ! Store atom type/id data

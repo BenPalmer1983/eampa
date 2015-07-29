@@ -31,10 +31,10 @@ Module finalise
   Public :: runFinaliseEval        !Subroutine
 
 ! ------------------------------------------------------------------------!
-!                                                                        !
-! MODULE SUBROUTINES                                                     !
-!                                                                        !
-!                                                                        !
+!                                                                         !
+! MODULE SUBROUTINES                                                      !
+!                                                                         !
+!                                                                         !
 ! ------------------------------------------------------------------------!
 
   contains
@@ -44,13 +44,19 @@ Module finalise
 ! Internal subroutine variables
     If(mpiProcessID.eq.0)Then
       print *,""
+      print *,""
       print *,"                           Run Time"
       print *,"----------------------------------------------------------------------"
       print *,"Globals Init Time:         ",globInitTime
       print *,"EAM Potential Load Time:   ",eamLoadTime
       print *,"Configuration input:       ",configLoadTime
+      print *,""
       print *,"Neighbour list:            ",nlTime
-      print *,"Energy Calculation:        ",efsCalcTime
+      print *,"Neighbour list BP:         ",nlTimeBP
+      print *,""
+      print *,"EFS Calculations:          ",efsCalcTime
+      print *,"BP Calculation:            ",evalTimeBP
+      print *,""
       print *,"Total time:                ",ProgramTime()
     End If
   End Subroutine runFinaliseEval

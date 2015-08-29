@@ -87,7 +87,7 @@ Module globals
   Character(len=255) :: eamNodesFilePath
   Character(len=64) :: eamSaveFile
   Integer(kind=StandardInteger) :: eamInterpPoints
-  Real(kind=DoubleReal), Dimension(1:6) :: zblHardCore                             ! 1 Pair ZBL end, 2 Pair Spline End, 3 Dens Value, 4 De
+  Real(kind=DoubleReal), Dimension(1:6) :: zblHardCore = 1.0D0                            ! 1 Pair ZBL end, 2 Pair Spline End, 3 Dens Value, 4 De
   Integer(kind=StandardInteger), Dimension(1:50) :: splineNodeCount
   Integer(kind=StandardInteger) :: splineTotalNodes
   Character(len=2), Dimension(1:10) :: eamMakeAlloy
@@ -158,8 +158,8 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataInput
   Integer(kind=StandardInteger), Dimension(1:50,1:6) :: eamKeyOpt
   Real(kind=DoubleReal), Dimension(1:100000,1:4) :: eamDataOpt
-  Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKeyOpt
-  Real(kind=DoubleReal), Dimension(1:10000,1:6) :: splineNodesDataOpt 
+  Integer(kind=StandardInteger), Dimension(1:50,1:6) :: splineNodesKeyOpt, splineNodesKeyBest
+  Real(kind=DoubleReal), Dimension(1:10000,1:6) :: splineNodesDataOpt, splineNodesDataBest
     
 !------------------------------------------------------------------------------ 
 ! Read Config File
@@ -268,7 +268,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configCalcEL
   Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configCalcBM
   
-  
+  Real(kind=DoubleReal) :: maxDensity
 
 
 !------------------------------------------------------------------------------ 
@@ -299,6 +299,8 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:100000,1:2) :: calcRef
   Integer(kind=StandardInteger) :: countCalcRef
   Integer(kind=StandardInteger) :: crCount
+  Integer(kind=StandardInteger) :: optRunType
+  Integer(kind=StandardInteger) :: optEmbeddingFit
 
 ! -----------------------
 ! Default variables
@@ -348,7 +350,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
   Real(kind=DoubleReal), Dimension(1:20) :: testConfigRSS                          ! 1FccALat,2FccEMin,3FccBM,4FccEoS,5FccC11,6FccC12,7FccC44,8BccALat,9BccEMin,10BccBM,11BccEoS,12BccC11,13BccC12,14BccC44
   Real(kind=DoubleReal) :: totalRSS
-  Real(kind=DoubleReal) :: optimumRSS, startRSS, configTotalRSS
+  Real(kind=DoubleReal) :: optimumRSS, startRSS, configTotalRSS, bestRSS
 ! Optimisation
   Real(kind=DoubleReal) :: nodeVariationAmount
   Real(kind=DoubleReal) :: saTemp, saMaxVariation
@@ -535,8 +537,8 @@ Module globals
   Public :: eamDataInput
   Public :: eamKeyOpt
   Public :: eamDataOpt
-  Public :: splineNodesKeyOpt
-  Public :: splineNodesDataOpt
+  Public :: splineNodesKeyOpt, splineNodesKeyBest
+  Public :: splineNodesDataOpt, splineNodesDataBest
 ! Read Configuration File
   Public :: configCount, configCountT, configCountRI
   Public :: configurationsI, configurationsR
@@ -618,7 +620,7 @@ Module globals
 ! CalcEAM
 !   
 !      
-  
+ Public ::  maxDensity
   
   
 !------------------------------------------------------------------------------ 
@@ -649,6 +651,8 @@ Module globals
   Public :: calcRef
   Public :: countCalcRef
   Public :: crCount
+  Public :: optRunType
+  Public :: optEmbeddingFit
   
 ! Configuration Reference/Calculated Values
   Public :: configRef
@@ -667,7 +671,7 @@ Module globals
   Public :: configRefBM
   Public :: configCalcBM
   Public :: configRSS, configTotalRSS, testConfigRSS
-  Public :: totalRSS, optimumRSS, startRSS
+  Public :: totalRSS, optimumRSS, startRSS, bestRSS
   
   
   
@@ -755,7 +759,7 @@ Module globals
 ! Global Init Start time
     Call cpu_time(globalsTimeStart)
 ! Initialise Subroutine Variable
-    compileLine = "13:05:15  29/07/2015"
+    compileLine = "19:40:02  13/08/2015"
     PROGRAMEndTime = 0.0D0
       quietOverride = .false.
       timeStart = 0.0D0
@@ -867,6 +871,8 @@ Module globals
       pairForce = 0.0D0
       optLogCounter = 0
       optForceZBL = .true.
+      optRunType = 0
+      optEmbeddingFit = 0
 ! Global Init End Time
       Call cpu_time(globalsTimeEnd)
 ! Store time duration

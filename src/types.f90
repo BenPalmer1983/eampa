@@ -57,9 +57,11 @@ Module types
   
   Type :: saConfig
     Real(kind=DoubleReal) ::         temp=10.0D0
+    Real(kind=DoubleReal) ::         tempEnd=0.1D0
     Integer(kind=StandardInteger) :: tempLoops=5
     Integer(kind=StandardInteger) :: varLoops=100
-    Real(kind=DoubleReal) ::         maxVar=0.005D0
+    Real(kind=DoubleReal) ::         maxVar=0.05D0
+    Real(kind=DoubleReal) ::         minVar=0.0005D0
     Integer(kind=StandardInteger) :: refinementLoops=3
   End Type 
   

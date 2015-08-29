@@ -76,31 +76,21 @@ Module opti
     End If  
     Call saveEamFile("opt_002_input-splined.pot")
     
-! Force embedding functional to fit form    
-    optEmbeddingFit = 1    
-! Second starting calculation using splined potential    
-! Set EAM nodes
-    Call runCalcs(1)     
-    print *,maxDensity
-    If(TerminalPrint())Then
-      print *,"Spline converted input RSS ",totalRSS
-    End If  
-    Call saveEamFile("opt_003_input-splined.pot")    
+    !Call completeNodeDerivs()
+    !Call runCalcs(1)     
+    !If(TerminalPrint())Then
+    !  print *,"Spline converted input RSS ",totalRSS
+    !End If  
+    !Call saveEamFile("opt_003_input-splined.pot")
     
 ! -----------------------------------------    
 ! Simulated annealing    
 ! -----------------------------------------    
 
-! Force embedding functional to fit form    
-    optEmbeddingFit = 1    
     saConfigLive = saConfigIn
     Call saOpt(saConfigLive)
     
- 
-! Force embedding functional as a spline    
-    !optEmbeddingFit = 0   
-    !saConfigLive = saConfigIn
-    !Call saOpt(saConfigLive)   
+    
  
 ! -----------------------------------------    
 ! Levenberg Marquardt Algorithm
@@ -266,58 +256,90 @@ Module opti
     Type(saConfig) :: saConfigLive
     
     
+    optRunType = 0
 ! Start SA
     If(TerminalPrint())Then
       print *,""
       print *,"Simulated Annealing Starting"
-      print *,"SA Loop: ",saConfigLive%varLoops
-      print *,""
+      print *,"Temp loops: ",saConfigLive%tempLoops
+      print *,"Variations per Temp Loop: ",saConfigLive%varLoops
+      print *,"Total: ",(saConfigLive%tempLoops*saConfigLive%varLoops)
     End If
-! Initial calculation
-    optRunType = 0
+! Initial run
     Call runCalcs(1,optRunType) 
 ! Store optimum (starting) nodes + rss
     splineNodesKeyOpt = splineNodesKey
     splineNodesDataOpt = splineNodesData
-    optimumRSS = totalRSS   ! optimum rss - of opt nodes currently being varied
-    bestRSS = totalRSS      ! rss of best found so far
-! ---------------------------------------
-! Run 1 - Force/Stress/Energy only
-! ---------------------------------------
-    optRunType = 0
+    optimumRSS = totalRSS
 ! Loop through and decrease temperature
-    Call saOpt_VarLoop(saConfigLive)  
-! Output SA results 
-    Call saOpt_Output()
-! -------------------------------
-! Run 2 - Bulk properties + Force/Stress/Energy
-! -------------------------------     
+    Do i=1,saConfigLive%tempLoops
+      If(TerminalPrint())Then
+        print *,"Temperature: ",(saConfigLive%temp)
+      End If
+      Call saOpt_VarLoop(saConfigLive, i)  
+    End Do
+! Load optimum nodes    
+    splineNodesKey = splineNodesKeyOpt
+    splineNodesData = splineNodesDataOpt
+! Run calc with BP
+    Call runCalcs(1,optRunType)
+! Save opt    
+    Call saveEamFile("opt_003_postSA.pot")
+! Output Bulk Properties       
+    Call outputBpT() 
+    
+    
     optRunType = 1
+! Start SA
+    If(TerminalPrint())Then
+      print *,""
+      print *,"Simulated Annealing Starting"
+      print *,"Temp loops: ",saConfigLive%tempLoops
+      print *,"Variations per Temp Loop: ",saConfigLive%varLoops
+      print *,"Total: ",(saConfigLive%tempLoops*saConfigLive%varLoops)
+    End If
+! Initial run
+    Call runCalcs(1,optRunType) 
+! Store optimum (starting) nodes + rss
+    splineNodesKeyOpt = splineNodesKey
+    splineNodesDataOpt = splineNodesData
+    optimumRSS = totalRSS
 ! Loop through and decrease temperature
-    !Call saOpt_VarLoop(saConfigLive)  
-! Output SA results 
-    !Call saOpt_Output() 
+    Do i=1,saConfigLive%tempLoops
+      If(TerminalPrint())Then
+        print *,"Temperature: ",(saConfigLive%temp)
+      End If
+      Call saOpt_VarLoop(saConfigLive, i)  
+    End Do
+! Load optimum nodes    
+    splineNodesKey = splineNodesKeyOpt
+    splineNodesData = splineNodesDataOpt
+! Run calc with BP
+    Call runCalcs(1,1)
+! Save opt    
+    Call saveEamFile("opt_003_postSA.pot")
+! Output Bulk Properties       
+    Call outputBpT()  
+    
     
   End Subroutine saOpt
 ! --------------------------------------------------------------------------------------------------- 
-  Subroutine saOpt_VarLoop(saConfigLive)
+  Subroutine saOpt_VarLoop(saConfigLive, loop)
 ! Run simulated annealing optimisation 
     Implicit None   ! Force declaration of all variables
 ! In vars    
     Type(saConfig) :: saConfigLive
+    Integer(kind=StandardInteger) :: loop
 ! Private variables  
     Real(kind=DoubleReal) :: temperature, temperatureChange, temperatureBase
     Integer(kind=StandardInteger) :: i, absLoop, totalLoops
-    Integer(kind=StandardInteger) :: loop
     Real(kind=DoubleReal) :: aProb, randDouble
     Real(kind=DoubleReal) :: varyAmount
     Real(kind=DoubleReal) :: probTest
     Logical :: accept, bad
     If(TerminalPrint())Then
       print *,""
-      print *,"Start Simulated Annealing"
-      print *,"Temp: ",saConfigLive%temp," to ",saConfigLive%tempEnd
-      print *,"Variation: ",saConfigLive%maxVar," to ",saConfigLive%minVar
+      print *,"Start Simulated Annealing Loop ",loop
       print *,""
     End If    
 ! Base
@@ -325,17 +347,16 @@ Module opti
 ! Temperature change per variation loop
     temperatureChange = 1.0D0 / saConfigLive%varLoops
 ! Total loops    
-    totalLoops = saConfigLive%varLoops
+    totalLoops = (saConfigLive%tempLoops*saConfigLive%varLoops)
+! absolute loop    
+    absLoop = (loop-1)*saConfigLive%varLoops
 ! Loop and vary nodes
     Do i=1,saConfigLive%varLoops
-! Decrease temperature
-      temperature = &
-      (saConfigLive%temp)/((saConfigLive%temp/saConfigLive%tempEnd)**&
-      (1.0D0*((i-1)/(1.0D0*(saConfigLive%varLoops-1)))))
-! Decrease maximum vary amount
+      absLoop = absLoop + 1
+      temperature = (saConfigLive%temp)/(temperatureBase**(loop-1+(i-1)*temperatureChange))
       varyAmount = &
       (saConfigLive%maxVar)/((saConfigLive%maxVar/saConfigLive%minVar)**&
-      (1.0D0*((i-1)/(1.0D0*(saConfigLive%varLoops-1)))))
+      (1.0D0*((absLoop-1)/(1.0D0*(totalLoops-1)))))
 ! Load optimum nodes    
       splineNodesKey = splineNodesKeyOpt
       splineNodesData = splineNodesDataOpt
@@ -354,7 +375,7 @@ Module opti
         If(totalRSS.lt.optimumRSS)Then  ! improvement
           accept = .true.
         Else  
-          probTest = totalRSS-bestRSS
+          probTest = totalRSS-optimumRSS
           !totalRSS/optimumRSS
           aProb = exp((-1.0D0*(probTest))/temperature)
           randDouble = RandomLCG()
@@ -371,97 +392,64 @@ Module opti
         optimumRSS = totalRSS
         splineNodesKeyOpt = splineNodesKey
         splineNodesDataOpt = splineNodesData
-! attempt to optimise further f'(x) and f''(x)
-        Call saOpt_VarDerivs(5)        
-        If(optimumRSS.lt.bestRSS)Then
-          bestRSS = totalRSS  ! store best only if the best rss, not just a bac accepted result
-          splineNodesKeyBest = splineNodesKeyOpt
-          splineNodesDataBest = splineNodesDataOpt
-        End If  
       End If
 ! Print out      
       If(TerminalPrint())Then
         If(accept)Then
           If(bad)Then
-            print *,i,temperature,varyAmount,": [",optimumRSS,"]  ",totalRSS,"*(Bad)"
+            print *,i,"(",absLoop,")",temperature,varyAmount,": [",optimumRSS,"]  ",totalRSS,"*(Bad)"
           Else
-            print *,i,temperature,varyAmount,": [",optimumRSS,"]  ",totalRSS,"*(Good)"
+            print *,i,"(",absLoop,")",temperature,varyAmount,": [",optimumRSS,"]  ",totalRSS,"*(Good)"
           End If          
         Else 
-          print *,i,temperature,varyAmount,": [",optimumRSS,"]  ",totalRSS
+          print *,i,"(",absLoop,")",temperature,varyAmount,": [",optimumRSS,"]  ",totalRSS
         End If        
       End If       
     End Do  
+! Test optimum
+    splineNodesKey = splineNodesKeyOpt
+    splineNodesData = splineNodesDataOpt  
+    Call runCalcs(1,optRunType)
+    If(TerminalPrint())Then
+      print *,totalRSS,optimumRSS
+    End If        
   End Subroutine saOpt_VarLoop
   
     
-  Subroutine saOpt_VarNodes(varyAmountMax,funcIn)
+  Subroutine saOpt_VarNodes(varyAmountMax)
 ! Vary nodes  
     Implicit None   ! Force declaration of all variables
 ! In vars    
     Real(kind=DoubleReal) :: varyAmountMax
-    Integer(kind=StandardInteger), optional :: funcIn
-    Integer(kind=StandardInteger) :: func
 ! Private variables    
     Integer(kind=StandardInteger) :: i, j, k
     Real(kind=DoubleReal) :: varyAmount
-! Optional    
-    func = 1
-    If(Present(funcIn))Then
-      func = funcIn
-    End If
 ! Vary nodes 
     Do i=1,size(splineNodesKey,1)
       If(splineNodesKey(i,1).gt.0)Then
         Do j=splineNodesKey(i,4), splineNodesKey(i,6)
           !varyAmount = (0.5D0-RandomLCG())*varyAmountMax
-          varyAmount = (0.5D0-RandomLCG())*varyAmountMax*splineNodesData(j,func+1)
-          splineNodesData(j,func+1) = splineNodesData(j,func+1)+varyAmount 
+          !splineNodesData(j,2) = splineNodesData(j,2)+varyAmount
+          Do k=2,2
+            !varyAmount = splineNodesData(j,k)*(1.0D0+(0.5D0-RandomLCG())*varyAmountMax)
+            varyAmount = (0.5D0-RandomLCG())*varyAmountMax
+            splineNodesData(j,k) = splineNodesData(j,k)+varyAmount
+          End Do  
         End Do
       Else
         Exit
       End If
-    End Do    
+    End Do     
+! complete node data y'(x) and y''(x)
+    !Do i=1,size(splineNodesKey,1)
+    !  If(splineNodesKey(i,1).gt.0)Then
+    !    Call CompleteNodeData(splineNodesData, splineNodesKey(i,4), splineNodesKey(i,6)) ! maths.f90
+    !  Else
+    !    Exit  ! Exit, all functions cycled through
+    !  End If
+    !End Do 
+    
   End Subroutine saOpt_VarNodes
-  
-  
-  Subroutine saOpt_VarDerivs(attempts)
-! Vary f'(r) and f''(r) to find a better fit 
-    Implicit None   ! Force declaration of all variables
-! In vars    
-    Real(kind=DoubleReal) :: startRSS
-    Integer(kind=StandardInteger) :: attempts
-! Private variables    
-    Integer(kind=StandardInteger) :: i    
-    Logical :: betterNodes
-! optimumRSS  
-    Do i=1,attempts
-      If(mpiProcessID.eq.0)Then
-        Call saOpt_VarNodes(0.001D0,2)
-        Call saOpt_VarNodes(0.001D0,3)     
-      End If
-! Distribute spline nodes from root to workers
-      Call M_distDouble2D(splineNodesData)     
-! Run calculations      
-      Call runCalcs(1,optRunType)    
-      betterNodes = .false.      
-! Store if better
-      If(totalRSS.lt.optimumRSS)Then
-        optimumRSS = totalRSS
-        splineNodesKeyOpt = splineNodesKey
-        splineNodesDataOpt = splineNodesData  
-        betterNodes = .true.     
-      End If  
-! Print out
-      If(TerminalPrint())Then
-        If(betterNodes)Then
-          print *,"   var f'(x) f''(x)  ",totalRSS," *"
-        Else
-          print *,"   var f'(x) f''(x)  ",totalRSS
-        End If
-      End If
-    End Do 
-  End Subroutine saOpt_VarDerivs
   
   
   Subroutine saOpt_VarNode(varyAmount, nodeToVary)
@@ -485,42 +473,6 @@ Module opti
       End If
     End Do       
   End Subroutine saOpt_VarNode
-  
-  
-  Subroutine saOpt_Output()
-! Vary f'(r) and f''(r) to find a better fit 
-    Implicit None   ! Force declaration of all variables
-! Optimum Spline 
-    print *,""
-    print *,"Optimum RSS"
-    print *,""
-! Test optimum
-    splineNodesKey = splineNodesKeyOpt
-    splineNodesData = splineNodesDataOpt  
-    Call runCalcs(1,1)
-    If(TerminalPrint())Then
-      print *,totalRSS,optimumRSS
-    End If    
-! Output Bulk Properties       
-    Call outputBpT()   
-    Call saveEamFile("opt_003_sa_opt.pot")
-
-! Best of all tried
-    print *,""
-    print *,"Best RSS"
-    print *,""
-! Test best    
-    splineNodesKey = splineNodesKeyBest
-    splineNodesData = splineNodesDataBest  
-    Call runCalcs(1,1)
-    If(TerminalPrint())Then
-      print *,totalRSS,optimumRSS
-    End If 
-! Output Bulk Properties       
-    Call outputBpT() 
-    Call saveEamFile("opt_003_sa_best.pot")
-  
-  End Subroutine saOpt_Output
   
   
 ! ---------------------------------------------------------------------------------------------------  

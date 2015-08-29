@@ -154,13 +154,8 @@ Module readinput
       If(fileRow(1:8).eq."#ZBLCORE")Then
         j = j + 1
         fileRow = userInputData(j)   !read next line
-        Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE, bufferF
+        Read(fileRow,*) bufferA
         Read(bufferA,*) zblHardCore(1)
-        Read(bufferB,*) zblHardCore(2)
-        Read(bufferC,*) zblHardCore(3)
-        Read(bufferD,*) zblHardCore(4)
-        Read(bufferE,*) zblHardCore(5)
-        Read(bufferF,*) zblHardCore(6)
       End If
       If(fileRow(1:12).eq."#SPLINENODES")Then
         j = j + 1
@@ -177,11 +172,6 @@ Module readinput
         j = j + 1
         fileRow = userInputData(j)   !read next line
         eamForceSpline = UserTrueFalse(fileRow)
-      End If
-      If(fileRow(1:12).eq."#EAMFORCEZBL")Then
-        j = j + 1
-        fileRow = userInputData(j)   !read next line
-        eamForceZBL = UserTrueFalse(fileRow)
       End If
       If(fileRow(1:13).eq."#EAMMAKEALLOY")Then
         j = j + 1
@@ -327,10 +317,10 @@ Module readinput
         fileRow = userInputData(j)   !read next line
         Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE
         Read(bufferA,*) saConfigIn%temp
-        Read(bufferB,*) saConfigIn%tempLoops
+        Read(bufferB,*) saConfigIn%tempEnd
         Read(bufferC,*) saConfigIn%varLoops
         Read(bufferD,*) saConfigIn%maxVar  
-        Read(bufferE,*) saConfigIn%refinementLoops
+        Read(bufferE,*) saConfigIn%minVar 
       End If
       If(fileRow(1:15).eq."#VARYFIXEDNODES")Then
         j = j + 1

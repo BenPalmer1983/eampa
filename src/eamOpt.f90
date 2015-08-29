@@ -41,7 +41,7 @@ Module eamOpt
   Contains
   
   Subroutine setEamNodesOpti()
-! Set nodes
+! Set node positions using the currently loaded eam functions in eamKey/eamData
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Integer(kind=StandardInteger) :: functionCounter, i, j
@@ -125,7 +125,9 @@ Module eamOpt
   
   
   Subroutine setEamSplineOpti()
-! Force ZBL Core
+! Spline between nodes and store functions in eamKey/eamData
+! Force ZBL Core for pair potentials
+! exp(a+bx) style spline from  zbl to first node
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Integer(kind=StandardInteger) :: functionCounter, i, j
@@ -133,7 +135,9 @@ Module eamOpt
     Real(kind=DoubleReal), Dimension(1:1001,1:4) :: splineDataPoints
     Real(kind=DoubleReal) :: x, changeX
     Integer(kind=StandardInteger) :: zA, zB, nodesZ, nodesA
+    Integer(kind=StandardInteger) :: pointsZBL, pointsSpline, pointsExpSpline, pointsPolySpline
     Real(kind=DoubleReal), Dimension(1:3) :: yArray
+    Integer(kind=StandardInteger), Dimension(1:1000) :: splineType
 ! Init variables
     eamKey = 0                 ! clear eam key
     eamData = 0.0D0            ! clear eam data
@@ -165,10 +169,10 @@ Module eamOpt
 ! what part of function will be spline - function runs from 0.0 to splineNodesData(nodeEnd,1)
           changeX = splineNodesData(nodeEnd,1)-splineNodesData(nodeStart,1)
 ! determine 1 to nodes ZBL, nodes ZBL onwards
-          nodesA = ceiling((changeX/splineNodesData(nodeEnd,1))*1001)
-          nodesZ = 1001 - nodesA
+          pointsSpline = ceiling((changeX/splineNodesData(nodeEnd,1))*1001) ! data points in spline section
+          pointsZBL = 1001 - pointsSpline                                   ! data points in zbl section          
 ! ZBL section
-          Do j=1,nodesZ
+          Do j=1,pointsZBL
             x = (j-1)*(splineNodesData(nodeEnd,1)/(1.0D0*1001))
             yArray = ZblFull (x, zA, zB)
             eamPoint = eamKey(functionCounter,4)+j-1
@@ -176,11 +180,13 @@ Module eamOpt
             eamData(eamPoint,2) = yArray(1)
             eamData(eamPoint,3) = yArray(2)
             eamData(eamPoint,4) = yArray(3)
-          End Do
+          End Do         
+          splineType = 1    ! default to poly
+          splineType(1) = 2 ! first segment exp(poly) [3rd order]
 ! Spline section
-          splineDataPoints = SplineNodesV(splineNodesData,nodesA,nodeStart,nodeEnd,1001)
-          Do j=1,nodesA          
-            eamPoint = eamKey(functionCounter,4)+j+nodesZ-1
+          splineDataPoints = SplineNodesV(splineNodesData,pointsSpline,nodeStart,nodeEnd,1001,splineType)
+          Do j=1,pointsSpline          
+            eamPoint = eamKey(functionCounter,4)+j+pointsZBL-1
             eamData(eamPoint,1) = splineDataPoints(j,1)
             eamData(eamPoint,2) = splineDataPoints(j,2)
             eamData(eamPoint,3) = splineDataPoints(j,3)
@@ -193,7 +199,7 @@ Module eamOpt
           nodeLength = splineNodesKey(i,5)
           nodeEnd = splineNodesKey(i,6)
 ! spline between nodes
-          splineDataPoints = SplineNodes(splineNodesData,1001,nodeStart,nodeEnd)
+          splineDataPoints = SplineNodes(splineNodesData,1001,nodeStart,nodeEnd)  
 ! copy data into eamData array
           Do j=1,1001
             eamPoint = eamKey(functionCounter,4)+j-1
@@ -204,18 +210,18 @@ Module eamOpt
           End Do
         End If  
       End If
-      If(functionCounter.eq.eamFunctionCount )Then
+      If(functionCounter.eq.eamFunctionCount)Then
         Exit  ! Exit, all functions cycled through
-      End If
-    End Do       
-    
+      End If      
     !Do i=1,eamFunctionCount
+      !i = 1
       !Do j=eamKey(i,4),eamKey(i,6)
-        !If(mpiProcessID.eq.0)Then
-          !print *,i,j,eamData(j,1),eamData(j,2),eamData(j,3),eamData(j,4)
-        !End If
+      !  If(mpiProcessID.eq.0)Then
+      !    print *,i,j,eamData(j,1),eamData(j,2),eamData(j,3),eamData(j,4)
+      !  End If
       !End Do
     !End Do
+    End Do     
   End Subroutine setEamSplineOpti
   
   

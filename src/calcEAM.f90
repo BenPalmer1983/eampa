@@ -132,6 +132,7 @@ Module calcEAM
     configStart = configurationCoordsKeyG(configID,1)
     configLength = configurationCoordsKeyG(configID,2)
     configEnd = configurationCoordsKeyG(configID,3)
+    maxDensity = 0.0D0
 ! Init arrays
     Do i=1,configLength
       calculationDensity(i) = 0.0D0     ! density at each atom, length = number of atoms in configuration
@@ -231,6 +232,9 @@ Module calcEAM
       yArray = SearchPotentialPoint(aType,0,3,eamType,elementsCount,calculationDensity(aID_R))
       embeddingEnergy = embeddingEnergy + yArray(1)
       configAtomEnergy(aID_A,2) = configAtomEnergy(aID_A,2) + yArray(1)
+      If(calculationDensity(aID_R).gt.maxDensity)Then
+        maxDensity = calculationDensity(aID_R)
+      End If      
     End Do
 ! Sum energies
     configEnergy = pairEnergy + embeddingEnergy

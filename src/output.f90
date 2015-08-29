@@ -27,6 +27,7 @@ Module output
   Private
 ! Public Subroutines - Output to specific file
   Public :: saveEamFile
+  Public :: saveEamNodes
   Public :: outputForcesFile
   Public :: outputAtomEnergiesFile
   Public :: outputNLSeparationFile
@@ -116,6 +117,53 @@ Module output
       Print *,"Saved to: ",trim(filePath)
     End If
   End Subroutine saveEamFile
+  
+  Subroutine saveEamNodes(fileName)
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Character(*) :: fileName
+    Character(len=255) :: filePath
+    Integer(kind=StandardInteger) :: i, j, k, functionCounter
+! Only on master process
+    If(mpiProcessID.eq.0)Then
+      !fileName = Trim(Adjustl(fileName))
+      FunctionCounter = 0
+      If(fileName(1:1).ne." ")Then
+        filePath = Trim(outputDirectory)//"/"//fileName
+        Open(UNIT=118,FILE=Trim(filePath))
+! Loop through EAM Functions
+        Do i=1,size(splineNodesKey,1)
+          If(splineNodesKey(i,1).gt.0)Then
+            FunctionCounter = functionCounter + 1
+            If(splineNodesKey(i,2).gt.0)Then
+              write(118,"(A4,A1,A2,A1,A2)") eamFunctionTypes(splineNodesKey(i,3))," ",&
+              elements(splineNodesKey(i,1))," ",elements(splineNodesKey(i,2))
+            Else
+              write(118,"(A4,A1,A2)") eamFunctionTypes(splineNodesKey(i,3))," ",&
+              elements(splineNodesKey(i,1))
+            End If
+            k = 0
+            Do j=splineNodesKey(i,4),splineNodesKey(i,6)
+              k = k + 1
+              write(118,"(E17.10,A1,E17.10,A1,E17.10,A1,E17.10,A1,I5,A1,I5,A1,I5)") &
+              splineNodesData(j,1)," ",splineNodesData(j,2)," ",splineNodesData(j,3)," ",&
+              splineNodesData(j,4)," ",i," ",k," ",j
+            End Do
+          End If
+          If(functionCounter.eq.eamFunctionCount)Then
+            Exit
+          End If
+        End Do
+      End If
+! Close file
+      Close(118)
+    End If
+! Output to Terminal
+    If(TerminalPrint())Then
+      Print *,"Saved to: ",trim(filePath)
+    End If
+  End Subroutine saveEamNodes
 
   Subroutine outputForcesFile()
 ! Output ref and calc forces to file

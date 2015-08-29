@@ -6,7 +6,7 @@ Module maths
 ! --------------------------------------------------------------!
 
 ! ----------------------------------------
-! Updated: 2nd August 2015
+! Updated: 8th July 2015
 ! ----------------------------------------
 
 ! Force declaration of all variables
@@ -48,7 +48,6 @@ Module maths
 ! Polynomial Related Functions            ~ 300
   Public :: SolvePolynomial
   Public :: CalcPolynomial
-  Public :: CalcPolynomialExp
   Public :: DerivativePolynomial
 ! Fitting, Regression, Interpolation      ~ 460
   Public :: PolyFit             ! Fit polynomial to large set of data - Vandermonde
@@ -72,14 +71,8 @@ Module maths
   Public :: BirchMurnFitBP
   Public :: PolyPoints
   Public :: BirchMurnPoints
-  Public :: LinearRegression
   Public :: SingleDecayFit
   Public :: DoubleDecayFit
-  Public :: TripleDecayFit
-  Public :: QuadDecayFit
-  Public :: FitExpPoly
-  Public :: FitEmbedding
-  Public :: FitDensity
 ! Optimization functions                  ~ 1900
   Public :: NewtonGaussOpt
 ! Spline Functions                        ~ 1920
@@ -89,8 +82,6 @@ Module maths
   Public :: Spline
   Public :: VaryNode
   Public :: FillSplineResponse
-  Public :: SplineExpThird
-  Public :: SplineExpFifth
 ! Matrix Functions                        ~ 2200
   Public :: InvertMatrix
   Public :: TransposeMatrix
@@ -339,106 +330,51 @@ Module maths
       xN = xN - (y/dydx)
       convergence = abs(convergenceTarget - y)
     End Do
+    print *,maxLoops
     output = xN
   End Function solvePolynomial
-  
-  Function CalcPolynomial(polyCoefficientsIn, x, derivIn) RESULT (y)
+
+  Function CalcPolynomial(polyCoefficientsIn, x, derivativeIn) RESULT (y)
 ! Calculates p(x) by default, p'(x) for derivativeIn = 1 etc
-! p(x) = polyCoefficientsIn(1) x^0 +  polyCoefficientsIn(2) x^1  + ... + polyCoefficientsIn(n) x^(n-1) 
     Implicit None  !Force declaration of all variables
-! In
-    Real(kind=DoubleReal), Dimension(:) :: polyCoefficientsIn
-    Real(kind=DoubleReal) :: x 
-    Integer(kind=StandardInteger), Optional :: derivIn
-! Out
-    Real(kind=DoubleReal) :: y 
-! Private Variables
-    Real(kind=DoubleReal), Dimension(1:size(polyCoefficientsIn,1)) :: polyCoefficients
-    Integer(kind=StandardInteger) :: deriv
-    Integer(kind=StandardInteger) :: i, j
-! Optional
-    deriv = 0
-    If(Present(derivIn))Then
-      deriv = derivIn
+! Declare variables
+    Integer(kind=StandardInteger) :: i, j, derivative
+    Integer(kind=StandardInteger), Optional :: derivativeIn
+    Real(kind=DoubleReal), Dimension( : ) :: polyCoefficientsIn
+    Real(kind=DoubleReal), Dimension(1:Size(polyCoefficientsIn,1)) :: polyCoefficients
+    Real(kind=DoubleReal) :: x, y
+! Handle Optional Arguments
+    If(Present(derivativeIn))Then
+      derivative = derivativeIn
+      If(derivative.lt.0)Then
+        derivative = 0
+      End If
+    Else
+      derivative = 0
     End If
-! Transfer coeffs to internal/private array    
+! Init variables
     polyCoefficients = polyCoefficientsIn
-! Modify as necessary
-    Do i=1,deriv     
-      Do j=1,size(polyCoefficients,1)
-        polyCoefficients(j) = (j-i)*polyCoefficients(j)
+! Change coefficients (if required)
+    If(derivative.gt.0)Then
+      Do i=1,derivative
+        Do j=1,size(polyCoefficients,1)-1
+          polyCoefficients(j) = j * polyCoefficients(j+1)
+        End Do
+        polyCoefficients(size(polyCoefficients,1)+1-derivative) = 0.0D0
       End Do
-    End Do
-! calculate output
+    End If
+! Calculate
     y = 0.0D0
-    Do j=1,size(polyCoefficients,1)
-      y = y + polyCoefficients(j)*x**(j-1-deriv)
+    Do i=1,size(polyCoefficients,1)
+      If(polyCoefficients(i).ne.0.0D0)Then
+        If(i.eq.1)Then
+          y = y + polyCoefficients(i)
+        Else
+          y = y + polyCoefficients(i)*x**(i-1)
+        End If
+      End If
     End Do
   End Function CalcPolynomial
-  
-  Function CalcPolynomialExp(polyCoefficientsIn, x, derivIn) RESULT (y)
-! Calculates f(x) =exp(a+bx+...)
-! just for f(x), f'(x) and f''(x)
-    Implicit None  !Force declaration of all variables
-! In
-    Real(kind=DoubleReal), Dimension(:) :: polyCoefficientsIn
-    Real(kind=DoubleReal) :: x 
-    Integer(kind=StandardInteger), Optional :: derivIn
-! Out
-    Real(kind=DoubleReal) :: y, yP, yP_coeff, yPP, yPP_coeff
-! Private Variables
-    Real(kind=DoubleReal), Dimension(1:size(polyCoefficientsIn,1)) :: polyCoefficients
-    Integer(kind=StandardInteger) :: deriv
-    Integer(kind=StandardInteger) :: i, j
-! Optional
-    deriv = 0
-    If(Present(derivIn))Then
-      deriv = derivIn
-    End If
-! Transfer coeffs to internal/private array    
-    polyCoefficients = polyCoefficientsIn
-! Init vars    
-    y = 0.0D0
-    yP = 0.0D0
-    yP_coeff = 0.0D0
-    yPP = 0.0D0
-! f(x)
-    If(deriv.ge.0)Then
-      Do i=1,size(polyCoefficients,1)
-        y = y + polyCoefficients(i)*(x**(i-1))
-      End Do
-      y = exp(y)
-    End If
-! f'(x)
-    If(deriv.ge.1)Then
-! update coeffs
-      Do i=1,size(polyCoefficients,1)
-        polyCoefficients(i) = (i-1)*polyCoefficients(i)
-      End Do
-      Do i=1,size(polyCoefficients,1)
-        yP_coeff = yP_coeff + polyCoefficients(i)*(x**(i-2))
-      End Do
-      yP = yP_coeff*y
-    End If
-! f''(x)
-    If(deriv.eq.2)Then
-! update coeffs
-      Do i=1,size(polyCoefficients,1)
-        polyCoefficients(i) = (i-2)*polyCoefficients(i)
-      End Do
-      Do i=1,size(polyCoefficients,1)
-        yPP_coeff = yPP_coeff + polyCoefficients(i)*(x**(i-3))
-      End Do
-      yPP = yP_coeff*yP+yPP_coeff*y
-    End If    
-! Update output
-    If(deriv.eq.1)Then
-      y = yP
-    End If
-    If(deriv.eq.2)Then
-      y = yPP
-    End If
-  End Function CalcPolynomialExp
   
   Function DerivativePolynomial (coefficientsIn) RESULT (coefficientsOut)
 ! Calculates p(x) by default, p'(x) for derivativeIn = 1 etc
@@ -1401,7 +1337,7 @@ Module maths
     End If
   End Function InterpLagrange
     
-  Function PointInterp(points,x,subsetSize,derivativeIn,inputSetStartIn,inputSetLengthIn,verboseIn) RESULT (yArray)
+  Function PointInterp(points,x,subsetSize,derivativeIn,inputSetStartIn,inputSetLengthIn) RESULT (yArray)
 ! Takes large set of data points, finds region of points around the input "x", and interps with lagrange
     Implicit None  !Force declaration of all variables
 ! Declare variables - In/Out
@@ -1410,8 +1346,6 @@ Module maths
     Integer(kind=StandardInteger), optional :: derivativeIn, inputSetStartIn, inputSetLengthIn
     Integer(kind=StandardInteger) :: subsetSize, inputStart, inputLength, derivative
     Real(kind=DoubleReal), Dimension(1:3) :: yArray
-    Logical, optional :: verboseIn
-    Logical :: verbose
 ! Declare variables
     Real(kind=DoubleReal), Dimension(1:subsetSize,1:2) :: pointsInterp
     Real(kind=DoubleReal) :: xLower, xUpper
@@ -1442,10 +1376,6 @@ Module maths
         derivative = 2
       End If
     End If
-    verbose = .false.
-    If(Present(verboseIn))Then
-      verbose = verboseIn
-    End If
 ! Check data set size
     If(subsetSize.lt.2)Then
       subsetSize = 2
@@ -1465,10 +1395,6 @@ Module maths
 ! Reduce set of data points
       xLower = points(inputStart,1)
       xUpper = points(inputEnd,1)
-      If(verbose)Then
-        print *,inputStart,inputEnd
-        print *,xLower,xUpper
-      End If
 ! Find xPos
       If(x.lt.xLower)Then  !If x lower than data set, use lowest possible points
         xPos = inputStart
@@ -1529,12 +1455,6 @@ Module maths
         pointsInterp(j,2) = points(i,2)
       End Do
     End If
-! If verbose    
-    If(verbose)Then
-      Do j=1,subsetSize
-        print *,pointsInterp(j,1),pointsInterp(j,2)
-      End Do
-    End If
 ! Store interpolation results
     If(derivative.ge.0)Then
       yArray(1) = InterpLagrange(x, pointsInterp)
@@ -1585,736 +1505,312 @@ Module maths
     End Do    
   End Function BirchMurnPoints    
   
-  
-  Function LinearRegression(Y, X) RESULT (coefficients)  
-!  Linear regression 
-!  B = (XTX)-1 XTY
-!  f(x) = a_1 x_1 + a_2 x_2 +...+ a_n x_n   
-    Implicit None  !Force declaration of all variables
-! In
-    Real(kind=DoubleReal), Dimension(:) :: Y       ! rows        Y input points
-    Real(kind=DoubleReal), Dimension(:,:) :: X     ! rows,cols   X input points
-! Out    
-    Real(kind=DoubleReal), Dimension(1:size(X,2)) :: coefficients
-! Private 
-    Real(kind=DoubleReal), Dimension(1:size(X,2),1:size(X,1)) :: XT
-    Real(kind=DoubleReal), Dimension(1:size(X,2),1:size(X,2)) :: XTX
-    Real(kind=DoubleReal), Dimension(1:size(X,2)) :: XTY
-! Init vars    
-    coefficients = 0.0D0
-! Check the input is OK    
-    If(size(Y,1).eq.size(X,1))Then
-      XT = TransposeMatrix(X)
-      XTX = matmul(XT,X)
-      XTY = matmul(XT,Y)
-      XTX = InvertMatrix(XTX)  ! reuse XTX variable
-      coefficients = matmul(XTX,XTY)
-    End If  
-  End Function LinearRegression
-  
-  
-  Function SingleDecayFit(dataPoints, convergenceThresholdIn) RESULT (output)
+  Function SingleDecayFit(dataPoints) RESULT (output)
 ! Fits double exponential to data
 ! f(x) = a exp(lA)
     Implicit None  !Force declaration of all variables
-! In
+! Declare variables
+    Integer(kind=StandardInteger) :: i, iA, m, n, maxLoops
+    Real(kind=DoubleReal) :: rss, lastRSS, optRSS, convergence, maxRSSVal
     Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Real(kind=DoubleReal), Optional :: convergenceThresholdIn
-    Real(kind=DoubleReal) :: convergenceThreshold
-! Out    
-    Real(kind=DoubleReal), Dimension(1:3) :: output
-! Private    
-    Integer(kind=StandardInteger) :: n
-    Real(kind=DoubleReal) :: lnY
-    Real(kind=DoubleReal) :: sumY, sumX_Y, sumX_X_Y
-    Real(kind=DoubleReal) :: sumY_LnY, sumX_Y_LnY
-! Linear regression
-    Real(kind=DoubleReal), Dimension(1:2,1:2) :: xMatrix
-    Real(kind=DoubleReal), Dimension(1:2) :: yMatrix, cMatrix
-! LMA    
-    Integer(kind=StandardInteger) :: i, k
-    Real(kind=DoubleReal) :: convergence, rss, bestRSS, testRSS, lambda
-    Real(kind=DoubleReal), Dimension(1:2) :: parameters, parameters_Last
     Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: R
     Real(kind=DoubleReal), Dimension(1:size(dataPoints,1),1:2) :: J
-    Real(kind=DoubleReal), Dimension(1:2,1:size(dataPoints,1)) :: JT     ! Transpose Jacobian
-    Real(kind=DoubleReal), Dimension(1:2,1:2) :: JTJ    ! (Jacobian Transpose * Jacobian)
-    Real(kind=DoubleReal), Dimension(1:2,1:2) :: JTJ_Diag
-    Real(kind=DoubleReal), Dimension(1:2) :: JTR                ! (Jacobian Transpose * Residuals)
-    Real(kind=DoubleReal), Dimension(1:2) :: P      ! Change  
-! Optional argument
-    convergenceThreshold = 1.0D-8
-    If(Present(convergenceThresholdIn))Then
-      convergenceThreshold = convergenceThresholdIn
-    End If    
-! --------------------
-! Linear regression
-! --------------------
-    sumY = 0.0D0
-    sumX_Y = 0.0D0
-    sumX_X_Y = 0.0D0
-    sumY_LnY = 0.0D0
-    sumX_Y_LnY = 0.0D0
-    Do n=1,size(dataPoints,1)
-      lnY = log(dataPoints(n,2))
-      sumY = sumY + dataPoints(n,2)    
-      sumX_Y = sumX_Y + dataPoints(n,1)*dataPoints(n,2)    
-      sumX_X_Y = sumX_X_Y + dataPoints(n,1)*dataPoints(n,1)*dataPoints(n,2)    
-      sumY_LnY = sumY_LnY + dataPoints(n,2)*lnY
-      sumX_Y_LnY = sumX_Y_LnY + dataPoints(n,1)*dataPoints(n,2)*lnY
+    Real(kind=DoubleReal), Dimension(1:2) :: parameters, parametersOpt, change
+    Real(kind=DoubleReal), Dimension(1:3) :: output
+    Real(kind=DoubleReal), Dimension(1:100,1:2) :: aRange
+    Integer(kind=StandardInteger) :: gridA
+    Real(kind=DoubleReal) :: a_T, lA_T
+    Real(kind=DoubleReal), Dimension(1:100,1:3) :: topBoxes 
+    Integer(kind=StandardInteger) :: topBoxCount, maxRSS 
+    Logical :: storeFlag
+!--------------------------------------------------
+! Find Starting Parameters  
+!--------------------------------------------------
+! Init
+    topBoxCount = 4
+    topBoxes = 2.0D20
+! Set a ranges
+    gridA = 12
+    Do i=1,gridA
+      aRange(i,1) = -1.0D0*10D0**((gridA-4)-i)
+      aRange(i,2) = -1.0D0*10D0**((gridA-5)-i)
     End Do    
-! x matrix
-    xMatrix(1,1) = sumY
-    xMatrix(1,2) = sumX_Y
-    xMatrix(2,1) = sumX_Y
-    xMatrix(2,2) = sumX_X_Y
-! y matrix    
-    yMatrix(1) = sumY_LnY
-    yMatrix(2) = sumX_Y_LnY
-! solve    
-    xMatrix = InvertMatrix(xMatrix)
-    cMatrix = matmul(xMatrix,yMatrix)
-! --------------------
-! LMA
-! --------------------    
-! set parameters    
-    parameters(1) = exp(cMatrix(1))
-    parameters(2) = cMatrix(2) 
-    Do i=1,2   
-      If(isnan(parameters(i)))Then  ! If fitting fails
-        parameters(i) = 1.0D0
-      End If  
+    Do i=1,gridA
+      aRange(i+gridA,1) = 1.0D0*10D0**(i-6)
+      aRange(i+gridA,2) = 1.0D0*10D0**(i-5)
     End Do
-! LMA Opt
-    convergence = 1.0D0
-    lambda = 1.0D0
-!----------------
-! Start LMA loop
-    Do n=1,1000  ! maximum 1000 loops
-      rss = 0.0D0
-! Make Jacobian and Residuals matrix
-      Do i=1,size(dataPoints,1)
-        R(i) = (parameters(1)*exp(parameters(2)*dataPoints(i,1)))-dataPoints(i,2)   ! f(x)-y
-        J(i,1) = exp(parameters(2)*dataPoints(i,1))  ! d/dx1
-        J(i,2) = dataPoints(i,1)*parameters(1)*exp(parameters(2)*dataPoints(i,1))  ! d/dx2
-        rss = rss + R(i)**2
-      End Do
-      Do k=1,50 ! max 50
-! calculate change matrix
-        !***********     
-        ! P = (JTJ+L*diag(JTJ))^(-1)(-1*JTR)   
-        !***********      
-! Transpose Jacobian
-        JT = TransposeMatrix(J)
-        JTJ = matmul(JT,J)
-        JTJ_Diag = lambda*DiagMatrix(JTJ) ! Dampening Matrix
-        JTJ = MatAdd(JTJ,JTJ_Diag) ! Recycle JTJ
-        JTJ = InvertMatrix(JTJ) ! store inverse (recycle JTJ var)      
-        JTR = matmul(JT,R)
-        JTR = -1.0D0*JTR ! Recycle JTR var
-        P = matmul(JTJ,JTR)  
-! Store last loop values
-        parameters_Last = parameters
-! Update parameters      
-        Do i=1,size(P)
-          parameters(i) = parameters(i) + P(i)
-        End Do       
-! Calc RSS
-        testRSS = 0.0D0
-        Do i=1,size(dataPoints,1)
-          testRSS = testRSS + &
-          ((parameters(1)*exp(parameters(2)*dataPoints(i,1)))-dataPoints(i,2))**2
+    aRange(gridA,2) = 0.0D0
+    aRange(gridA+1,1) = 0.0D0 
+! Reduce search region into 10 smaller "boxes"
+    Do iA=1,(gridA+gridA) 
+      Do n=1,1000
+        Do m=1,3
+          a_T = (0.25D0*m)*(aRange(iA,1)+aRange(iA,2))
+          lA_T = 40.0D0*(RandomLCG()-0.5D0)
+! Calc rss
+          rss = SingleDecayFitRSS(dataPoints, a_T, lA_T)  
+! Check if better than boxed - update if better than already stored for this box         
+          storeFlag = .true.
+          Do i=1,topBoxCount
+            If(topBoxes(i,2).eq.a_T.and.rss.lt.topBoxes(i,1))Then
+              topBoxes(i,1) = rss
+              topBoxes(i,2) = a_T
+              topBoxes(i,3) = lA_T
+              storeFlag = .false.
+              Exit
+            End If  
+            If(i.eq.1)Then
+              maxRSS = 1
+              maxRSSVal = topBoxes(1,1)
+            Else
+              If(topBoxes(i,1).gt.maxRSSVal)Then
+                maxRSS = i
+                maxRSSVal = topBoxes(i,1)
+              End If            
+            End If
+          End Do
+! If better than any in box
+          If(storeFlag)Then
+            If(rss.lt.maxRSSVal)Then
+              topBoxes(maxRSS,1) = rss
+              topBoxes(maxRSS,2) = a_T
+              topBoxes(maxRSS,3) = lA_T
+            End If
+          End If          
         End Do
-! Delayed gratification scheme - 1.5*lambda or 0.2*lambda    
-        If(testRSS.gt.rss)Then  ! If worse
-          lambda = lambda * 1.5D0   
-          parameters = parameters_Last      
-          bestRSS = rss
-        Else  ! If better
-          lambda = lambda * 0.2D0  
-          bestRSS = testRSS
-          Exit
-        End If
       End Do
-      convergence = abs(testRSS-rss) 
-  ! Breakout if convergence threshold met      
-      If(convergence.lt.convergenceThreshold)Then
-        Exit
-      End If
-! End LMA loop
-!----------------
+    End Do
+!--------------------------------------------------
+! Newton Gauss Elimination
+!--------------------------------------------------
+    Do n=1,topBoxCount
+      parameters(1) = topBoxes(n,2)
+      parameters(2) = topBoxes(n,3) 
+! NG Opt
+      lastRSS = 0
+      convergence = 1.0D0
+      maxLoops = 0
+      Do While(maxLoops.le.100.and.convergence.gt.1.0D-7)
+        maxLoops = maxLoops + 1
+        rss = 0.0D0
+        Do i=1,size(dataPoints,1)
+          R(i) = parameters(1)*exp(parameters(2)*dataPoints(i,1))-dataPoints(i,2)   ! f(x)-y
+          J(i,1) = exp(parameters(2)*dataPoints(i,1))  ! d/dx1
+          J(i,2) = dataPoints(i,1)*parameters(1)*exp(parameters(2)*dataPoints(i,1))  ! d/dx2
+          rss = rss + R(i)**2
+        End Do
+        change = NewtonGaussOpt(J,R)
+        Do i=1,size(change)
+          parameters(i) = parameters(i) + change(i)
+        End Do
+        convergence = abs(lastRSS-rss)
+        lastRSS = rss
+      End Do
+      If(n.eq.1)Then
+        optRSS = rss
+        Do i=1,size(change)
+          parametersOpt(i) = parameters(i)
+        End Do
+      Else
+        If(rss.lt.optRSS)Then
+          optRSS = rss
+          Do i=1,size(change)
+            parametersOpt(i) = parameters(i)
+          End Do
+        End If
+      End If  
     End Do  
-! Output   f(x) = a exp(b x)
-    output(1) = parameters(1)  ! a
-    output(2) = parameters(2)  ! b
-    output(3) = bestRSS
+    output(1) = parametersOpt(1)
+    output(2) = parametersOpt(2)
+    output(3) = optRSS
   End Function SingleDecayFit    
     
-  Function DoubleDecayFit(dataPoints, convergenceThresholdIn) RESULT (output)
+  Function DoubleDecayFit(dataPoints,gridAIn,gridAFactorIn,&
+  searchLoopsIn) RESULT (output)
 ! Fits double exponential to data
 ! f(x) = a exp(lA) + b exp(lB)
     Implicit None  !Force declaration of all variables
 ! Declare variables
-    Real(kind=DoubleReal), Optional :: convergenceThresholdIn
-    Real(kind=DoubleReal) :: convergenceThreshold
-    Integer(kind=StandardInteger) :: i, n, k
+    Integer(kind=StandardInteger) :: i, n, m, k
+    Integer(kind=StandardInteger) :: iA,iB
     Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Real(kind=DoubleReal), Dimension(1:5) :: output
-! Lin Reg approx vars    
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: S
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: SS
-    Real(kind=DoubleReal), Dimension(1:4) :: cMatrix, yMatrix
-    Real(kind=DoubleReal), Dimension(1:4,1:4) :: xMatrix
-    Real(kind=DoubleReal) :: sumX, sumY, sumX_X, sumX_Y, sumS_X, sumS_Y, sumSS_X, sumSS_Y
-    Real(kind=DoubleReal) :: sumS, sumSS, sumS_S, sumS_SS, sumSS_SS
-    Real(kind=DoubleReal) :: p1, q1
-    Real(kind=DoubleReal), Dimension(1:2) :: cbMatrix, ybMatrix
-    Real(kind=DoubleReal), Dimension(1:2,1:2) :: xbMatrix
-    Real(kind=DoubleReal) :: sumB_B, sumB_N, sumN_N, sumB_Y, sumN_Y
-    Real(kind=DoubleReal) :: beta, eta  
-! LMA Vars
-    Real(kind=DoubleReal) :: rss, testRSS, bestRSS, convergence, lambda  
-    Real(kind=DoubleReal), Dimension(1:4) :: parameters, parameters_Last
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: R
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1),1:4) :: J
+    Real(kind=DoubleReal) :: a, b, lA, lB
+    Real(kind=DoubleReal) :: a_T, b_T, lA_T, lB_T
+    Real(kind=DoubleReal) :: rss, startRSS, optRSS, lastRSS, convergence, lambda  
+    Real(kind=DoubleReal), Dimension(1:6) :: output
+    Real(kind=DoubleReal), Dimension(1:100,1:2) :: lRange
+    Real(kind=DoubleReal), Dimension(1:100,1:2) :: aRange
+    Integer(kind=StandardInteger) :: searchLoops, gridA
+    Integer(kind=StandardInteger), Optional :: searchLoopsIn, gridAIn
+    Real(kind=DoubleReal) :: gridAFactor
+    Real(kind=DoubleReal), Optional :: gridAFactorIn
+    Integer(kind=StandardInteger) :: maxRSS
+    Real(kind=DoubleReal) :: maxRSSVal
+    Integer(kind=StandardInteger) :: topBoxCount
+    Real(kind=DoubleReal), Dimension(1:100,1:5) :: topBoxes 
+    Logical :: storeFlag
+! Newton Gauss Opt Vars
+    Real(kind=DoubleReal), Dimension(1:4) :: parameters, parameters_Last, parametersOpt  
+    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: R, R_Last
+    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1),1:4) :: J, J_Last
     Real(kind=DoubleReal), Dimension(1:4,1:size(dataPoints,1)) :: JT     ! Transpose Jacobian
     Real(kind=DoubleReal), Dimension(1:4,1:4) :: JTJ    ! (Jacobian Transpose * Jacobian)
     Real(kind=DoubleReal), Dimension(1:4,1:4) :: JTJ_Diag
     Real(kind=DoubleReal), Dimension(1:4) :: JTR                ! (Jacobian Transpose * Residuals)
-    Real(kind=DoubleReal), Dimension(1:4) :: P      ! Change  
-! Optional argument
-    convergenceThreshold = 1.0D-8
-    If(Present(convergenceThresholdIn))Then
-      convergenceThreshold = convergenceThresholdIn
-    End If
-!   
-!-----------------------------------------
-! Approximate linear regression 
-!-----------------------------------------
-! Advice from Claude Leibovici
-! Book by Jean Jacquelin:  https://www.scribd.com/doc/14674814/Regressions-et-equations-integrales
-! 
-! Init vars
-   sumX = 0.0D0
-   sumY = 0.0D0
-   sumX_X = 0.0D0
-   sumX_Y = 0.0D0
-   sumS_X = 0.0D0
-   sumS_Y = 0.0D0
-   sumSS_X = 0.0D0
-   sumSS_Y = 0.0D0
-   sumS = 0.0D0
-   sumSS = 0.0D0
-   sumS_S = 0.0D0
-   sumS_SS = 0.0D0
-   sumSS_SS = 0.0D0
-! Numeric integration to calc S and SS array
-    n = size(dataPoints,1)      ! number of data points
-    Do i=1,n
-      If(i.eq.1)Then
-        S(i) = 0.0D0
-        SS(i) = 0.0D0
-      Else  
-        S(i) = S(i-1) + 0.5D0*(dataPoints(i,2)+dataPoints(i-1,2))*&
-        (dataPoints(i,1)-dataPoints(i-1,1)) ! Numeric integration
-        SS(i) = SS(i-1) + 0.5D0*(S(i)+S(i-1))*&
-        (dataPoints(i,1)-dataPoints(i-1,1)) ! Numeric integration
-      End If 
+    Real(kind=DoubleReal), Dimension(1:4) :: P      ! Change
+! User options:
+! gridA - size of grid -10^(grid-6) to 10^(grid-6) [grid size = gridA^2]
+! gridAFactor - span of grid increased/decreased by factor, bt keeps grid size same
+! searchLoops - no. random lA and lB points for each (a,b) box
+! vary loops - number of refinement loops for final result
+! filter loops - number of loops to filter out top results   
+!     
+! Init
+    ddfRssCount = 0
+! Optional   
+    gridA = 10
+    If(Present(gridAIn))Then
+      gridA = gridAIn
+    End If  
+    gridAFactor = 1.0D0
+    If(Present(gridAFactorIn))Then
+      gridAFactor = gridAFactorIn
+    End If  
+    searchLoops = 50
+    If(Present(searchLoopsIn))Then
+      searchLoops = searchLoopsIn
+    End If      
+! Init
+    topBoxCount = 5
+    topBoxes = 2.0D20
+! Set first test values
+    a = 1.0D0
+    b = 1.0D0
+    lA = 1.0D0
+    lB = 1.0D0
+    startRSS = DoubleDecayFitRSS(dataPoints, a, b, lA, lB)
+    optRSS = startRSS
+! Assume:
+! -10^5 < a < 10^5 
+! -10^5 < b < 10^5 
+! -20 < lA < 20 
+! -20 < lB < 20 
+    Do i=1,5
+      lRange(i,1) = -2.0D0*10D0**(2-i)
+      lRange(i,2) = -2.0D0*10D0**(1-i)
+    End Do    
+    Do i=1,5
+      lRange(i+5,1) = 2.0D0*10D0**(i-5)
+      lRange(i+5,2) = 2.0D0*10D0**(i-4)
     End Do
-! Sum    
-    Do i=1,n
-      sumX = sumX + dataPoints(i,1)
-      sumY = sumY + dataPoints(i,2)
-      sumX_X = sumX_X + (dataPoints(i,1)*dataPoints(i,1))
-      sumX_Y = sumX_Y + (dataPoints(i,1)*dataPoints(i,2))
-      sumS_X = sumS_X + S(i)*dataPoints(i,1)
-      sumS_Y = sumS_Y + S(i)*dataPoints(i,2)
-      sumSS_X = sumSS_X + SS(i)*dataPoints(i,1)
-      sumSS_Y = sumSS_Y + SS(i)*dataPoints(i,2)
-      sumS = sumS + S(i)
-      sumSS = sumSS + SS(i)
-      sumS_S = sumS_S + S(i)*S(i)
-      sumS_SS = sumS_SS + S(i)*SS(i)
-      sumSS_SS = sumSS_SS + SS(i)*SS(i)
+    lRange(5,2) = 0.0D0
+    lRange(6,1) = 0.0D0    
+! Set a and b ranges
+    Do i=1,gridA
+      aRange(i,1) = -1.0D0*gridAFactor*10D0**((gridA-4)-i)
+      aRange(i,2) = -1.0D0*gridAFactor*10D0**((gridA-5)-i)
+    End Do    
+    Do i=1,gridA
+      aRange(i+gridA,1) = 1.0D0*gridAFactor*10D0**(i-6)
+      aRange(i+gridA,2) = 1.0D0*gridAFactor*10D0**(i-5)
     End Do
-! Make y matrix    
-    yMatrix(1) = sumSS_Y
-    yMatrix(2) = sumS_Y
-    yMatrix(3) = sumX_Y
-    yMatrix(4) = sumY
-! Make xMatrix
-    xMatrix(1,1) = sumSS_SS
-    xMatrix(1,2) = sumS_SS
-    xMatrix(1,3) = sumSS_X
-    xMatrix(1,4) = sumSS
-    xMatrix(2,1) = sumS_SS
-    xMatrix(2,2) = sumS_S
-    xMatrix(2,3) = sumS_X
-    xMatrix(2,4) = sumS
-    xMatrix(3,1) = sumSS_X
-    xMatrix(3,2) = sumS_X
-    xMatrix(3,3) = sumX_X
-    xMatrix(3,4) = sumX
-    xMatrix(4,1) = sumSS
-    xMatrix(4,2) = sumS
-    xMatrix(4,3) = sumX
-    xMatrix(4,4) = n 
-! Solve set of equations
-    xMatrix = InvertMatrix(xMatrix)
-    cMatrix = matmul(xMatrix,yMatrix)
-! calculate P and Q for next regression    
-    p1 = 0.5D0*(cMatrix(2)+sqrt(cMatrix(2)*cMatrix(2)+4*cMatrix(1)))
-    q1 = 0.5D0*(cMatrix(2)-sqrt(cMatrix(2)*cMatrix(2)+4*cMatrix(1)))
-! Sum
-    sumB_B = 0.0D0 
-    sumB_N = 0.0D0
-    sumN_N = 0.0D0
-    sumB_Y = 0.0D0
-    sumN_Y = 0.0D0
-    Do i=1,n
-      beta = exp(p1*dataPoints(i,1))
-      eta = exp(q1*dataPoints(i,1))
-      sumB_B = sumB_B + beta*beta
-      sumB_N = sumB_N + beta*eta
-      sumN_N = sumN_N + eta*eta
-      sumB_Y = sumB_Y + beta*dataPoints(i,2)
-      sumN_Y = sumN_Y + eta*dataPoints(i,2)
-    End Do
-! Make next x matrix
-    xbMatrix(1,1) = sumB_B
-    xbMatrix(1,2) = sumB_N
-    xbMatrix(2,1) = sumB_N
-    xbMatrix(2,2) = sumN_N
-! Make next y matrix    
-    ybMatrix(1) = sumB_Y
-    ybMatrix(2) = sumN_Y
-! Calc cb
-    xbMatrix = InvertMatrix(xbMatrix)
-    cbMatrix = matmul(xbMatrix,ybMatrix) 
-!--------------------------------------------------
-! LMA
-!--------------------------------------------------    
-    parameters(1) = cbMatrix(1)
-    parameters(2) = p1
-    parameters(3) = cbMatrix(2)
-    parameters(4) = q1
-    Do i=1,4    
-      If(isnan(parameters(i)))Then  ! If fitting fails
-        parameters(i) = 1.0D0
-      End If  
-    End Do
-! LMA Opt
-    convergence = 1.0D0
-    lambda = 1.0D0
-!----------------
-! Start LMA loop
-    Do n=1,1000  ! maximum 1000 loops
-      rss = 0.0D0
-! Make Jacobian and Residuals matrix
-      Do i=1,size(dataPoints,1)
-        R(i) = (parameters(1)*exp(parameters(2)*dataPoints(i,1))+&
-        parameters(3)*exp(parameters(4)*dataPoints(i,1)))-dataPoints(i,2)   ! f(x)-y
-        J(i,1) = exp(parameters(2)*dataPoints(i,1))  ! d/dx1
-        J(i,2) = dataPoints(i,1)*parameters(1)*exp(parameters(2)*dataPoints(i,1))  ! d/dx2
-        J(i,3) = exp(parameters(4)*dataPoints(i,1))  ! d/dx3
-        J(i,4) = dataPoints(i,1)*parameters(3)*exp(parameters(4)*dataPoints(i,1))  ! d/dx4
-        rss = rss + R(i)**2
-      End Do
-      Do k=1,50 ! max 50
-! calculate change matrix
-        !***********     
-        ! P = (JTJ+L*diag(JTJ))^(-1)(-1*JTR)   
-        !***********      
-! Transpose Jacobian
-        JT = TransposeMatrix(J)
-        JTJ = matmul(JT,J)
-        JTJ_Diag = lambda*DiagMatrix(JTJ) ! Dampening Matrix
-        JTJ = MatAdd(JTJ,JTJ_Diag) ! Recycle JTJ
-        JTJ = InvertMatrix(JTJ) ! store inverse (recycle JTJ var)      
-        JTR = matmul(JT,R)
-        JTR = -1.0D0*JTR ! Recycle JTR var
-        P = matmul(JTJ,JTR)  
-! Store last loop values
-        parameters_Last = parameters
-! Update parameters      
-        Do i=1,size(P)
-          parameters(i) = parameters(i) + P(i)
-        End Do       
-! Calc RSS
-        testRSS = 0.0D0
-        Do i=1,size(dataPoints,1)
-          testRSS = testRSS + &
-          ((parameters(1)*exp(parameters(2)*dataPoints(i,1))+&
-          parameters(3)*exp(parameters(4)*dataPoints(i,1)))-dataPoints(i,2))**2
-        End Do
-! Delayed gratification scheme - 1.5*lambda or 0.2*lambda   
-        If(testRSS.gt.rss)Then  ! If worse
-          lambda = lambda * 1.5D0   
-          parameters = parameters_Last  
-          bestRSS = rss        
-        Else  ! If better
-          lambda = lambda * 0.2D0
-          bestRSS = testRSS  
-          Exit
-        End If
-      End Do
-      convergence = abs(testRSS-rss) 
-  ! Breakout if convergence threshold met      
-      If(convergence.lt.convergenceThreshold)Then
-        Exit
-      End If
-! End LMA loop
-!----------------
-    End Do  
-! Output   f(x) = a exp(b x) + c exp(d x)
-    output(1) = parameters(1)  ! a
-    output(2) = parameters(2)  ! b
-    output(3) = parameters(3)  ! c
-    output(4) = parameters(4)  ! d
-    output(5) = bestRSS
-  End Function DoubleDecayFit 
-   
-
-  Function TripleDecayFit(dataPoints, convergenceThresholdIn) RESULT (output)
-! Fits double exponential to data
-! f(x) = a exp(lA) + b exp(lB)
-    Implicit None  !Force declaration of all variables
-! Declare variables
-    Real(kind=DoubleReal), Optional :: convergenceThresholdIn
-    Real(kind=DoubleReal) :: convergenceThreshold
-    Integer(kind=StandardInteger) :: i, n, k
-    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Real(kind=DoubleReal), Dimension(1:7) :: output
-! Approx regression    
-    Integer(kind=StandardInteger) :: iA, iB, iC, gridSize, searchBetterFailCount
-    Real(kind=DoubleReal) :: maxLambda, minLambda
-    Real(kind=DoubleReal) :: lambdaInc 
-    Real(kind=DoubleReal) :: lA, lB, lC
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: yReg
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1),1:3) :: xReg
-    Real(kind=DoubleReal), Dimension(1:3) :: linCoeffs
-    Real(kind=DoubleReal) :: linRSS, linBestRSS, bestRSSLastSearch
-! LMA Vars
-    Real(kind=DoubleReal) :: rss, testRSS, bestRSS, convergence, lambda  
-    Real(kind=DoubleReal), Dimension(1:6) :: parameters, parameters_Last
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: R
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1),1:6) :: J
-    Real(kind=DoubleReal), Dimension(1:6,1:size(dataPoints,1)) :: JT     ! Transpose Jacobian
-    Real(kind=DoubleReal), Dimension(1:6,1:6) :: JTJ    ! (Jacobian Transpose * Jacobian)
-    Real(kind=DoubleReal), Dimension(1:6,1:6) :: JTJ_Diag
-    Real(kind=DoubleReal), Dimension(1:6) :: JTR                ! (Jacobian Transpose * Residuals)
-    Real(kind=DoubleReal), Dimension(1:6) :: P      ! Change  
-! Optional argument
-    convergenceThreshold = 1.0D-8
-    If(Present(convergenceThresholdIn))Then
-      convergenceThreshold = convergenceThresholdIn
-    End If    
-! Init vars
-    parameters = 0.0D0    
-    parameters_Last = 0.0D0    
-    linBestRSS = 0.0D0 
-    bestRSSLastSearch = 0.0D0 
-! Set grid size
-    gridSize = 15
-! Make y array
-    Do i=1,size(dataPoints,1)
-      yReg(i) = dataPoints(i,2)
-    End Do  
-! Loop through combinations
-    maxLambda = 0.5D0
-    searchBetterFailCount = 0
-    Do n=1,20   ! expand search "area"    
-      maxLambda = 2.0D0*maxLambda   ! grid from -maxLambda to maxLambda
-      minLambda = -1.0D0 * maxLambda
-      lambdaInc = (2*maxLambda)/(gridSize-1)
-      Do iA=1,gridSize-2
-        lA = minLambda + (iA-1)*lambdaInc
-        Do i=1,size(dataPoints,1)
-          xReg(i,1) = exp(lA*dataPoints(i,1))  ! Make x1 array (for the A exp(lA x) function)
-        End Do
-        Do iB=iA+1,gridSize-1  
-          lB = minLambda + (iB-1)*lambdaInc
-          Do i=1,size(dataPoints,1)
-            xReg(i,2) = exp(lB*dataPoints(i,1))  ! Make x1 array (for the A exp(lA x) function)
-          End Do
-          Do iC=iB+1,gridSize 
-            lC = minLambda + (iC-1)*lambdaInc
-            Do i=1,size(dataPoints,1)
-              xReg(i,3) = exp(lC*dataPoints(i,1))
-            End Do      
-            linCoeffs = LinearRegression(yReg, xReg)     
-            linRSS = TripleDecayFitRSS(dataPoints, linCoeffs(1), lA, linCoeffs(2), lB, linCoeffs(3), lC)
-            If(iA.eq.1.and.iB.eq.2.and.iC.eq.3)Then
-              linBestRSS = linRSS
-              parameters(1) = linCoeffs(1)
-              parameters(2) = lA
-              parameters(3) = linCoeffs(2)
-              parameters(4) = lB
-              parameters(5) = linCoeffs(3)
-              parameters(6) = lC
-            Else  
-              If(linRSS.lt.linBestRSS)Then
-                linBestRSS = linRSS
-                parameters(1) = linCoeffs(1)
-                parameters(2) = lA
-                parameters(3) = linCoeffs(2)
-                parameters(4) = lB
-                parameters(5) = linCoeffs(3)
-                parameters(6) = lC
-              End If
-            End If   
-          End Do
-        End Do
-      End Do
-      If(linBestRSS.gt.bestRSSLastSearch)Then
-        searchBetterFailCount = searchBetterFailCount + 1
-        If(searchBetterFailCount.eq.2)Then ! If two successive fails, break out
-          Exit
-        End If
-      Else
-        searchBetterFailCount = 0 ! reset fail count
-        bestRSSLastSearch = linBestRSS
-      End If  
-    End Do   
-!--------------------------------------------------
-! LMA
-!--------------------------------------------------    
-    Do i=1,4    
-      If(isnan(parameters(i)))Then  ! If fitting fails
-        parameters(i) = 1.0D0
-      End If  
-    End Do
-! LMA Opt
-    convergence = 1.0D0
-    lambda = 1.0D0
-!----------------
-! Start LMA loop
-    Do n=1,1000  ! maximum 1000 loops
-      rss = 0.0D0
-! Make Jacobian and Residuals matrix
-      Do i=1,size(dataPoints,1)
-        R(i) = (parameters(1)*exp(parameters(2)*dataPoints(i,1))+&
-        parameters(3)*exp(parameters(4)*dataPoints(i,1))+&
-        parameters(5)*exp(parameters(6)*dataPoints(i,1))&
-        )-dataPoints(i,2)   ! f(x)-y
-        J(i,1) = exp(parameters(2)*dataPoints(i,1))  ! d/dx1
-        J(i,2) = dataPoints(i,1)*parameters(1)*exp(parameters(2)*dataPoints(i,1))  ! d/dx2
-        J(i,3) = exp(parameters(4)*dataPoints(i,1))  ! d/dx3
-        J(i,4) = dataPoints(i,1)*parameters(3)*exp(parameters(4)*dataPoints(i,1))  ! d/dx4
-        J(i,5) = exp(parameters(6)*dataPoints(i,1))  ! d/dx5
-        J(i,6) = dataPoints(i,1)*parameters(5)*exp(parameters(6)*dataPoints(i,1))  ! d/dx6
-        rss = rss + R(i)**2
-      End Do
-      Do k=1,50 ! max 50
-! calculate change matrix
-        !***********     
-        ! P = (JTJ+L*diag(JTJ))^(-1)(-1*JTR)   
-        !***********      
-! Transpose Jacobian
-        JT = TransposeMatrix(J)
-        JTJ = matmul(JT,J)
-        JTJ_Diag = lambda*DiagMatrix(JTJ) ! Dampening Matrix
-        JTJ = MatAdd(JTJ,JTJ_Diag) ! Recycle JTJ
-        JTJ = InvertMatrix(JTJ) ! store inverse (recycle JTJ var)      
-        JTR = matmul(JT,R)
-        JTR = -1.0D0*JTR ! Recycle JTR var
-        P = matmul(JTJ,JTR)  
-! Store last loop values
-        parameters_Last = parameters
-! Update parameters      
-        Do i=1,size(P)
-          parameters(i) = parameters(i) + P(i)
-        End Do       
-! Calc RSS
-        testRSS = 0.0D0
-        Do i=1,size(dataPoints,1)
-          testRSS = testRSS + &
-          ((parameters(1)*exp(parameters(2)*dataPoints(i,1))+&
-          parameters(3)*exp(parameters(4)*dataPoints(i,1))+&
-          parameters(5)*exp(parameters(6)*dataPoints(i,1))&
-          )-dataPoints(i,2))**2
-        End Do
-! Delayed gratification scheme - 1.5*lambda or 0.2*lambda   
-        If(testRSS.gt.rss)Then  ! If worse
-          lambda = lambda * 1.5D0   
-          parameters = parameters_Last  
-          bestRSS = rss        
-        Else  ! If better
-          lambda = lambda * 0.2D0
-          bestRSS = testRSS  
-          Exit
-        End If
-      End Do
-      convergence = abs(testRSS-rss) 
-  ! Breakout if convergence threshold met      
-      If(convergence.lt.convergenceThreshold)Then
-        Exit
-      End If
-! End LMA loop
-!----------------
-    End Do  
-! Output   f(x) = a exp(b x) + c exp(d x)
-    output(1) = parameters(1)  ! a
-    output(2) = parameters(2)  ! b
-    output(3) = parameters(3)  ! c
-    output(4) = parameters(4)  ! d
-    output(5) = parameters(5)  ! c
-    output(6) = parameters(6)  ! d
-    output(7) = bestRSS
-  End Function TripleDecayFit 
-  
-   
-  Function QuadDecayFit(dataPoints, convergenceThresholdIn) RESULT (output)
-! Fits double exponential to data
-! f(x) = a exp(lA) + b exp(lB)
-    Implicit None  !Force declaration of all variables
-! Declare variables
-    Real(kind=DoubleReal), Optional :: convergenceThresholdIn
-    Real(kind=DoubleReal) :: convergenceThreshold
-    Integer(kind=StandardInteger) :: i, n, k
-    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Real(kind=DoubleReal), Dimension(1:9) :: output
-! Approx regression    
-    Integer(kind=StandardInteger) :: iA, iB, iC, i_D, gridSize, searchBetterFailCount
-    Real(kind=DoubleReal) :: maxLambda, minLambda
-    Real(kind=DoubleReal) :: lambdaInc 
-    Real(kind=DoubleReal) :: lA, lB, lC, lD
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: yReg
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1),1:4) :: xReg
-    Real(kind=DoubleReal), Dimension(1:4) :: linCoeffs
-    Real(kind=DoubleReal) :: linRSS, linBestRSS, bestRSSLastSearch
-! LMA Vars
-    Real(kind=DoubleReal) :: rss, testRSS, bestRSS, convergence, lambda  
-    Real(kind=DoubleReal), Dimension(1:8) :: parameters, parameters_Last
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: R
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1),1:8) :: J
-    Real(kind=DoubleReal), Dimension(1:8,1:size(dataPoints,1)) :: JT     ! Transpose Jacobian
-    Real(kind=DoubleReal), Dimension(1:8,1:8) :: JTJ    ! (Jacobian Transpose * Jacobian)
-    Real(kind=DoubleReal), Dimension(1:8,1:8) :: JTJ_Diag
-    Real(kind=DoubleReal), Dimension(1:8) :: JTR                ! (Jacobian Transpose * Residuals)
-    Real(kind=DoubleReal), Dimension(1:8) :: P      ! Change  
-! Optional argument
-    convergenceThreshold = 1.0D-8
-    If(Present(convergenceThresholdIn))Then
-      convergenceThreshold = convergenceThresholdIn
-    End If    
-! Init vars
-    parameters = 0.0D0    
-    parameters_Last = 0.0D0    
-    linBestRSS = 0.0D0 
-    bestRSSLastSearch = 0.0D0 
-! Set grid size
-    gridSize = 15
-! Make y array
-    Do i=1,size(dataPoints,1)
-      yReg(i) = dataPoints(i,2)
-    End Do  
-! Loop through combinations
-    maxLambda = 0.5D0
-    searchBetterFailCount = 0
-    Do n=1,20   ! expand search "area"    
-      maxLambda = 2.0D0*maxLambda   ! grid from -maxLambda to maxLambda
-      minLambda = -1.0D0 * maxLambda
-      lambdaInc = (2*maxLambda)/(gridSize-1)
-      Do iA=1,gridSize-3
-        lA = minLambda + (iA-1)*lambdaInc
-        Do i=1,size(dataPoints,1)
-          xReg(i,1) = exp(lA*dataPoints(i,1))  ! Make x1 array (for the A exp(lA x) function)
-        End Do
-        Do iB=iA+1,gridSize-2  
-          lB = minLambda + (iB-1)*lambdaInc
-          Do i=1,size(dataPoints,1)
-            xReg(i,2) = exp(lB*dataPoints(i,1))  ! Make x1 array (for the A exp(lA x) function)
-          End Do
-          Do iC=iB+1,gridSize-1 
-            lC = minLambda + (iC-1)*lambdaInc
-            Do i=1,size(dataPoints,1)
-              xReg(i,3) = exp(lC*dataPoints(i,1))
-            End Do    
-            Do i_D=iC+1,gridSize 
-              lD = minLambda + (i_D-1)*lambdaInc
-              Do i=1,size(dataPoints,1)
-                xReg(i,4) = exp(lD*dataPoints(i,1))
-              End Do   
-              linCoeffs = LinearRegression(yReg, xReg)     
-              linRSS = QuadDecayFitRSS(&
-              dataPoints, linCoeffs(1), lA, linCoeffs(2), lB,&
-              linCoeffs(3), lC, linCoeffs(4), lD)
-              If(iA.eq.1.and.iB.eq.2.and.iC.eq.3)Then
-                linBestRSS = linRSS
-                parameters(1) = linCoeffs(1)
-                parameters(2) = lA
-                parameters(3) = linCoeffs(2)
-                parameters(4) = lB
-                parameters(5) = linCoeffs(3)
-                parameters(6) = lC
-                parameters(7) = linCoeffs(4)
-                parameters(8) = lD
-              Else  
-                If(linRSS.lt.linBestRSS)Then
-                  linBestRSS = linRSS
-                  parameters(1) = linCoeffs(1)
-                  parameters(2) = lA
-                  parameters(3) = linCoeffs(2)
-                  parameters(4) = lB
-                  parameters(5) = linCoeffs(3)
-                  parameters(6) = lC
-                  parameters(7) = linCoeffs(4)
-                  parameters(8) = lD
+    aRange(gridA,2) = 0.0D0
+    aRange(gridA+1,1) = 0.0D0 
+! Reduce search region into 10 smaller "boxes"
+    Do iA=1,(gridA+gridA) 
+      Do iB=iA,(gridA+gridA)  
+! Set values
+        Do m=1,3
+          Do n=1,searchLoops
+            a_T = (0.25D0*m)*(aRange(iA,1)+aRange(iA,2))
+            lA_T = 20.0D0*(RandomLCG()-0.5D0)
+            b_T = (0.25D0*m)*(aRange(iB,1)+aRange(iB,2))
+            lB_T = 20.0D0*(RandomLCG()-0.5D0)
+! Calculate RSS
+            rss = DoubleDecayFitRSS(dataPoints, a_T, b_T, lA_T, lB_T)
+            storeFlag = .true.
+            Do i=1,topBoxCount
+              If(topBoxes(i,2).eq.a_T.and.topBoxes(i,4).eq.b_T)Then
+                storeFlag = .false.
+                If(rss.lt.topBoxes(i,1))Then
+                  topBoxes(i,1) = rss
+                  topBoxes(i,2) = a_T
+                  topBoxes(i,3) = lA_T
+                  topBoxes(i,4) = b_T
+                  topBoxes(i,5) = lB_T
                 End If
-              End If   
-            End Do  
+                Exit
+              End If
+            End Do
+! Store if in best 10
+            If(storeFlag)Then
+              maxRSS = 1
+              maxRSSVal = topBoxes(1,1)
+              Do i=2,topBoxCount
+                If(topBoxes(i,1).gt.maxRSSVal)Then
+                  maxRSS = i
+                  maxRSSVal = topBoxes(i,1)
+                End If
+              End Do
+              If(rss.lt.maxRSSVal)Then
+                topBoxes(maxRSS,1) = rss
+                topBoxes(maxRSS,2) = a_T
+                topBoxes(maxRSS,3) = lA_T
+                topBoxes(maxRSS,4) = b_T
+                topBoxes(maxRSS,5) = lB_T
+              End If
+            End If
           End Do
         End Do
       End Do
-      If(linBestRSS.gt.bestRSSLastSearch)Then
-        searchBetterFailCount = searchBetterFailCount + 1
-        If(searchBetterFailCount.eq.2)Then ! If two successive fails, break out
-          Exit
-        End If
-      Else
-        searchBetterFailCount = 0 ! reset fail count
-        bestRSSLastSearch = linBestRSS
-      End If  
-    End Do   
+    End Do  
 !--------------------------------------------------
 ! LMA
 !--------------------------------------------------    
-    Do i=1,4    
-      If(isnan(parameters(i)))Then  ! If fitting fails
-        parameters(i) = 1.0D0
-      End If  
-    End Do
-! LMA Opt
-    convergence = 1.0D0
-    lambda = 1.0D0
+    Do k=1,topBoxCount
+      parameters(1) = topBoxes(k,2)
+      parameters(2) = topBoxes(k,3)
+      parameters(3) = topBoxes(k,4)
+      parameters(4) = topBoxes(k,5)
+! NG Opt
+      lastRSS = 0
+      convergence = 1.0D0
+      lambda = 1.0D0
 !----------------
 ! Start LMA loop
-    Do n=1,1000  ! maximum 1000 loops
-      rss = 0.0D0
-! Make Jacobian and Residuals matrix
-      Do i=1,size(dataPoints,1)
-        R(i) = (parameters(1)*exp(parameters(2)*dataPoints(i,1))+&
-        parameters(3)*exp(parameters(4)*dataPoints(i,1))+&
-        parameters(5)*exp(parameters(6)*dataPoints(i,1))+&
-        parameters(7)*exp(parameters(8)*dataPoints(i,1))&
-        )-dataPoints(i,2)   ! f(x)-y
-        J(i,1) = exp(parameters(2)*dataPoints(i,1))  ! d/dx1
-        J(i,2) = dataPoints(i,1)*parameters(1)*exp(parameters(2)*dataPoints(i,1))  ! d/dx2
-        J(i,3) = exp(parameters(4)*dataPoints(i,1))  ! d/dx3
-        J(i,4) = dataPoints(i,1)*parameters(3)*exp(parameters(4)*dataPoints(i,1))  ! d/dx4
-        J(i,5) = exp(parameters(6)*dataPoints(i,1))  ! d/dx5
-        J(i,6) = dataPoints(i,1)*parameters(5)*exp(parameters(6)*dataPoints(i,1))  ! d/dx6
-        J(i,7) = exp(parameters(8)*dataPoints(i,1))  ! d/dx7
-        J(i,8) = dataPoints(i,1)*parameters(7)*exp(parameters(8)*dataPoints(i,1))  ! d/dx8
-        rss = rss + R(i)**2
-      End Do
-      Do k=1,50 ! max 50
+      Do n=1,100
+        rss = 0.0D0
+  ! Make Jacobian and Residuals matrix
+        Do i=1,size(dataPoints,1)
+          R(i) = (parameters(1)*exp(parameters(2)*dataPoints(i,1))+&
+          parameters(3)*exp(parameters(4)*dataPoints(i,1)))-dataPoints(i,2)   ! f(x)-y
+          J(i,1) = exp(parameters(2)*dataPoints(i,1))  ! d/dx1
+          J(i,2) = dataPoints(i,1)*parameters(1)*exp(parameters(2)*dataPoints(i,1))  ! d/dx2
+          J(i,3) = exp(parameters(4)*dataPoints(i,1))  ! d/dx3
+          J(i,4) = dataPoints(i,1)*parameters(3)*exp(parameters(4)*dataPoints(i,1))  ! d/dx4
+          rss = rss + R(i)**2
+        End Do
+  ! Choose whether to accept update or increase/decrease lambda      
+        If(n.gt.1)Then
+  ! Delayed gratification scheme - 1.5*lambda or 0.2*lambda     
+          If(rss.gt.lastRSS)Then  ! If worse...reject, and increase lambda
+  ! Discard changes, increase lambda
+            J = J_Last
+            R = R_Last
+            parameters = parameters_Last
+            rss = lastRSS
+            lastRSS = -1.0D0
+            lambda = lambda * 1.5D0
+          End If
+          If(rss.lt.lastRSS)Then  ! If better...accept, and decrease lambda
+            lambda = lambda * 0.2D0
+          End If
+        End If
 ! calculate change matrix
         !***********     
         ! P = (JTJ+L*diag(JTJ))^(-1)(-1*JTR)   
         !***********      
-! Transpose Jacobian
+  ! Transpose Jacobian
         JT = TransposeMatrix(J)
         JTJ = matmul(JT,J)
         JTJ_Diag = lambda*DiagMatrix(JTJ) ! Dampening Matrix
@@ -2323,68 +1819,44 @@ Module maths
         JTR = matmul(JT,R)
         JTR = -1.0D0*JTR ! Recycle JTR var
         P = matmul(JTJ,JTR)  
-! Store last loop values
+  ! convergence of RSS
+        convergence = abs(lastRSS-rss)  
+  ! Store last loop values
         parameters_Last = parameters
-! Update parameters      
+        lastRSS = rss 
+        J_Last = J
+        R_Last = R
+  ! Update parameters      
         Do i=1,size(P)
           parameters(i) = parameters(i) + P(i)
-        End Do       
-! Calc RSS
-        testRSS = 0.0D0
-        Do i=1,size(dataPoints,1)
-          testRSS = testRSS + &
-          ((parameters(1)*exp(parameters(2)*dataPoints(i,1))+&
-          parameters(3)*exp(parameters(4)*dataPoints(i,1))+&
-          parameters(5)*exp(parameters(6)*dataPoints(i,1))+&
-          parameters(7)*exp(parameters(8)*dataPoints(i,1))&
-          )-dataPoints(i,2))**2
-        End Do
-! Delayed gratification scheme - 1.5*lambda or 0.2*lambda   
-        If(testRSS.gt.rss)Then  ! If worse
-          lambda = lambda * 1.5D0   
-          parameters = parameters_Last  
-          bestRSS = rss        
-        Else  ! If better
-          lambda = lambda * 0.2D0
-          bestRSS = testRSS  
+        End Do   
+  ! Breakout if convergence threshold met      
+        If(convergence.lt.1.0D-7)Then
           Exit
         End If
-      End Do
-      convergence = abs(testRSS-rss) 
-  ! Breakout if convergence threshold met      
-      If(convergence.lt.convergenceThreshold)Then
-        Exit
-      End If
+        !print *,n,lambda,rss
 ! End LMA loop
 !----------------
-    End Do  
-! Output   f(x) = a exp(b x) + c exp(d x)
-    output(1) = parameters(1)  ! a
-    output(2) = parameters(2)  ! b
-    output(3) = parameters(3)  ! c
-    output(4) = parameters(4)  ! d
-    output(5) = parameters(5)  ! c
-    output(6) = parameters(6)  ! d
-    output(7) = parameters(7)  ! c
-    output(8) = parameters(8)  ! d
-    output(9) = bestRSS
-  End Function QuadDecayFit   
-  
-  
-  
-  Function SingleDecayFitRSS(dataPoints, a, lA) RESULT (rss)
-    Implicit None  !Force declaration of all variables
-! Declare variables
-    Integer(kind=StandardInteger) :: i
-    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Real(kind=DoubleReal) :: a, lA, rss, x, y
-    rss = 0.0D0
-    Do i=1,size(dataPoints,1)
-      x = dataPoints(i,1)
-      y = a*exp(lA*x)
-      rss = rss + (dataPoints(i,2)-y)**2
-    End Do
-  End Function SingleDecayFitRSS   
+      End Do
+      If(rss.lt.optRSS)Then
+        optRSS = rss
+        Do i=1,size(P)
+          parametersOpt(i) = parameters(i)
+        End Do  
+      End If
+  ! Breakout if convergence threshold met      
+      If(convergence.lt.1.0D-7)Then
+        Exit
+      End If
+    End Do    
+! Output
+    output(1) = parametersOpt(1)
+    output(2) = parametersOpt(2)
+    output(3) = parametersOpt(3)
+    output(4) = parametersOpt(4)
+    output(5) = optRSS
+    output(6) = ddfRssCount
+  End Function DoubleDecayFit   
   
   Function DoubleDecayFitRSS(dataPoints, a, b, lA, lB) RESULT (rss)
     Implicit None  !Force declaration of all variables
@@ -2400,336 +1872,20 @@ Module maths
     End Do
     ddfRssCount = ddfRssCount + 1
   End Function DoubleDecayFitRSS 
-    
-  Function TripleDecayFitRSS(dataPoints, a, lA, b, lB, c, lC) RESULT (rss)
+  
+  Function SingleDecayFitRSS(dataPoints, a, lA) RESULT (rss)
     Implicit None  !Force declaration of all variables
 ! Declare variables
     Integer(kind=StandardInteger) :: i
     Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Real(kind=DoubleReal) :: a, b, c, lA, lB, lC, rss, x, y
+    Real(kind=DoubleReal) :: a, lA, rss, x, y
     rss = 0.0D0
     Do i=1,size(dataPoints,1)
       x = dataPoints(i,1)
-      y = a*exp(lA*x)+b*exp(lB*x)+c*exp(lC*x)
+      y = a*exp(lA*x)
       rss = rss + (dataPoints(i,2)-y)**2
     End Do
-  End Function TripleDecayFitRSS 
-    
-  Function QuadDecayFitRSS(dataPoints, a, lA, b, lB, c, lC, d, lD) RESULT (rss)
-    Implicit None  !Force declaration of all variables
-! Declare variables
-    Integer(kind=StandardInteger) :: i
-    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Real(kind=DoubleReal) :: a, b, c, d, lA, lB, lC, lD, rss, x, y
-    rss = 0.0D0
-    Do i=1,size(dataPoints,1)
-      x = dataPoints(i,1)
-      y = a*exp(lA*x)+b*exp(lB*x)+c*exp(lC*x)+d*exp(lD*x)
-      rss = rss + (dataPoints(i,2)-y)**2
-    End Do
-  End Function QuadDecayFitRSS 
-  
-  Function FitExpPoly(dataPoints) Result (coefficients)
-    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Real(kind=DoubleReal), Dimension(1:4) :: coefficients
-    dataPoints= 0.0D0
-    coefficients= 0.0D0
-  End Function FitExpPoly
-  
-  
-  
-  Function FitEmbedding(dataPoints, startPointIn, endPointIn) Result (coefficients)
-! Fit embedding functional to data points  
-!
-    Implicit None  !Force declaration of all variables
-! Declare variables 
-! In  
-    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Integer(kind=StandardInteger), Optional :: startPointIn, endPointIn
-    Integer(kind=StandardInteger) :: startPoint, endPoint
-! Out
-    Real(kind=DoubleReal), Dimension(1:4) :: coefficients
-! Private 
-    Integer(kind=StandardInteger) :: pointCount
-! optional arguments
-    startPoint = 1
-    endPoint = size(dataPoints,1) 
-    If(Present(startPointIn))Then
-      startPoint = startPointIn
-    End If
-    If(Present(endPointIn))Then
-      endPoint = endPointIn
-    End If
-! Adjust to fit in data array size    
-    If(startPoint.lt.1)Then
-      startPoint = 1
-    End If
-    If(endPoint.gt.size(dataPoints,1))Then
-      endPoint = size(dataPoints,1)
-    End If 
-! pointCount
-    pointCount = endPoint-startPoint+1
-! run subroutine
-    Call FitEmbedding_Process(dataPoints, pointCount, startPoint, endPoint, coefficients) 
-  End Function FitEmbedding
-!----------
-  Subroutine FitEmbedding_Process(dataPoints, pointCount, startPoint, endPoint, coefficients)
-    Implicit None  !Force declaration of all variables
-! Declare variables 
-! In  
-    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Integer(kind=StandardInteger) :: pointCount, startPoint, endPoint
-    Real(kind=DoubleReal), Dimension(1:4) :: coefficients  
-! Private
-    Integer(kind=StandardInteger) :: i, j
-    Real(kind=DoubleReal), Dimension(1:pointCount,1:4) :: X
-    Real(kind=DoubleReal), Dimension(1:4,1:pointCount) :: XT
-    Real(kind=DoubleReal), Dimension(1:4,1:4) :: XTX
-    Real(kind=DoubleReal), Dimension(1:pointCount) :: Y
-    Real(kind=DoubleReal), Dimension(1:4) :: XTY
-! Prepare matrices
-    j = 0
-    Do i=startPoint,endPoint
-      j = j + 1
-      X(j,1) = 1.0D0
-      X(j,2) = 1.0D0*dataPoints(i,1)**0.5D0
-      X(j,3) = 1.0D0*dataPoints(i,1)**2.0D0
-      X(j,4) = 1.0D0*dataPoints(i,1)**4.0D0
-      Y(j) = 1.0D0*dataPoints(i,2)
-    End Do
-! Calculate
-    XT = TransposeMatrix(X)
-    XTX = matmul(XT,X)
-    XTX = InvertMatrix(XTX)
-    XTY = matmul(XT,Y)
-    coefficients = matmul(XTX,XTY)
-  End Subroutine FitEmbedding_Process
-  
-  Function FitDensity(dataPoints, startPointIn, endPointIn) Result (coefficients)
-! Fit embedding functional to data points  
-!
-    Implicit None  !Force declaration of all variables
-! Declare variables 
-! In  
-    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Integer(kind=StandardInteger), Optional :: startPointIn, endPointIn
-    Integer(kind=StandardInteger) :: startPoint, endPoint
-! Out
-    Real(kind=DoubleReal), Dimension(1:4) :: coefficients
-! Private 
-    Integer(kind=StandardInteger) :: i
-    Integer(kind=StandardInteger) :: pointCount
-! optional arguments
-    startPoint = 1
-    endPoint = size(dataPoints,1) 
-    If(Present(startPointIn))Then
-      startPoint = startPointIn
-    End If
-    If(Present(endPointIn))Then
-      endPoint = endPointIn
-    End If
-! Adjust to fit in data array size    
-    If(startPoint.lt.1)Then
-      startPoint = 1
-    End If
-    If(endPoint.gt.size(dataPoints,1))Then
-      endPoint = size(dataPoints,1)
-    End If 
-! pointCount
-    pointCount = 0
-    Do i=startPoint,endPoint
-      If(dataPoints(i,1).ne.0.0D0)Then
-        pointCount = pointCount + 1
-      End If  
-    End Do        
-! run subroutine
-    Call FitDensity_Process(dataPoints, pointCount, startPoint, endPoint, coefficients) 
-  End Function FitDensity
-!----------
-  Subroutine FitDensity_Process(dataPoints, pointCount, startPoint, endPoint, coefficients)
-    Implicit None  !Force declaration of all variables
-! Declare variables 
-! In  
-    Real(kind=DoubleReal), Dimension(:,:) :: dataPoints
-    Integer(kind=StandardInteger) :: pointCount, startPoint, endPoint
-    Real(kind=DoubleReal), Dimension(1:4) :: coefficients  
-! Private    
-    Real(kind=DoubleReal), Dimension(1:pointCount,1:2) :: fitPoints, fitPointsLinReg   
-    Integer(kind=StandardInteger) :: i, n, k
-    Real(kind=DoubleReal), Dimension(1:6) :: parameters, parameters_Last
-! Lin reg
-    Integer(kind=StandardInteger) :: iA, iB, gridSize, searchBetterFailCount
-    Real(kind=DoubleReal) :: maxLambda, minLambda
-    Real(kind=DoubleReal) :: lambdaInc 
-    Real(kind=DoubleReal) :: lA, lB
-    Real(kind=DoubleReal), Dimension(1:pointCount) :: yReg
-    Real(kind=DoubleReal), Dimension(1:pointCount,1:2) :: xReg 
-    Real(kind=DoubleReal), Dimension(1:2) :: linCoeffs
-    Real(kind=DoubleReal) :: linRSS, linBestRSS, bestRSSLastSearch
-! LMA Vars
-    Real(kind=DoubleReal) :: convergenceThreshold
-    Real(kind=DoubleReal) :: rss, testRSS, bestRSS, convergence, lambda  
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1)) :: R
-    Real(kind=DoubleReal), Dimension(1:size(dataPoints,1),1:4) :: J
-    Real(kind=DoubleReal), Dimension(1:4,1:size(dataPoints,1)) :: JT     ! Transpose Jacobian
-    Real(kind=DoubleReal), Dimension(1:4,1:4) :: JTJ    ! (Jacobian Transpose * Jacobian)
-    Real(kind=DoubleReal), Dimension(1:4,1:4) :: JTJ_Diag
-    Real(kind=DoubleReal), Dimension(1:4) :: JTR                ! (Jacobian Transpose * Residuals)
-    Real(kind=DoubleReal), Dimension(1:4) :: P      ! Change  
-! p(r) = a r^2 exp(-br^2) + c r^2 exp(-dr^2)   
-    i = 0 
-    Do k=startPoint,endPoint
-      If(dataPoints(k,1).ne.0.0D0)Then
-        i = i + 1
-        fitPoints(i,1) = dataPoints(k,1)
-        fitPoints(i,2) = dataPoints(k,2)
-        fitPointsLinReg(i,1) = (dataPoints(k,1)**2)
-        fitPointsLinReg(i,2) = dataPoints(k,2)/(dataPoints(k,1)**2)
-      End If  
-    End Do
-! Linear reg to find starting point    
-! fit p(r)/r^2 = a exp(-br^2) + c exp(-dr^2) 
-! Init vars
-    parameters = 0.0D0    
-    parameters_Last = 0.0D0    
-    linBestRSS = 0.0D0 
-    bestRSSLastSearch = 0.0D0 
-    convergenceThreshold = 1.0D-8
-! Set grid size
-    gridSize = 15
-! Make y array
-    Do i=1,pointCount
-      yReg(i) = fitPointsLinReg(i,2) 
-    End Do  
-! Loop through combinations
-    maxLambda = 0.5D0
-    searchBetterFailCount = 0
-    Do n=1,20   ! expand search "area"  
-      maxLambda = 2.0D0*maxLambda   ! grid from -maxLambda to maxLambda
-      minLambda = -1.0D0 * maxLambda
-      lambdaInc = (2*maxLambda)/(gridSize-1)  
-      Do iA=1,gridSize-1
-        lA = minLambda + (iA-1)*lambdaInc
-        Do i=1,pointCount
-          xReg(i,1) = exp(lA*fitPointsLinReg(i,1))    ! Make x1 array (for the A exp(lA x) function)
-        End Do
-        Do iB=iA+1,gridSize 
-          lB = minLambda + (iB-1)*lambdaInc
-          Do i=1,pointCount
-            xReg(i,2) = exp(lB*fitPointsLinReg(i,1))  ! Make x1 array (for the A exp(lA x) function)
-          End Do
-          linCoeffs = LinearRegression(yReg, xReg)     
-          linRSS = DoubleDecayFitRSS(fitPointsLinReg, linCoeffs(1), lA, linCoeffs(2), lB)
-          If(iA.eq.1.and.iB.eq.2)Then
-            linBestRSS = linRSS
-            parameters(1) = linCoeffs(1)
-            parameters(2) = lA
-            parameters(3) = linCoeffs(2)
-            parameters(4) = lB     
-          Else  
-            If(linRSS.lt.linBestRSS)Then
-              linBestRSS = linRSS
-              parameters(1) = linCoeffs(1)
-              parameters(2) = lA
-              parameters(3) = linCoeffs(2)
-              parameters(4) = lB
-            End If       
-          End If          
-        End Do
-      End Do
-      If(linBestRSS.gt.bestRSSLastSearch)Then
-        searchBetterFailCount = searchBetterFailCount + 1
-        If(searchBetterFailCount.eq.2)Then ! If two successive fails, break out
-          Exit
-        End If
-      Else
-        searchBetterFailCount = 0 ! reset fail count
-        bestRSSLastSearch = linBestRSS
-      End If  
-    End Do 
-!--------------------------------------------------
-! LMA
-!--------------------------------------------------    
-    Do i=1,4    
-      If(isnan(parameters(i)))Then  ! If fitting fails
-        parameters(i) = 1.0D0
-      End If  
-    End Do
-! LMA Opt
-    convergence = 1.0D0
-    lambda = 1.0D0
-!----------------
-! Start LMA loop
-    Do n=1,100  ! maximum 100 loops
-      rss = 0.0D0
-! Make Jacobian and Residuals matrix
-      Do i=1,pointCount
-        R(i) = (parameters(1)*(fitPoints(i,1)**2)*&
-        exp(parameters(2)*(fitPoints(i,1)**2))+&
-        parameters(3)*(fitPoints(i,1)**2)*&
-        exp(parameters(4)*(fitPoints(i,1)**2))&
-        )-fitPoints(i,2)   ! f(x)-y
-        J(i,1) = (fitPoints(i,1)**2)*exp(parameters(2)*(fitPoints(i,1)**2))                ! d/dx1
-        J(i,2) = parameters(1)*(fitPoints(i,1)**4)*exp(parameters(2)*(fitPoints(i,1)**2))  ! d/dx2
-        J(i,3) = (fitPoints(i,1)**2)*exp(parameters(4)*(fitPoints(i,1)**2))                ! d/dx3
-        J(i,4) = parameters(3)*(fitPoints(i,1)**4)*exp(parameters(4)*(fitPoints(i,1)**2))  ! d/dx4
-        rss = rss + R(i)**2
-      End Do
-      Do k=1,50 ! max 50
-! calculate change matrix
-        !***********     
-        ! P = (JTJ+L*diag(JTJ))^(-1)(-1*JTR)   
-        !***********      
-! Transpose Jacobian
-        JT = TransposeMatrix(J)
-        JTJ = matmul(JT,J)
-        JTJ_Diag = lambda*DiagMatrix(JTJ) ! Dampening Matrix
-        JTJ = MatAdd(JTJ,JTJ_Diag) ! Recycle JTJ
-        JTJ = InvertMatrix(JTJ) ! store inverse (recycle JTJ var)      
-        JTR = matmul(JT,R)
-        JTR = -1.0D0*JTR ! Recycle JTR var
-        P = matmul(JTJ,JTR)  
-! Store last loop values
-        parameters_Last = parameters
-! Update parameters      
-        Do i=1,size(P)
-          parameters(i) = parameters(i) + P(i)
-        End Do       
-! Calc RSS
-        testRSS = 0.0D0
-        Do i=1,pointCount
-          testRSS = testRSS + &
-          ((parameters(1)*(fitPoints(i,1)**2)*exp(parameters(2)*(fitPoints(i,1)**2))+&
-          parameters(3)*(fitPoints(i,1)**2)*exp(parameters(4)*(fitPoints(i,1)**2))&
-          )-fitPoints(i,2))**2
-        End Do
-! Delayed gratification scheme - 1.5*lambda or 0.2*lambda   
-        If(testRSS.gt.rss)Then  ! If worse
-          lambda = lambda * 1.5D0   
-          parameters = parameters_Last  
-          bestRSS = rss        
-        Else  ! If better
-          lambda = lambda * 0.2D0
-          bestRSS = testRSS  
-          Exit
-        End If
-      End Do
-      convergence = abs(testRSS-rss) 
-  ! Breakout if convergence threshold met      
-      If(convergence.lt.convergenceThreshold)Then
-        Exit
-      End If
-! End LMA loop
-!----------------
-    End Do      
-! Store results
-    Do i=1,4
-      coefficients(i) = parameters(i)
-    End Do  
-  End Subroutine FitDensity_Process
-  
-  
-  
+  End Function SingleDecayFitRSS 
   
   
 ! ------------------------------------------------------------------------!
@@ -2773,59 +1929,56 @@ Module maths
     Real(kind=DoubleReal), Dimension(1:(2*(size(pointA,1)-1)),1:(2*(size(pointA,1)-1))) :: xMatrix
     Real(kind=DoubleReal), Dimension(1:(size(pointA,1)-1),1:(2*(size(pointA,1)-1))) :: &
     xMatrixCoeffs, xMatrixExp
-    Integer(kind=StandardInteger) :: i, j, n, row, col, matrixSize, matrixHalfSize, expt
-    Real(kind=DoubleReal) :: x, coeff
+    Integer(kind=StandardInteger) :: row, col, matrixSize, matrixHalfSize
 ! Init variables
     coefficients = 0.0D0
     yMatrix = 0.0D0
     xMatrix = 0.0D0
-    coeff = 0.0D0
+    matrixSize = 2*(size(pointA,1)-1)
     matrixHalfSize = (size(pointA,1)-1)
-    matrixSize = 2*matrixHalfSize
-! Make x-matrix
-    row = 0
-    Do i=1,matrixHalfSize
-      row = row + 1
-      n = 0
+! Make xMatrixExp
+    Do row=1,matrixHalfSize
       Do col=1,matrixSize
-        expt = col - i
-        If(expt.lt.0)Then
-          x = 0.0D0
-          coeff = 0.0D0
-        Else
-          n = n + 1
-          If(row.eq.1)Then
-            coeff = 1.0D0
-          Else
-            coeff = 1.0D0
-            Do j=1,(row-1)         
-              coeff = coeff * (n+j-1)            
-            End Do
-          End If          
+        xMatrixExp(row,col) = col-row
+        If(xMatrixExp(row,col).lt.0)Then
+          xMatrixExp(row,col) = 0
         End If
-        If(col.ge.row)Then
-          xMatrix(2*row-1,col) = coeff*pointA(1)**(expt)
-          xMatrix(2*row,col) = coeff*pointB(1)**(expt)
-        Else
-          xMatrix(2*row-1,col) = 0.0D0 
-          xMatrix(2*row,col) = 0.0D0 
-        End If        
       End Do
     End Do
-! make y-matrix
-    row = 0
-    Do i=1,matrixHalfSize
-      row = row + 1
-      yMatrix(row) = pointA(i+1)
-      row = row + 1
-      yMatrix(row) = pointB(i+1)
+! Make xMatrixCoeffs
+    Do col=1,matrixSize
+      xMatrixCoeffs(1,col) = 1.0D0
     End Do
-! solve equation
-    !coefficients = SolveLinearSet(xMatrix,yMatrix) 
+    Do row=2,matrixHalfSize
+      Do col=1,matrixSize
+        xMatrixCoeffs(row,col) = 1.0D0*xMatrixExp(row-1,col)*xMatrixCoeffs(row-1,col)
+      End Do
+    End Do
+! Make xMatrix
+    Do row=1,matrixHalfSize
+      Do col=1,matrixSize
+        xMatrix(row,col) = &
+        1.0D0*xMatrixCoeffs(row,col)*pointA(1)**xMatrixExp(row,col)
+      End Do
+    End Do
+    Do row=1,matrixHalfSize
+      Do col=1,matrixSize
+        xMatrix(row+matrixHalfSize,col) = &
+        1.0D0*xMatrixCoeffs(row,col)*pointB(1)**xMatrixExp(row,col)
+      End Do
+    End Do
+! Make yMatrix
+    Do row=1,matrixHalfSize
+      yMatrix(row) = pointA(row+1)
+    End Do
+    Do row=1,matrixHalfSize
+      yMatrix(row+matrixHalfSize) = pointB(row+1)
+    End Do
+! Invert xMatrix
     xMatrix = InvertMatrix(xMatrix)
+! Solve equation
     coefficients = matmul(xMatrix,yMatrix)
   End Function SplineAB
-
 
   Function SplineNodes(inputNodes,numDataPoints,startPointIn,endPointIn) RESULT (dataPoints)
 ! Input nodes x,f(x) for each node, calculate f'(x) and f''(x) from the set of nodes, then spline
@@ -2889,44 +2042,21 @@ Module maths
     End Do
   End Function SplineNodes
   
-  Function SplineNodesV(inputNodes,numDataPoints,startPoint,endPoint,dataSize,splineTypeIn,forceCalcDervIn) RESULT (dataPoints)
+  Function SplineNodesV(inputNodes,numDataPoints,startPoint,endPoint,dataSize) RESULT (dataPoints)
 ! Input nodes x,f(x) for each node, calculate f'(x) and f''(x) from the set of nodes, then spline
-! inputNodes         array of nodes
-! numDataPoints      total data points to output
-! startPoint         starting node
-! endPoint           ending node
-! dataSize           size of data points array (ge numDataPoints)
-! splineTypeIn       array of type of spline to use for each segment
 ! Variable length output
     Implicit None  !Force declaration of all variables
 ! Declare variables - arg
     Real(kind=DoubleReal), Dimension(:,:) :: inputNodes
-    Integer(kind=StandardInteger) :: numDataPoints, startPoint, endPoint, nodeCount, dataSize
+    Integer(kind=StandardInteger) :: numDataPoints, startPoint, endPoint, dataSize
 ! Declare variables - priv
-    Real(kind=DoubleReal), Dimension(1:(endPoint-startPoint+1),1:4) :: splineNodeArr
-    Integer(kind=StandardInteger) :: i, j, nodeKey
+    Real(kind=DoubleReal), Dimension(1:size(inputNodes,1),1:4) :: splinePoints
+    Integer(kind=StandardInteger) :: i, nodeKey
     Real(kind=DoubleReal), Dimension(1:dataSize,1:4) :: dataPoints
     Real(kind=DoubleReal) :: x, xStart, xEnd, xIncrement
     Real(kind=DoubleReal), Dimension(1:6) :: coefficients
-    Real(kind=DoubleReal), Dimension(1:4) :: expThird
-    Real(kind=DoubleReal), Dimension(1:6) :: expFifth
-    Real(kind=DoubleReal), Dimension(1:4) :: embFunc
     Real(kind=DoubleReal), Dimension(1:4) :: pointA, pointB
     Real(kind=DoubleReal), Dimension(1:3) :: yArray
-    Integer(kind=StandardInteger), Dimension(1:1000), Optional :: splineTypeIn
-    Integer(kind=StandardInteger), Dimension(1:1000) :: splineType
-    Logical, Optional :: forceCalcDervIn
-    Logical :: forceCalcDerv
-! optional arguments    
-    splineType = 1   ! set to standard 5th order polynomial  1 a+bx+...  2 exp(a+bx+...)
-    If(present(splineTypeIn))Then
-      splineType = splineTypeIn
-    End If
-    forceCalcDerv = .false.
-    If(present(forceCalcDervIn))Then  ! Interp between nodes to calc f'(x) and f''(x)
-      forceCalcDerv = forceCalcDervIn
-    End If
-    nodeCount = endPoint - startPoint + 1
 ! Init Variables
     dataPoints = 0.0D0
     If(startPoint.eq.0)Then
@@ -2935,84 +2065,39 @@ Module maths
     If(endPoint.eq.0)Then
       endPoint = size(inputNodes,1)    
     End If
-! Transfer nodes from inputNodes to splineNodeArr
-    nodeKey = 0
+! set f'(x) and f''(x)
     Do i=startPoint,endPoint
-      nodeKey = nodeKey + 1
-      splineNodeArr(nodeKey,1) = inputNodes(i,1)
-      splineNodeArr(nodeKey,2) = inputNodes(i,2)
-      splineNodeArr(nodeKey,3) = inputNodes(i,3)
-      splineNodeArr(nodeKey,4) = inputNodes(i,4)
+      x = inputNodes(i,1)
+      yArray = PointInterp(inputNodes,x,3,2,startPoint,endPoint)
+      splinePoints(i,1) = x
+      splinePoints(i,2) = yArray(1)
+      splinePoints(i,3) = yArray(2)
+      splinePoints(i,4) = yArray(3)
     End Do
-! If required, set f'(x) and f''(x)
-    If(forceCalcDerv)Then
-      Do nodeKey=1,nodeCount
-        x = splineNodeArr(nodeKey,1)
-        yArray = PointInterp(splineNodeArr,x,3,2,1,nodeCount)
-        splineNodeArr(nodeKey,1) = x
-        splineNodeArr(nodeKey,2) = yArray(1)
-        splineNodeArr(nodeKey,3) = yArray(2)
-        splineNodeArr(nodeKey,4) = yArray(3)
-      End Do
-    End If 
 ! Calculate spline data points
-    xStart = splineNodeArr(1,1)
-    xEnd = splineNodeArr(nodeCount,1)
-    xIncrement = (xEnd-xStart)/(1.0D0*numDataPoints-1.0D0)
+    xStart = splinePoints(startPoint,1)
+    xEnd = splinePoints(endPoint,1)
+    xIncrement = (xEnd-xStart)/(1.0D0*numDataPoints-1)
 ! Loop through data points
-    nodeKey = 0
+    nodeKey = startPoint-1
     x = xStart
     Do i=1,numDataPoints
-      If((i.eq.1).or.(x.ge.splineNodeArr(nodeKey+1,1).and.(nodeKey+1).lt.nodeCount))Then
+      If((i.eq.1).or.(x.ge.inputNodes(nodeKey+1,1).and.(nodeKey+1).lt.endPoint))Then
         nodeKey = nodeKey + 1
-        pointA(1) = splineNodeArr(nodeKey,1)
-        pointA(2) = splineNodeArr(nodeKey,2)
-        pointA(3) = splineNodeArr(nodeKey,3)
-        pointA(4) = splineNodeArr(nodeKey,4)
-        pointB(1) = splineNodeArr(nodeKey+1,1)
-        pointB(2) = splineNodeArr(nodeKey+1,2)
-        pointB(3) = splineNodeArr(nodeKey+1,3)
-        pointB(4) = splineNodeArr(nodeKey+1,4)
-        If(splineType(nodeKey).eq.1)Then           ! Normal 5th order spline
-          coefficients = SplineAB(pointA, pointB)
-        End If  
-        If(splineType(nodeKey).eq.2)Then           ! exp(3rd order)
-          expThird = SplineExpThird(pointA(1),pointA(2),pointA(3),&
-          pointB(1),pointB(2),pointB(3))
-        End If  
-        If(splineType(nodeKey).eq.3)Then           ! exp(5th order)
-          expFifth = SplineExpFifth(pointA(1),pointA(2),pointA(3),pointA(4),&
-          pointB(1),pointB(2),pointB(3),pointB(4))
-        End If  
-        If(splineType(nodeKey).eq.4)Then           ! embedding function F(p) = a+bp^0.5+bp^2+dp^4
-          embFunc = FitEmbedding(splineNodeArr,1,nodeCount)
-        End If          
+        pointA(1) = inputNodes(nodeKey,1)
+        pointA(2) = inputNodes(nodeKey,2)
+        pointA(3) = inputNodes(nodeKey,3)
+        pointA(4) = inputNodes(nodeKey,4)
+        pointB(1) = inputNodes(nodeKey+1,1)
+        pointB(2) = inputNodes(nodeKey+1,2)
+        pointB(3) = inputNodes(nodeKey+1,3)
+        pointB(4) = inputNodes(nodeKey+1,4)
+        coefficients = SplineAB(pointA, pointB)
       End If
-      If(splineType(nodeKey).eq.1)Then
-        dataPoints(i,1) = x
-        dataPoints(i,2) = CalcPolynomial(coefficients, x, 0)
-        dataPoints(i,3) = CalcPolynomial(coefficients, x, 1)
-        dataPoints(i,4) = CalcPolynomial(coefficients, x, 2)
-      End If
-      If(splineType(nodeKey).eq.2)Then
-        dataPoints(i,1) = x
-        dataPoints(i,2) = CalcPolynomialExp(expThird, x, 0)
-        dataPoints(i,3) = CalcPolynomialExp(expThird, x, 1)
-        dataPoints(i,4) = CalcPolynomialExp(expThird, x, 2)
-      End If
-      If(splineType(nodeKey).eq.3)Then
-        dataPoints(i,1) = x
-        dataPoints(i,2) = CalcPolynomialExp(expFifth, x, 0)
-        dataPoints(i,3) = CalcPolynomialExp(expFifth, x, 1)
-        dataPoints(i,4) = CalcPolynomialExp(expFifth, x, 2)
-      End If
-      If(splineType(nodeKey).eq.4)Then
-        dataPoints(i,1) = x
-        dataPoints(i,2) = embFunc(1)+embFunc(2)*x**0.5D0+embFunc(3)*x**2.0D0+embFunc(4)*x**4.0D0
-        dataPoints(i,3) = 0.5D0*embFunc(2)*x**(-0.5D0)+2.0D0*embFunc(3)*x+4.0D0*embFunc(4)*x**3.0D0
-        dataPoints(i,4) = -0.25D0*embFunc(2)*x**(-1.5D0)+2.0D0*embFunc(3)+12.0D0*embFunc(4)*x**2.0D0        
-      End If
-      
+      dataPoints(i,1) = x
+      dataPoints(i,2) = CalcPolynomial (coefficients, x, 0)
+      dataPoints(i,3) = CalcPolynomial (coefficients, x, 1)
+      dataPoints(i,4) = CalcPolynomial (coefficients, x, 2)
 ! Increment x
       x = x + xIncrement
     End Do
@@ -3039,6 +2124,60 @@ Module maths
       splinePoints(i,4) = yArray(3)  ! f''(x)
     End Do
   End Function SplineComplete
+
+  Function Spline(inputNodes,numDataPoints,startPointIn,endPointIn) RESULT (dataPoints)
+! NOT WORKING YET - 12092014
+    Implicit None  !Force declaration of all variables
+! Declare variables
+    Real(kind=DoubleReal), Dimension(:,:) :: inputNodes
+    Integer(kind=StandardInteger) :: i, numDataPoints, nodeKey
+    Real(kind=DoubleReal), Dimension(1:numDataPoints,1:4) :: dataPoints
+    Real(kind=DoubleReal) :: x, xStart, xEnd, xIncrement
+    Integer(kind=StandardInteger), Optional :: startPointIn, endPointIn
+    Integer(kind=StandardInteger) :: startPoint, endPoint
+    Real(kind=DoubleReal), Dimension(1:6) :: coefficients
+    Real(kind=DoubleReal), Dimension(1:4) :: pointA, pointB
+    Real(kind=DoubleReal), Dimension(1:3) :: yArray
+! Fill in
+!
+! Init Variables
+    dataPoints = 0.0D0
+    startPoint = 1
+    endPoint = size(inputNodes,1)
+    If(Present(startPointIn))Then
+      startPoint = startPointIn
+    End If
+    If(Present(endPointIn))Then
+      endPoint = endPointIn
+    End If
+    xStart = inputNodes(startPoint,1)
+    xEnd = inputNodes(endPoint,1)
+    xIncrement = (xEnd-xStart)/(1.0D0*numDataPoints-1)
+! Loop through data points
+    nodeKey = startPoint-1
+    x = xStart
+    Do i=1,numDataPoints
+      If((i.eq.1).or.(x.ge.inputNodes(nodeKey+1,1).and.(nodeKey+1).lt.endPoint))Then
+        nodeKey = nodeKey + 1
+        pointA(1) = inputNodes(nodeKey,1)
+        pointA(2) = inputNodes(nodeKey,2)
+        pointA(3) = inputNodes(nodeKey,3)
+        pointA(4) = inputNodes(nodeKey,4)
+        pointB(1) = inputNodes(nodeKey+1,1)
+        pointB(2) = inputNodes(nodeKey+1,2)
+        pointB(3) = inputNodes(nodeKey+1,3)
+        pointB(4) = inputNodes(nodeKey+1,4)
+        coefficients = SplineAB(pointA, pointB)
+      End If
+      yArray = CalcPolynomial (coefficients, x, 2)
+      dataPoints(i,1) = x
+      dataPoints(i,2) = yArray(1)
+      dataPoints(i,3) = yArray(2)
+      dataPoints(i,4) = yArray(3)
+! Increment x
+      x = x + xIncrement
+    End Do
+  End Function Spline
 
   Function VaryNode(nodeValue, varyAmount) RESULT (outputValue)  
 ! Used by VaryNode
@@ -3096,123 +2235,8 @@ Module maths
     End Do
   End Function FillSplineResponse
   
-  Function SplineExpThird(xA,fxA,fpxA,xB,fxB,fpxB) RESULT (coefficients)  
-! Third order polynomial  
-! Find parameters for spline between points A and B
-! form of spline function: 
-!   f(x) = exp(a+bx+cx^2+dx^3)
-!   f'(x) = (b+2cx+3dx^2)*exp(a+bx+cx^2+dx^3) = (b+2cx+3dx^2)*f(x)
-! xA = Point A x value, fxA = point A f(x), fpxA = Point A f'(x)
-! xB = Point B x value, fxB = point B f(x), fpxB = Point B f'(x)
-    Implicit None   ! Force declaration of all variables
-! In
-    Real(kind=DoubleReal) :: xA,fxA,fpxA,xB,fxB,fpxB
-! Out
-    Real(kind=DoubleReal), Dimension(1:4) :: coefficients
-! Private variables   
-    Real(kind=DoubleReal), Dimension(1:4,1:4) :: xMatrix
-    Real(kind=DoubleReal), Dimension(1:4) :: yMatrix
-! init matrices    
-    xMatrix = 0.0D0
-    yMatrix = 0.0D0
-! make x matrix
-    xMatrix(1,1) = 1.0D0
-    xMatrix(1,2) = xA
-    xMatrix(1,3) = xA**2
-    xMatrix(1,4) = xA**3
-    xMatrix(2,1) = 1.0D0
-    xMatrix(2,2) = xB
-    xMatrix(2,3) = xB**2
-    xMatrix(2,4) = xB**3
-    xMatrix(3,1) = 0.0D0
-    xMatrix(3,2) = 1.0D0
-    xMatrix(3,3) = 2.0D0*xA
-    xMatrix(3,4) = 3.0D0*xA**2
-    xMatrix(4,1) = 0.0D0
-    xMatrix(4,2) = 1.0D0
-    xMatrix(4,3) = 2.0D0*xB
-    xMatrix(4,4) = 3.0D0*xB**2
-! make y matrix    
-    yMatrix(1) = log(fxA)
-    yMatrix(2) = log(fxB)
-    yMatrix(3) = fpxA/fxA
-    yMatrix(4) = fpxB/fxB
-! solve
-    coefficients = SolveLinearSet(xMatrix,yMatrix) ! By LU decomposition
-  End Function SplineExpThird
-  
-  Function SplineExpFifth(xA,fxA,fpxA,fppxA,xB,fxB,fpxB,fppxB) RESULT (coefficients)  
-! Fifth order polynomial 
-! Find parameters for spline between points A and B
-! form of spline function: 
-!   f(x) = exp(a+bx+cx^2+dx^3+ex^4+fx^5)
-!   f'(x) = 0a+(b+2cx+3dx^2+4ex^3+5fx^4)*f(x)
-!   f''(x) = a*0+b*y'+c*2(y+xy')+d*3x(2y+xy')+e*4x^2*(3y+xy')+f*5x^3(4y+xy')
-! xA = Point A x value, fxA = point A f(x), fpxA = Point A f'(x)
-! xB = Point B x value, fxB = point B f(x), fpxB = Point B f'(x)
-    Implicit None   ! Force declaration of all variables
-! In
-    Real(kind=DoubleReal) :: xA,fxA,fpxA,fppxA,xB,fxB,fpxB,fppxB
-! Out
-    Real(kind=DoubleReal), Dimension(1:6) :: coefficients
-! Private variables   
-    Real(kind=DoubleReal), Dimension(1:6,1:6) :: xMatrix
-    Real(kind=DoubleReal), Dimension(1:6) :: yMatrix
-! init matrices    
-    xMatrix = 0.0D0
-    yMatrix = 0.0D0
-! make x matrix
-    xMatrix(1,1) = 1.0D0
-    xMatrix(1,2) = xA
-    xMatrix(1,3) = xA**2
-    xMatrix(1,4) = xA**3
-    xMatrix(1,5) = xA**4
-    xMatrix(1,6) = xA**5
-    xMatrix(2,1) = 1.0D0
-    xMatrix(2,2) = xB
-    xMatrix(2,3) = xB**2
-    xMatrix(2,4) = xB**3
-    xMatrix(2,5) = xB**4
-    xMatrix(2,6) = xB**5
-    xMatrix(3,1) = 0.0D0
-    xMatrix(3,2) = 1.0D0
-    xMatrix(3,3) = 2.0D0*xA
-    xMatrix(3,4) = 3.0D0*xA**2
-    xMatrix(3,5) = 4.0D0*xA**3
-    xMatrix(3,6) = 5.0D0*xA**4
-    xMatrix(4,1) = 0.0D0
-    xMatrix(4,2) = 1.0D0
-    xMatrix(4,3) = 2.0D0*xB
-    xMatrix(4,4) = 3.0D0*xB**2
-    xMatrix(4,5) = 4.0D0*xB**3
-    xMatrix(4,6) = 5.0D0*xB**4
-    xMatrix(5,1) = 0.0D0
-    xMatrix(5,2) = 1.0D0*fpxA
-    xMatrix(5,3) = 2.0D0*(fxA+xA*fpxA)
-    xMatrix(5,4) = 3.0D0*xA*(2.0D0*fxA+xA*fpxA)
-    xMatrix(5,5) = 4.0D0*(xA**2)*(3.0D0*fxA+xA*fpxA)
-    xMatrix(5,6) = 5.0D0*(xA**3)*(4.0D0*fxA+xA*fpxA)
-    xMatrix(6,1) = 0.0D0
-    xMatrix(6,2) = 1.0D0*fpxB
-    xMatrix(6,3) = 2.0D0*(fxB+xB*fpxB)
-    xMatrix(6,4) = 3.0D0*xB*(2.0D0*fxB+xB*fpxB)
-    xMatrix(6,5) = 4.0D0*(xB**2)*(3.0D0*fxB+xB*fpxB)
-    xMatrix(6,6) = 5.0D0*(xB**3)*(4.0D0*fxB+xB*fpxB)
-! make y matrix    
-    yMatrix(1) = log(fxA)
-    yMatrix(2) = log(fxB)
-    yMatrix(3) = fpxA/fxA
-    yMatrix(4) = fpxB/fxB
-    yMatrix(5) = fppxA
-    yMatrix(6) = fppxB
-! solve
-    coefficients = SolveLinearSet(xMatrix,yMatrix) ! By LU decomposition
-    !xMatrix = InvertMatrix(xMatrix)               ! By matrix inversion  
-    !coefficients = matmul(xMatrix,yMatrix)
-  End Function SplineExpFifth
 
-  
-  
+
 ! ------------------------------------------------------------------------!
 ! Matrix Functions
 ! ------------------------------------------------------------------------!
@@ -5386,281 +4410,5 @@ Module maths
     output = rss    
   End Function test_NG    
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-! ------------------------------------------------------------------------!
-!                                                                         !
-! MODULE [OLD] FUNCTIONS                                                 !
-!                                                                         !
-!                                                                         !
-! ------------------------------------------------------------------------! 
-  
-  Function SplineExpOld(xA,fxA,fpxA,xB,fxB,fpxB) RESULT (coefficients)  
-! Find parameters for spline between points A and B
-! form of spline function:  f(x) = exp(a+bx+cx^2+dx^3)
-    Implicit None   ! Force declaration of all variables
-! Private variables   
-! In
-    Real(kind=DoubleReal) :: xA,fxA,fpxA,xB,fxB,fpxB
-! Out
-    Real(kind=DoubleReal), Dimension(1:4) :: coefficients
-! other vars    
-    Real(kind=DoubleReal) :: a,b,c,d
-    Real(kind=DoubleReal) :: a_last,b_last,c_last,d_last
-    Real(kind=DoubleReal) :: ln_fxA, ln_fxB
-    Real(kind=DoubleReal), Dimension(1:2,1:2) :: xMat
-    Real(kind=DoubleReal), Dimension(1:2) :: yMat, aMat
-    Real(kind=DoubleReal) :: yA_A, yB_A, yA_B, yB_B
-! LMA    
-    Real(kind=DoubleReal), Dimension(1:4,1:4) :: J, JT, JTJ, JTJ_inv, JTJ_Diag
-    Real(kind=DoubleReal), Dimension(1:4) :: R, JTR, JTR_neg, P
-    Real(kind=DoubleReal) :: rss, testRSS, lambda
-    Integer(kind=StandardInteger) :: n, k
-    Logical :: lambdaLoop, keepLooping    
-    coefficients = 0.0D0
-! Starting point solve for f(x) = exp(a+bx)
-    ln_fxA = log(fxA)
-    ln_fxB = log(fxB)
-! Set up matrices    
-    xMat(1,1) = 1.0D0
-    xMat(1,2) = 1.0D0*xA
-    xMat(2,1) = 1.0D0
-    xMat(2,2) = 1.0D0*xB    
-    yMat(1) = ln_fxA
-    yMat(2) = ln_fxB
-! solve
-    xMat = InvertMatrix(xMat)
-    aMat = matmul(xMat,yMat)
-! starting 
-    a = aMat(1)
-    b = aMat(2)
-    c = 0.0D0
-    d = 0.0D0
-    a = 6.42D0
-    b = 1.79D0
-    c = -4.51D0
-    d = 1.08D0
-! Starting rss 
-    yA_A = exp(a+b*xA+c*xA**2+d*xA**3)
-    yB_A = (b+2.0D0*c*xA+3.0D0*d*xA**2)*yA_A
-    yA_B = exp(a+b*xB+c*xB**2+d*xB**3)
-    yB_B = (b+2*c*xB+3*d*xB**2)*yA_B     
-! starting lambda    
-    lambda = 1.000D0    
-    keepLooping = .true.
-    n = 0
-    Do while(keepLooping.and.n.lt.20)
-      n = n + 1
-  ! Make Jacobian and residue matrix
-  ! y = exp(a+b*xA+c*xA**2+d*xA**3)   dy/dx = (b+2*c*xA+3*d*xA**2)*exp(a+b*xA+c*xA**2+d*xA**3)
-      yA_A = exp(a+b*xA+c*xA**2+d*xA**3)
-      yB_A = (b+2.0D0*c*xA+3.0D0*d*xA**2)*yA_A
-      yA_B = exp(a+b*xB+c*xB**2+d*xB**3)
-      yB_B = (b+2*c*xB+3*d*xB**2)*yA_B  
-      rss = 0.0D0
-      rss = rss + (yA_A-fxA)**2+(yB_A-fpxA)**2+(yA_B-fxB)**2+(yB_B-fpxB)**2             
-  ! point A f(x)
-      J(1,1) = yA_A
-      J(1,2) = xA*yA_A
-      J(1,3) = (xA**2)*yA_A
-      J(1,4) = (xA**3)*yA_A
-      R(1) = yA_A-fxA
-  ! point B f(x)
-      J(2,1) = yA_B
-      J(2,2) = xB*yA_B
-      J(2,3) = (xB**2)*yA_B
-      J(2,4) = (xB**3)*yA_B
-      R(2) = yA_B-fxB   
-  ! point A f'(x)
-      J(3,1) = yB_A
-      J(3,2) = yA_A+xA*yB_A
-      J(3,3) = 2*xA*yA_A+xA*(xA**2)*yB_A
-      J(3,4) = 3*(xA**2)*yA_A+(xA**3)*yB_A
-      R(3) = yB_A-fpxA  
-  ! point B f'(x)
-      J(4,1) = yB_B
-      J(4,2) = yA_B+xB*yB_B
-      J(4,3) = 2*xB*yA_B+xB*(xB**2)*yB_B
-      J(4,4) = 3*(xB**2)*yA_B+(xB**3)*yB_B
-      R(4) = yB_B-fpxB   
-      lambdaLoop = .true.
-      k = 0
-      Do While(lambdaLoop.and.k.le.10)
-        k = k + 1
-        JT = TransposeMatrix(J)
-        JTJ = matmul(JT,J)
-        JTJ_Diag = lambda*DiagMatrix(JTJ) ! Dampening Matrix
-        JTJ = MatAdd(JTJ,JTJ_Diag) ! update JTJ
-        JTJ_inv = InvertMatrix(JTJ)
-        JTR = matmul(JT,R)
-        JTR_neg = -1.0D0*JTR
-        P = matmul(JTJ_inv,JTR_neg) 
-      
-! store last values
-        a_last = a
-        b_last = b
-        c_last = c
-        d_last = d
-! update  
-        a = a + P(1)  
-        b = b + P(2)  
-        c = c + P(3)  
-        d = d + P(4)         
-! Calc RSS    
-        yA_A = exp(a+b*xA+c*xA**2+d*xA**3)
-        yB_A = (b+2.0D0*c*xA+3.0D0*d*xA**2)*yA_A
-        yA_B = exp(a+b*xB+c*xB**2+d*xB**3)
-        yB_B = (b+2*c*xB+3*d*xB**2)*yA_B   
-        testRSS = 0.0D0
-        testRSS = testRSS + (yA_A-fxA)**2+(yB_A-fpxA)**2+(yA_B-fxB)**2+(yB_B-fpxB)**2    
-        
-        print *,n,k,a,b,c,d, lambda, rss, testRSS
-        
-        If(testRSS.lt.rss)Then
-          lambda = 0.2D0 * lambda
-          lambdaLoop = .false.
-        Else
-          lambda = 1.5D0 * lambda
-          a = a_last
-          b = b_last
-          c = c_last
-          d = d_last
-        End If        
-      End Do
-      If(testRSS.lt.1.0D-5)Then
-        keepLooping = .false.
-      End If
-    End Do
-  End Function SplineExpOld
 
-  
-  Function Spline(inputNodes,numDataPoints,startPointIn,endPointIn) RESULT (dataPoints)
-! NOT WORKING YET - 12092014
-    Implicit None  !Force declaration of all variables
-! Declare variables
-    Real(kind=DoubleReal), Dimension(:,:) :: inputNodes
-    Integer(kind=StandardInteger) :: i, numDataPoints, nodeKey
-    Real(kind=DoubleReal), Dimension(1:numDataPoints,1:4) :: dataPoints
-    Real(kind=DoubleReal) :: x, xStart, xEnd, xIncrement
-    Integer(kind=StandardInteger), Optional :: startPointIn, endPointIn
-    Integer(kind=StandardInteger) :: startPoint, endPoint
-    Real(kind=DoubleReal), Dimension(1:6) :: coefficients
-    Real(kind=DoubleReal), Dimension(1:4) :: pointA, pointB
-    Real(kind=DoubleReal), Dimension(1:3) :: yArray
-! Fill in
-!
-! Init Variables
-    dataPoints = 0.0D0
-    startPoint = 1
-    endPoint = size(inputNodes,1)
-    If(Present(startPointIn))Then
-      startPoint = startPointIn
-    End If
-    If(Present(endPointIn))Then
-      endPoint = endPointIn
-    End If
-    xStart = inputNodes(startPoint,1)
-    xEnd = inputNodes(endPoint,1)
-    xIncrement = (xEnd-xStart)/(1.0D0*numDataPoints-1)
-! Loop through data points
-    nodeKey = startPoint-1
-    x = xStart
-    Do i=1,numDataPoints
-      If((i.eq.1).or.(x.ge.inputNodes(nodeKey+1,1).and.(nodeKey+1).lt.endPoint))Then
-        nodeKey = nodeKey + 1
-        pointA(1) = inputNodes(nodeKey,1)
-        pointA(2) = inputNodes(nodeKey,2)
-        pointA(3) = inputNodes(nodeKey,3)
-        pointA(4) = inputNodes(nodeKey,4)
-        pointB(1) = inputNodes(nodeKey+1,1)
-        pointB(2) = inputNodes(nodeKey+1,2)
-        pointB(3) = inputNodes(nodeKey+1,3)
-        pointB(4) = inputNodes(nodeKey+1,4)
-        coefficients = SplineAB(pointA, pointB)
-      End If
-      yArray = CalcPolynomial (coefficients, x, 2)
-      dataPoints(i,1) = x
-      dataPoints(i,2) = yArray(1)
-      dataPoints(i,3) = yArray(2)
-      dataPoints(i,4) = yArray(3)
-! Increment x
-      x = x + xIncrement
-    End Do
-  End Function Spline
-  
-    Function SplineABOld(pointA, pointB) RESULT (coefficients)
-! Polynomial to spline between points A and B - x, f(x), f'(x) and f''(x) supplied
-    Implicit None  !Force declaration of all variables
-! Declare variables
-    Real(kind=DoubleReal), Dimension(:) :: pointA  !1 x, 2 f(x), 3 f'(x), 4 f''(x)....
-    Real(kind=DoubleReal), Dimension(:) :: pointB  !1 x, 2 f(x), 3 f'(x), 4 f''(x)....
-    Real(kind=DoubleReal), Dimension(1:(2*(size(pointA,1)-1))) :: coefficients, yMatrix
-    Real(kind=DoubleReal), Dimension(1:(2*(size(pointA,1)-1)),1:(2*(size(pointA,1)-1))) :: xMatrix
-    Real(kind=DoubleReal), Dimension(1:(size(pointA,1)-1),1:(2*(size(pointA,1)-1))) :: &
-    xMatrixCoeffs, xMatrixExp
-    Integer(kind=StandardInteger) :: row, col, matrixSize, matrixHalfSize
-! Init variables
-    coefficients = 0.0D0
-    yMatrix = 0.0D0
-    xMatrix = 0.0D0
-    matrixSize = 2*(size(pointA,1)-1)
-    matrixHalfSize = (size(pointA,1)-1)
-! Make xMatrixExp
-    Do row=1,matrixHalfSize
-      Do col=1,matrixSize
-        xMatrixExp(row,col) = col-row
-        If(xMatrixExp(row,col).lt.0)Then
-          xMatrixExp(row,col) = 0
-        End If
-      End Do
-    End Do
-! Make xMatrixCoeffs
-    Do col=1,matrixSize
-      xMatrixCoeffs(1,col) = 1.0D0
-    End Do
-    Do row=2,matrixHalfSize
-      Do col=1,matrixSize
-        xMatrixCoeffs(row,col) = 1.0D0*xMatrixExp(row-1,col)*xMatrixCoeffs(row-1,col)
-      End Do
-    End Do
-! Make xMatrix
-    Do row=1,matrixHalfSize
-      Do col=1,matrixSize
-        xMatrix(row,col) = &
-        1.0D0*xMatrixCoeffs(row,col)*pointA(1)**xMatrixExp(row,col)
-      End Do
-    End Do
-    Do row=1,matrixHalfSize
-      Do col=1,matrixSize
-        xMatrix(row+matrixHalfSize,col) = &
-        1.0D0*xMatrixCoeffs(row,col)*pointB(1)**xMatrixExp(row,col)
-      End Do
-    End Do
-! Make yMatrix
-    Do row=1,matrixHalfSize
-      yMatrix(row) = pointA(row+1)
-    End Do
-    Do row=1,matrixHalfSize
-      yMatrix(row+matrixHalfSize) = pointB(row+1)
-    End Do
-! Invert xMatrix
-!    xMatrix = InvertMatrix(xMatrix)
-! Solve equation
-!    coefficients = matmul(xMatrix,yMatrix)
-    coefficients = SolveLinearSet(xMatrix,yMatrix) 
-  End Function SplineABOld
-
-  
 End Module maths

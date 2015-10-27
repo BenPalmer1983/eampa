@@ -42,7 +42,7 @@ Module bpCalcEAM
 ! MPI Processes per energy calculation
 ! Loop through configurations
     Do configID=1,configCountBP
-      If(processMap(configID).eq.mpiProcessID)Then  ! build in more mpi options here
+      If(processMapBP(configID).eq.mpiProcessID)Then  ! build in more mpi options here
         Call calcEnergyBP(configID, configEnergy)
         configCalcEnergiesBP(configID)=&
         (configEnergy/(1.0D0*configurationCoordsKeyBP(configID,2)))

@@ -65,8 +65,6 @@ Module initialise
       End If
       Call Exit(0)
     End If
-! Set random seed
-    Call SetRandomSeedArray()
 ! get the working directory
     Call getcwd(currentWorkingDirectory)
 ! Set output and temp/scratch directories
@@ -220,7 +218,23 @@ Module initialise
     If(mpiProcessID.eq.0)Then
       open(unit=969,file=trim(trim(outputDirectory)//"/"//"nlFileBP.dat"))
       write(969,"(A38)") "======================================"
-      write(969,"(A38)") "        Neighbour List             "
+      write(969,"(A38)") "          Neighbour List BP           "
+      write(969,"(A38)") "      University of Birmingham        "
+      write(969,"(A38)") "             Ben Palmer               "
+      write(969,"(A38)") "======================================"
+      write(969,"(A1)") " "
+      write(969,"(A6,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)") &
+      "Date: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)
+      write(969,"(A1)") " "
+      write(969,"(A1)") " "
+! close output file
+      close(969)
+    End If
+! save output file name
+    If(mpiProcessID.eq.0)Then
+      open(unit=969,file=trim(trim(outputDirectory)//"/"//"bpData.dat"))
+      write(969,"(A38)") "======================================"
+      write(969,"(A38)") "          Bulk Property Data          "
       write(969,"(A38)") "      University of Birmingham        "
       write(969,"(A38)") "             Ben Palmer               "
       write(969,"(A38)") "======================================"

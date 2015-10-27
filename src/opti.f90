@@ -21,6 +21,7 @@ Module opti
   Use loadData
   Use output
   Use readEAM
+  Use makePotential
   Use eamGen
   Use eamOpt
   Use calcEAM
@@ -46,7 +47,7 @@ Module opti
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Type(saConfig) :: saConfigLive
-    Integer(kind=StandardInteger) :: i, j
+    Integer(kind=StandardInteger) :: i
     Integer(kind=StandardInteger) :: LM_nodes
 ! output
     If(TerminalPrint())Then
@@ -57,46 +58,80 @@ Module opti
       print *,""
       print *,""
     End If    
-! Starting calculation using unaltered input potential    
-! Load EAM stored in eamKeyInput/eamDataInput
-    Call loadInputEAM()
-! Run initial efs and bp calculations    
-    Call runCalcs(0)
-    If(TerminalPrint())Then
-      print *,"Input RSS ",totalRSS
-    End If  
-    Call saveEamFile("opt_001_input.pot")
     
-! Second starting calculation using splined potential    
-! Set EAM nodes
-    Call setEamNodes()     ! set spline nodes from eamKey/eamData    
-    Call runCalcs(1)     
+! Record input potential
+    If(TerminalPrint())Then
+      Print *, "Save input potential"
+    End If
+      
+    Call saveEamFile("P_01_input.pot")    ! output.f90
+    Call saveEamNodes("P_01_input.nodes") ! output.f90
+    Call eamCharts("P_01_input")          ! readEAM.f90
+    Call runCalcs(0,1,.true.)             ! use input potential and output EoS charts
+    
+! ----------------------------------
+! Make an EAM to start from
+! ----------------------------------    
+
+    !Call makeEAMRun(1.0D0,1.0D0,1.0D0)                          ! Make a new EAM potential
+    !Call eamCharts("Opt_1_          ")
+    
+    !Call setEamSpline() 
+    !Call eamCharts("Opt_2_          ")
+    
+       
+    !Call outputRssT()
+
+
+    !Call MakeStartingPotential() 
+    !Call saveEamFile("opt_001.pot")  
+    
+! ----------------------------------
+! Set spline nodes, 
+! ----------------------------------    
+    
+    Call setEamNodes()                         ! set spline nodes from eamKey/eamData   
+    optEmbeddingFit = 1                        ! Force embedding functional to fit form - on    
+    optDensityFit = 0                          ! Spline poly for density - off   
+    Call setEamSpline(.true.)                  ! make EAM potential by splining nodes
+    Call saveEamFile("P_02_start.pot")
+    Call saveEamNodes("P_02_input.nodes") ! output.f90
+    Call eamCharts("P_02_start")
+     
+! Print
+    print *,"----------------------------------"
+    print *,"Starting Optimisation"
+    print *,"----------------------------------"
+    ! ZBL + exp(poly) spline + polyspline for pair
+    optEmbeddingFit = 1    ! Force embedding functional to fit form     
+    optDensityFit = 0      ! Spline poly for density
+    Call runCalcs(1,0)     ! Call bulk properties
     If(TerminalPrint())Then
       print *,"Spline converted input RSS ",totalRSS
     End If  
-    Call saveEamFile("opt_002_input-splined.pot")
+    !Call outputRssT()
+    !Call outputBpT()
+        
+    !Call saveEamFile("opt_002.pot")    
     
-! Force embedding functional to fit form    
-    optEmbeddingFit = 1    
-! Second starting calculation using splined potential    
-! Set EAM nodes
-    Call runCalcs(1)     
-    print *,maxDensity
-    If(TerminalPrint())Then
-      print *,"Spline converted input RSS ",totalRSS
-    End If  
-    Call saveEamFile("opt_003_input-splined.pot")    
+! -----------------------------------------    
+! Resize input functions   
+! -----------------------------------------       
+    
+    
+    
+    
     
 ! -----------------------------------------    
 ! Simulated annealing    
 ! -----------------------------------------    
+    
+    ! ZBL + exp(poly) spline + polyspline for pair
 
-! Force embedding functional to fit form    
-    optEmbeddingFit = 1    
     saConfigLive = saConfigIn
     Call saOpt(saConfigLive)
     
- 
+    
 ! Force embedding functional as a spline    
     !optEmbeddingFit = 0   
     !saConfigLive = saConfigIn
@@ -106,28 +141,27 @@ Module opti
 ! Levenberg Marquardt Algorithm
 ! -----------------------------------------    
 
-    LM_nodes = 0
-    Do i=1,eamFunctionCount
-      If(splineNodesKey(i,3).eq.1)Then ! pair
-        LM_nodes = LM_nodes + splineNodesKey(i,5) - 2      
-      End If
-      If(splineNodesKey(i,3).eq.2.or.splineNodesKey(i,3).eq.4.or.splineNodesKey(i,3).eq.5)Then ! dens/dden/sden
-        LM_nodes = LM_nodes + splineNodesKey(i,5) - 1      
-      End If
-      If(splineNodesKey(i,3).eq.3.or.splineNodesKey(i,3).eq.6.or.splineNodesKey(i,3).eq.7)Then ! embe/demb/semb
-        LM_nodes = LM_nodes + splineNodesKey(i,5)    
-      End If
-    End Do
-    LM_nodes = 3 * LM_nodes
+    !LM_nodes = 0
+    !Do i=1,eamFunctionCount
+    !  If(splineNodesKey(i,3).eq.1)Then ! pair
+    !    LM_nodes = LM_nodes + splineNodesKey(i,5) - 2      
+    !  End If
+    !  If(splineNodesKey(i,3).eq.2.or.splineNodesKey(i,3).eq.4.or.splineNodesKey(i,3).eq.5)Then ! dens/dden/sden
+    !    LM_nodes = LM_nodes + splineNodesKey(i,5) - 1      
+    !  End If
+    !  If(splineNodesKey(i,3).eq.3.or.splineNodesKey(i,3).eq.6.or.splineNodesKey(i,3).eq.7)Then ! embe/demb/semb
+    !    LM_nodes = LM_nodes + splineNodesKey(i,5)    
+    !  End If
+    !End Do
+    !LM_nodes = 3 * LM_nodes
     
-    If(TerminalPrint())Then
-      print *,""
-      print *,"LMA Starting"
-      print *,"Parameters: ",LM_nodes
-    End If  
+    !If(TerminalPrint())Then
+    !  print *,""
+    !  print *,"LMA Starting"
+    !  print *,"Parameters: ",LM_nodes
+    !End If  
     
-    !Call LM_Opt(splineTotalNodes,LM_nodes)
-    
+    !Call LM_Opt(splineTotalNodes,LM_nodes)   
     
     
     !Call LM_Opt(crCount,splineTotalNodes)  ! must run calc once before now, to get crCount
@@ -175,14 +209,16 @@ Module opti
    
   
 ! --------------------------------------------------------------------------------------------------- 
-  Subroutine runCalcs(splineNodesIn,runTypeIn)
+  Subroutine runCalcs(splineNodesIn,runTypeIn,eosChartIn)
 ! Calculate stress/energy/force of configuration/s   
     Implicit None   ! Force declaration of all variables
 ! Private variables 
     Integer(kind=StandardInteger), Optional :: splineNodesIn
-    Integer(kind=StandardInteger) :: splineNodes
     Integer(kind=StandardInteger), Optional :: runTypeIn
+    Logical, Optional :: eosChartIn
+    Integer(kind=StandardInteger) :: splineNodes
     Integer(kind=StandardInteger) :: runType
+    Logical :: eosChart
 ! Optional Arguments
     splineNodes = 0
     If(Present(splineNodesIn))Then
@@ -192,16 +228,20 @@ Module opti
     If(Present(runTypeIn))Then
       runType = runTypeIn
     End If  
+    eosChart = .false.
+    If(Present(eosChartIn))Then
+      eosChart = eosChartIn
+    End If 
 ! Make spline    
     If(splineNodes.eq.1)Then
-      Call setEamSpline() 
+      Call setEamSpline(.true.)  ! readEAM.f90
     End If        
 ! Turn off verbose    
     quietOverride = .true.     
-    Call evalEAM()
+    Call evalEAM()               ! eval.f90
 ! Bulk Properties 
     If(runType.ge.1)Then
-      Call evalBulkProperties()
+      Call evalBulkProperties(.false.,eosChart)  ! evalBP.f90
     End If
     quietOverride = .false. 
 ! Save data to file    
@@ -252,7 +292,115 @@ Module opti
       End Do
     End Do
   End Subroutine completeNodeDerivs 
- 
+  
+! ---------------------------------------------------------------------------------------------------  
+!
+! Starting Potential
+!  
+! ---------------------------------------------------------------------------------------------------     
+  
+  Subroutine MakeStartingPotential() 
+! Run simulated annealing optimisation 
+    Implicit None   ! Force declaration of all variables
+! Private variables  
+    Integer(kind=StandardInteger) :: i, j, k
+    Real(kind=DoubleReal) :: x, y, z, bestX, bestY, bestZ, bestRSS 
+  
+! Loop through functions/nodes
+    !Do i=1,eamFunctionCount
+    !  print *,"-----------------------------------------"
+    !  print *,i,splineNodesKey(i,4),splineNodesKey(i,6)   
+    !  print *,"-----------------------------------------"
+   !   Do j=splineNodesKey(i,4),splineNodesKey(i,6)      
+   !     print *,splineNodesData(j,1),splineNodesData(j,2),splineNodesData(j,3),splineNodesData(j,4)   
+   !   End Do
+   ! End Do
+   ! print *,""
+    
+    
+    Do i=1,2
+      Do j=1,2
+        Do k=1,2
+          x = 0.0D0+i*0.3D0
+          y = 0.0D0+j*0.3D0
+          z = 0.0D0+k*0.3D0
+          Call makeEAMRun(x,y,z)                          ! Make a new EAM potential
+          Call setEamNodes()                         ! set spline nodes from eamKey/eamData    
+          Call runCalcs(1,1) 
+          print *,"rss: ",totalRSS
+          If(i.eq.1.and.j.eq.1.and.k.eq.1)Then
+            bestRSS = totalRSS
+            bestX = x
+            bestY = y
+            bestZ = z
+          Else
+            If(totalRSS.lt.bestRSS)Then
+              bestRSS = totalRSS
+              bestX = x
+              bestY = y
+              bestZ = z              
+            End If
+          End If
+        End Do  
+      End Do  
+    End Do  
+    
+    
+    Call makeEAMRun(bestX,bestY,bestZ)                          ! Make a new EAM potential
+    Call setEamNodes()                         ! set spline nodes from eamKey/eamData    
+    Call runCalcs(1,1) 
+    print *,"rss: ",totalRSS
+    
+  
+  End Subroutine MakeStartingPotential 
+  
+! ---------------------------------------------------------------------------------------------------  
+!
+! Noise
+!  
+! ---------------------------------------------------------------------------------------------------   
+
+  Subroutine NodeNoise()
+! Run simulated annealing optimisation 
+    Implicit None   ! Force declaration of all variables
+! Private variables  
+    Integer(kind=StandardInteger) :: i, j
+    Real(kind=DoubleReal) :: randomDP
+! Loop through functions/nodes
+    Do i=1,eamFunctionCount
+      Do j=splineNodesKey(i,4),splineNodesKey(i,6)      
+        If(splineNodesKey(i,3).eq.1)Then ! pair    
+          If(j.ne.splineNodesKey(i,6))Then
+            randomDP = RandomLCG()
+            splineNodesData(j,2) = splineNodesData(j,2) * (1+(0.5D0-randomDP)/20D0)
+            randomDP = RandomLCG()
+            splineNodesData(j,3) = splineNodesData(j,3) * (1+(0.5D0-randomDP)/20D0)  
+            randomDP = RandomLCG()
+            splineNodesData(j,4) = splineNodesData(j,4) * (1+(0.5D0-randomDP)/20D0)
+          End If
+        End If 
+        If(splineNodesKey(i,3).eq.2.or.splineNodesKey(i,3).eq.4.or.splineNodesKey(i,3).eq.5)Then ! density    
+          If(j.ne.splineNodesKey(i,6))Then
+            randomDP = RandomLCG()
+            splineNodesData(j,2) = splineNodesData(j,2) * (1+(0.5D0-randomDP)/20D0)
+            randomDP = RandomLCG()
+            splineNodesData(j,3) = splineNodesData(j,3) * (1+(0.5D0-randomDP)/20D0)  
+            randomDP = RandomLCG()
+            splineNodesData(j,4) = splineNodesData(j,4) * (1+(0.5D0-randomDP)/20D0)
+          End If
+        End If 
+        If(splineNodesKey(i,3).eq.3.or.splineNodesKey(i,3).eq.6.or.splineNodesKey(i,3).eq.7)Then ! embe/demb/semb
+          randomDP = RandomLCG()
+          splineNodesData(j,2) = splineNodesData(j,2) * (1+(0.5D0-randomDP)/20D0)
+          randomDP = RandomLCG()
+          splineNodesData(j,3) = splineNodesData(j,3) * (1+(0.5D0-randomDP)/20D0)  
+          randomDP = RandomLCG()
+          splineNodesData(j,4) = splineNodesData(j,4) * (1+(0.5D0-randomDP)/20D0)  
+        End If      
+      End Do
+    End Do  
+  End Subroutine NodeNoise 
+   
 ! ---------------------------------------------------------------------------------------------------  
 !
 ! Simulated Annealing Functions 
@@ -262,10 +410,7 @@ Module opti
 ! Run simulated annealing optimisation 
     Implicit None   ! Force declaration of all variables
 ! Private variables  
-    Integer(kind=StandardInteger) :: i
     Type(saConfig) :: saConfigLive
-    
-    
 ! Start SA
     If(TerminalPrint())Then
       print *,""
@@ -274,7 +419,7 @@ Module opti
       print *,""
     End If
 ! Initial calculation
-    optRunType = 0
+    optRunType = 1
     Call runCalcs(1,optRunType) 
 ! Store optimum (starting) nodes + rss
     splineNodesKeyOpt = splineNodesKey
@@ -284,7 +429,7 @@ Module opti
 ! ---------------------------------------
 ! Run 1 - Force/Stress/Energy only
 ! ---------------------------------------
-    optRunType = 0
+    optRunType = 1
 ! Loop through and decrease temperature
     Call saOpt_VarLoop(saConfigLive)  
 ! Output SA results 
@@ -292,7 +437,7 @@ Module opti
 ! -------------------------------
 ! Run 2 - Bulk properties + Force/Stress/Energy
 ! -------------------------------     
-    optRunType = 1
+    !optRunType = 1
 ! Loop through and decrease temperature
     !Call saOpt_VarLoop(saConfigLive)  
 ! Output SA results 
@@ -307,8 +452,7 @@ Module opti
     Type(saConfig) :: saConfigLive
 ! Private variables  
     Real(kind=DoubleReal) :: temperature, temperatureChange, temperatureBase
-    Integer(kind=StandardInteger) :: i, absLoop, totalLoops
-    Integer(kind=StandardInteger) :: loop
+    Integer(kind=StandardInteger) :: i, totalLoops
     Real(kind=DoubleReal) :: aProb, randDouble
     Real(kind=DoubleReal) :: varyAmount
     Real(kind=DoubleReal) :: probTest
@@ -372,7 +516,7 @@ Module opti
         splineNodesKeyOpt = splineNodesKey
         splineNodesDataOpt = splineNodesData
 ! attempt to optimise further f'(x) and f''(x)
-        Call saOpt_VarDerivs(5)        
+        !Call saOpt_VarDerivs(5)        
         If(optimumRSS.lt.bestRSS)Then
           bestRSS = totalRSS  ! store best only if the best rss, not just a bac accepted result
           splineNodesKeyBest = splineNodesKeyOpt
@@ -383,12 +527,18 @@ Module opti
       If(TerminalPrint())Then
         If(accept)Then
           If(bad)Then
-            print *,i,temperature,varyAmount,": [",optimumRSS,"]  ",totalRSS,"*(Bad)"
+            Call printSummary(i,temperature,varyAmount,maxDensity,&
+            optimumRSS,totalRSS,"*(Bad)")
+            !print *,i,temperature,varyAmount,maxDensity,": [",optimumRSS,"]  ",totalRSS,"*(Bad)"
           Else
-            print *,i,temperature,varyAmount,": [",optimumRSS,"]  ",totalRSS,"*(Good)"
+            Call printSummary(i,temperature,varyAmount,maxDensity,&
+            optimumRSS,totalRSS,"*(Good)")
+            !print *,i,temperature,varyAmount,maxDensity,": [",optimumRSS,"]  ",totalRSS,"*(Good)"
           End If          
         Else 
-          print *,i,temperature,varyAmount,": [",optimumRSS,"]  ",totalRSS
+          Call printSummary(i,temperature,varyAmount,maxDensity,&
+          optimumRSS,totalRSS,"")
+          !print *,i,temperature,varyAmount,maxDensity,": [",optimumRSS,"]  ",totalRSS
         End If        
       End If       
     End Do  
@@ -403,7 +553,7 @@ Module opti
     Integer(kind=StandardInteger), optional :: funcIn
     Integer(kind=StandardInteger) :: func
 ! Private variables    
-    Integer(kind=StandardInteger) :: i, j, k
+    Integer(kind=StandardInteger) :: i, j
     Real(kind=DoubleReal) :: varyAmount
 ! Optional    
     func = 1
@@ -429,7 +579,6 @@ Module opti
 ! Vary f'(r) and f''(r) to find a better fit 
     Implicit None   ! Force declaration of all variables
 ! In vars    
-    Real(kind=DoubleReal) :: startRSS
     Integer(kind=StandardInteger) :: attempts
 ! Private variables    
     Integer(kind=StandardInteger) :: i    
@@ -491,9 +640,11 @@ Module opti
 ! Vary f'(r) and f''(r) to find a better fit 
     Implicit None   ! Force declaration of all variables
 ! Optimum Spline 
-    print *,""
+    Print *,""
+    Print *,""
+    print *,"==================================================================="
     print *,"Optimum RSS"
-    print *,""
+    print *,"==================================================================="
 ! Test optimum
     splineNodesKey = splineNodesKeyOpt
     splineNodesData = splineNodesDataOpt  
@@ -504,11 +655,14 @@ Module opti
 ! Output Bulk Properties       
     Call outputBpT()   
     Call saveEamFile("opt_003_sa_opt.pot")
+    Call eamCharts("opt_")
 
 ! Best of all tried
-    print *,""
+    Print *,""
+    Print *,""
+    print *,"==================================================================="
     print *,"Best RSS"
-    print *,""
+    print *,"==================================================================="
 ! Test best    
     splineNodesKey = splineNodesKeyBest
     splineNodesData = splineNodesDataBest  
@@ -519,6 +673,7 @@ Module opti
 ! Output Bulk Properties       
     Call outputBpT() 
     Call saveEamFile("opt_003_sa_best.pot")
+    Call eamCharts("best_")
   
   End Subroutine saOpt_Output
   
@@ -540,17 +695,16 @@ Module opti
 ! Matrix
     Real(kind=DoubleReal), Dimension(1:sampleCount,1:totalNodes) :: J
     Real(kind=DoubleReal), Dimension(1:sampleCount) :: refVals, derivRefVals, R
-    Real(kind=DoubleReal), Dimension(1:totalNodes,1:sampleCount) :: JT     ! Transpose Jacobian
-    Real(kind=DoubleReal), Dimension(1:totalNodes,1:totalNodes) :: JTJ, JTJ_Diag  
-    Real(kind=DoubleReal), Dimension(1:totalNodes) :: JTR, P, P_B, xP, xP_Last
+!    Real(kind=DoubleReal), Dimension(1:totalNodes,1:sampleCount) :: JT     ! Transpose Jacobian
+!    Real(kind=DoubleReal), Dimension(1:totalNodes,1:totalNodes) :: JTJ, JTJ_Diag  
+!    Real(kind=DoubleReal), Dimension(1:totalNodes) :: JTR, P_B
+    Real(kind=DoubleReal), Dimension(1:totalNodes) :: P, xP, xP_Last
     Integer(kind=StandardInteger), Dimension(1:totalNodes,1:3) :: xP_map
 ! LMA Dampening
     Real(kind=DoubleReal) :: lambda
 ! Other LMA vars
     Integer(kind=StandardInteger) :: deadRows, liveRows
     Logical :: isDead
-    
-    Character(len=14) :: tempStr
     Character(len=500) :: fileRow
     
 ! Init matrices
@@ -750,9 +904,8 @@ Module opti
     Real(kind=DoubleReal), Dimension(1:liveRows) :: JTR
 ! Other vars
     Integer(kind=StandardInteger), Dimension(1:liveRows) :: liveToTotalMap
-    Integer(kind=StandardInteger) :: deadRows
     Logical :: isDead
-    Integer(kind=StandardInteger) :: i, n, k, m
+    Integer(kind=StandardInteger) :: i, n, k
     
 ! Make working matrices - J
     k = 0
@@ -796,38 +949,6 @@ Module opti
     End Do
     
   End Subroutine LM_OptCalc
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   
   
   
@@ -1519,7 +1640,7 @@ Module opti
 ! Fill in gaps    
     Do i=1,size(splineNodesKey,1)
       If(splineNodesKey(i,1).gt.0)Then
-        splineNodesResponse = FillSplineResponse(splineNodesResponse,splineNodesKey(i,4),splineNodesKey(i,6))        
+        !splineNodesResponse = FillSplineResponse(splineNodesResponse,splineNodesKey(i,4),splineNodesKey(i,6))        
         Do j=splineNodesKey(i,4), splineNodesKey(i,6)
           If(varMax.lt.abs(splineNodesResponse(j,2)))Then
             varMax = abs(splineNodesResponse(j,2))
@@ -1542,10 +1663,53 @@ Module opti
         Exit
       End If
     End Do     
-    
-    
   End Subroutine responseMatrix
+  
+! --------------------------------------------------------------------------------------------------- 
+  Subroutine printSummary(calcI,temperature,varyAmount,maxDensity,optimumRSS,totalRSS,tag)
+! Run simulated annealing optimisation 
+    Implicit None   ! Force declaration of all variables
+! In
+    Integer(kind=StandardInteger) :: calcI
+    Real(kind=DoubleReal) :: temperature,varyAmount,maxDensity,optimumRSS,totalRSS
+    Character(*) :: tag
+! Private variables  
+    Integer(kind=StandardInteger) :: configID
+    Character(Len=8) :: printLine
+    
+    Write(printLine,"(I8)") calcI
+    print *,adjustl(trim(printLine))," [opt: ",optimumRSS,"]  [",totalRSS,adjustl(trim(tag)),"]"
+    print *,"------------------------------------------------------------------------------------"
+    print *,"   ",temperature,varyAmount,maxDensity
+    Do configID=1,configCount
+      print *,"   ","Config ",configID," E ",rssConfigsArr(configID)%energy," F ",rssConfigsArr(configID)%force,&
+      " S ",rssConfigsArr(configID)%stress," T ",rssConfigsArr(configID)%total
+    End Do
+    Do configID=1,configCountBP 
+      print *,"   ","Alat ",rssBPArr(configID)%alat,&
+      " V0 ",rssBPArr(configID)%v0,&
+      " E0 ",rssBPArr(configID)%e0,&
+      " B0 ",rssBPArr(configID)%b0,&
+      " EoS ",rssBPArr(configID)%eos,&
+      " Tot ",rssBPArr(configID)%total
+    End Do
+    Do configID=1,configCountBP 
+      print *,"   ","Alat ",calcBulkProperties(configID)%alat,&
+      " V0 ",calcBulkProperties(configID)%v0,&
+      " E0 ",calcBulkProperties(configID)%e0,&
+      " B0 ",calcBulkProperties(configID)%b0,&
+      " Bp0 ",calcBulkProperties(configID)%bp0
+    End Do
+    print *,""
+    
+    !rssBPArr(configID)%total = rssBPArr(configID)%alat+rssBPArr(configID)%v0+&
+    !rssBPArr(configID)%e0+rssBPArr(configID)%b0+rssBPArr(configID)%bp0+&
+    !rssBPArr(configID)%c11+rssBPArr(configID)%c12+rssBPArr(configID)%c44+&
+    !rssBPArr(configID)%eos    
 
+  End Subroutine printSummary    
+    
+    
 ! ------------------------------------------------------------------------!
 !                                                                         !
 ! MODULE FUNCTIONS                                                        !

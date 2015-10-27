@@ -30,8 +30,6 @@ Module eamOpt
 ! Privacy of variables/functions/subroutines
   Private
 ! Public Subroutines
-  Public :: setEamNodesOpti
-  Public :: setEamSplineOpti
 
 
 
@@ -122,107 +120,6 @@ Module eamOpt
 ! Store total number of nodes
     splineTotalNodes = nodeKey
   End Subroutine setEamNodesOpti
-  
-  
-  Subroutine setEamSplineOpti()
-! Spline between nodes and store functions in eamKey/eamData
-! Force ZBL Core for pair potentials
-! exp(a+bx) style spline from  zbl to first node
-    Implicit None   ! Force declaration of all variables
-! Private variables
-    Integer(kind=StandardInteger) :: functionCounter, i, j
-    Integer(kind=StandardInteger) :: nodes, nodeStart, nodeLength, nodeEnd, eamPoint
-    Real(kind=DoubleReal), Dimension(1:1001,1:4) :: splineDataPoints
-    Real(kind=DoubleReal) :: x, changeX
-    Integer(kind=StandardInteger) :: zA, zB, nodesZ, nodesA
-    Integer(kind=StandardInteger) :: pointsZBL, pointsSpline, pointsExpSpline, pointsPolySpline
-    Real(kind=DoubleReal), Dimension(1:3) :: yArray
-    Integer(kind=StandardInteger), Dimension(1:1000) :: splineType
-! Init variables
-    eamKey = 0                 ! clear eam key
-    eamData = 0.0D0            ! clear eam data
-    splineDataPoints = 0.0D0   ! init temp spline points array
-! Loop through EAM functions
-    functionCounter = 0
-    Do i=1,size(splineNodesKey,1)    
-      If(splineNodesKey(i,1).gt.0)Then ! Check that eam function is stored    
-! Count function      
-        functionCounter = functionCounter + 1
-! Update Key Data        
-        eamKey(functionCounter,1) = splineNodesKey(i,1) 
-        eamKey(functionCounter,2) = splineNodesKey(i,2) 
-        eamKey(functionCounter,3) = splineNodesKey(i,3) 
-        eamKey(functionCounter,4) = 1+(1001*(functionCounter-1))
-        eamKey(functionCounter,5) = 1001
-        eamKey(functionCounter,6) = eamKey(functionCounter,4)+eamKey(functionCounter,5)-1
-! Nodes used in spline
-        nodes = splineNodeCount(splineNodesKey(i,3))
-! Pair Potentials
-        If(splineNodesKey(i,3).eq.1)Then       
-! ZBL
-          zA = elementsCharge(splineNodesKey(i,1))
-          zB = elementsCharge(splineNodesKey(i,2))   
-! Set node start/end points
-          nodeStart = splineNodesKey(i,4)
-          nodeLength = splineNodesKey(i,5)
-          nodeEnd = splineNodesKey(i,6)
-! what part of function will be spline - function runs from 0.0 to splineNodesData(nodeEnd,1)
-          changeX = splineNodesData(nodeEnd,1)-splineNodesData(nodeStart,1)
-! determine 1 to nodes ZBL, nodes ZBL onwards
-          pointsSpline = ceiling((changeX/splineNodesData(nodeEnd,1))*1001) ! data points in spline section
-          pointsZBL = 1001 - pointsSpline                                   ! data points in zbl section          
-! ZBL section
-          Do j=1,pointsZBL
-            x = (j-1)*(splineNodesData(nodeEnd,1)/(1.0D0*1001))
-            yArray = ZblFull (x, zA, zB)
-            eamPoint = eamKey(functionCounter,4)+j-1
-            eamData(eamPoint,1) = x
-            eamData(eamPoint,2) = yArray(1)
-            eamData(eamPoint,3) = yArray(2)
-            eamData(eamPoint,4) = yArray(3)
-          End Do         
-          splineType = 1    ! default to poly
-          splineType(1) = 2 ! first segment exp(poly) [3rd order]
-! Spline section
-          splineDataPoints = SplineNodesV(splineNodesData,pointsSpline,nodeStart,nodeEnd,1001,splineType)
-          Do j=1,pointsSpline          
-            eamPoint = eamKey(functionCounter,4)+j+pointsZBL-1
-            eamData(eamPoint,1) = splineDataPoints(j,1)
-            eamData(eamPoint,2) = splineDataPoints(j,2)
-            eamData(eamPoint,3) = splineDataPoints(j,3)
-            eamData(eamPoint,4) = splineDataPoints(j,4)
-          End Do
-! Dens + Embe          
-        Else        
-! Set node start/end points
-          nodeStart = splineNodesKey(i,4)
-          nodeLength = splineNodesKey(i,5)
-          nodeEnd = splineNodesKey(i,6)
-! spline between nodes
-          splineDataPoints = SplineNodes(splineNodesData,1001,nodeStart,nodeEnd)  
-! copy data into eamData array
-          Do j=1,1001
-            eamPoint = eamKey(functionCounter,4)+j-1
-            eamData(eamPoint,1) = splineDataPoints(j,1)
-            eamData(eamPoint,2) = splineDataPoints(j,2)
-            eamData(eamPoint,3) = splineDataPoints(j,3)
-            eamData(eamPoint,4) = splineDataPoints(j,4)
-          End Do
-        End If  
-      End If
-      If(functionCounter.eq.eamFunctionCount)Then
-        Exit  ! Exit, all functions cycled through
-      End If      
-    !Do i=1,eamFunctionCount
-      !i = 1
-      !Do j=eamKey(i,4),eamKey(i,6)
-      !  If(mpiProcessID.eq.0)Then
-      !    print *,i,j,eamData(j,1),eamData(j,2),eamData(j,3),eamData(j,4)
-      !  End If
-      !End Do
-    !End Do
-    End Do     
-  End Subroutine setEamSplineOpti
   
   
   

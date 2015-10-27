@@ -1,102 +1,69 @@
 #!/bin/bash
 cd ${0%/*}
 workingDir=$(pwd)
-binDir="bin"
+# Directories
+srcDir=$workingDir"/src"
+modDir=$workingDir"/mod"
+binDir=$workingDir"/bin"
+mkdir -p $modDir
+mkdir -p $binDir
+# -----------Library Start--------
+libDir="/code/lib/libBP"
+modDirLib=$libDir"/mod"
+libDirLib=$libDir"/lib"
+libLink="-L"$libDirLib" -lBP"
+#Make included library
+#"/code/lib/makeLib.sh"
+# -----------Library End--------
 binFile="eampaDev.x "
-buildFiles="src/kinds.f90 src/types.f90 \
-src/msubs.f90 src/constants.f90 \
-src/maths.f90 src/mMaths.f90 src/general.f90 src/units.f90 \
-src/plot.f90 src/typesM.f90 \
-src/globals.f90  \
-src/initialise.f90 \
-src/loadData.f90 src/output.f90 \
-src/eamGen.f90 \
-src/readInput.f90 src/readEAM.f90 src/eamOpt.f90 \
-src/readConfig.f90 src/bpConfig.f90 \
-src/neighbourList.f90 src/neighbourListBP.f90 \
-src/preCalc.f90 \
-src/calcEAM.f90 src/bpCalcEAM.f90 \
-src/eval.f90 src/evalBP.f90 \
-src/opti.f90 \
-src/finalise.f90 \
-src/eampa.f90"
-commandLineA="mpif90 -g -Wall -Wno-unused-function \
--fbounds-check -fcheck=all -mtune=native "
-commandLineB="mpif90 -O3 -g -Wall -Wno-unused-function \
--fbounds-check -fcheck=all -mtune=native "
-commandLineC=" &> logs/build.log"
-#----------------------------------------------------------------------------------
-binPath=$binDir"/"$binFile
-binPathLong=$workingDir"/"$binDir"/"$binFile
-binPathOnlyLong=$workingDir"/"$binDir
-#----------------------------------------------------------------------------------
-# Make section:
-echo "Check code formatting and layout? (Default: N) [Y/N]"
-#read checkCode
-echo "Remove unused variables? (Default: N) [Y/N]"
-#read checkUnused
-echo "Level 3 Optimise? (Default: N) [Y/N]"
-#read optimise
-echo "Make link to /bin? (Default: N) [Y/N]"
-#read linkToBin
-echo "Current working directory:"
-pwd
-echo "Make bin directory"
-mkdir -p bin
-#-------------------------
-# 
-python make.py 0
-if [[ $checkUnused == "Y" || $checkUnused == "y" ]]  
-then
-  mkdir -p logs
-  echo "Checking unused variables.";
-  commandLine=$commandLineA" -o "$binPath$buildFiles$commandLineC
-  eval $commandLine
-  sleep 1 
-  python make.py 3
-else
-  echo "Not checking unused variables.";
-fi
-if [[ $checkCode == "Y" || $checkCode == "y" ]]  
-then
-  echo "Checking formatting and layout.";
-  python make.py 1
-else
-  echo "Not checking formatting and layout.";
-fi
-echo "Compile source"
-mkdir -p bin
-if [[ $optimise == "Y" || $optimise == "y" ]]  
-then 
-  commandLine=$commandLineB" -o "$binPath$buildFiles
-  eval $commandLine
-else 
-  commandLine=$commandLineA" -o "$binPath$buildFiles
-  eval $commandLine
-fi
-sleep 1 
-rm *.mod
-if [[ $linkToBin == "Y" || $linkToBin == "y" ]]  
-then
-  commandRemove="sudo rm /bin/"$binFile
-  eval $commandRemove
-  commandLink="sudo ln -s "$workingDir"/"$binPath" /bin"
-  echo "Making link: "$commandLink
-  eval $commandLink
-fi
-echo "Bin file details:"
-ls -l $binPathLong
+fortLine="mpif90 -g \
+-fbounds-check -mtune=native " # -Wno-unused-function -fcheck=all  -Wall -O3 
+# Build files
+buildFiles="msubs.f90 \
+globals.f90 initialise.f90 \
+input.f90 prep.f90 productionLoss.f90 \
+output.f90 activity.f90"
+
+
+buildFiles="types.f90 \
+msubs.f90 \
+typesM.f90 \
+globals.f90  \
+initialise.f90 \
+loadData.f90 output.f90 \
+eamGen.f90 \
+readInput.f90 readEAM.f90 makePotential.f90 \
+readConfig.f90 bpConfig.f90 \
+neighbourList.f90 neighbourListBP.f90 \
+preCalc.f90 \
+calcEAM.f90 bpCalcEAM.f90 \
+eval.f90 evalBP.f90 \
+opti.f90 \
+finalise.f90 \
+eampa.f90"
+
+# Update compile time in globals.f90
+#python make.py 0
+# Compile
+cd $srcDir
+commandLine=$fortLine" -J "$modDir"  -I"$modDirLib" "
+commandLine=$commandLine" "$buildFiles" "
+commandLine=$commandLine" "$libLink" "
+commandLine=$commandLine" -o "$binDir"/"$binFile
+echo "----------------------------------------------------------------------------------"
+echo "Compile with Fortran:"
+echo " "
+echo $commandLine
+echo "----------------------------------------------------------------------------------"
+eval $commandLine
 # add export to profile so user can run activity.x
-exportLine="export PATH=\"\$PATH:"$binPathOnlyLong"\""
+exportLine="export PATH=\"\$PATH:"$binDir"\""
 profileFile=$HOME"/.bash_profile"
 touch $profileFile
-if grep -q "$binPathOnlyLong" "$profileFile"; 
+if grep -q "$binDir" "$profileFile"; 
 then
   echo $profileFile" already has the bin directory path"
 else
-  echo "Adding "$binPathOnlyLong" to "$profileFile
+  echo "Adding "$binDir" to "$profileFile
   echo $exportLine >> $profileFile
 fi
-sleep 1 
-reloadBashProfile="source "$profileFile
-eval $reloadBashProfile

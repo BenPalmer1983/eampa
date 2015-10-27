@@ -61,11 +61,13 @@ Module bpConfig
   Subroutine makeConfigs()
     Implicit None   ! Force declaration of all variables
 ! Private variables  
-    Integer(kind=StandardInteger) :: coordBP, elementID, i, configIDBP
-    Integer(kind=StandardInteger) :: xLoop, yLoop, zLoop
+    Integer(kind=StandardInteger) :: coordBP, configIDBP
     Integer(kind=StandardInteger) :: coordStartBP, coordEndBP, coordLengthBP
-    Real(kind=DoubleReal), Dimension(1:4,1:3) :: fccUnit 
-        
+    Real(kind=DoubleReal), Dimension(1:2,1:3) :: bccUnit 
+    Real(kind=DoubleReal), Dimension(1:4,1:3) :: fccUnit         
+! -------------------
+! Structure atom arrangements       
+! -------------------       
 ! FCC atom 1
     fccUnit(1,1) = 0.0D0
     fccUnit(1,2) = 0.0D0
@@ -81,59 +83,100 @@ Module bpConfig
 ! FCC atom 1
     fccUnit(4,1) = 0.0D0
     fccUnit(4,2) = 0.5D0
-    fccUnit(4,3) = 0.5D0    
-    
-    
-! Counter    
-    configIDBP = 0
-! Build an FCC structure for each element
+    fccUnit(4,3) = 0.5D0   
+! BCC atom 1
+    bccUnit(1,1) = 0.0D0
+    bccUnit(1,2) = 0.0D0
+    bccUnit(1,3) = 0.0D0    
+! BCC atom 1
+    bccUnit(2,1) = 0.5D0
+    bccUnit(2,2) = 0.5D0
+    bccUnit(2,3) = 0.5D0     
+! Init vars    
     configsAtomTotalBP = 0
     coordBP = 0
     coordStartBP = 1
-    Do elementID=1,elementsCount!   
-      configIDBP = configIDBP + 1    
-      aLatBP(configIDBP) = fccAlatBP
-      configCountBP = configCountBP + 1
-      bpUnitCellCount(configIDBP) = size(fccUnit,1)
-! BP Copies      
-      Do xLoop=1,bpCopies
-        Do yLoop=1,bpCopies
-          Do zLoop=1,bpCopies
-            Do i=1,size(fccUnit,1)              
-              coordBP = coordBP + 1
-              configurationCoordsIBP(coordBP,1) = elementID
-! Fractional coords
-              configurationCoordsRBP(coordBP,4) = &
-              (xLoop + fccUnit(i,1) - 1.0D0)/(1.0D0*bpCopies)
-              configurationCoordsRBP(coordBP,5) = &
-              (yLoop + fccUnit(i,2) - 1.0D0)/(1.0D0*bpCopies)
-              configurationCoordsRBP(coordBP,6) = &
-              (zLoop + fccUnit(i,3) - 1.0D0)/(1.0D0*bpCopies)
-! Real co-ordinates
-              configurationCoordsRBP(coordBP,1) = &
-              configurationCoordsRBP(coordBP,4) * (1.0D0*bpCopies) * aLatBP(configIDBP)
-              configurationCoordsRBP(coordBP,2) = &
-              configurationCoordsRBP(coordBP,5) * (1.0D0*bpCopies) * aLatBP(configIDBP)
-              configurationCoordsRBP(coordBP,3) = &
-              configurationCoordsRBP(coordBP,6) * (1.0D0*bpCopies) * aLatBP(configIDBP)
-            End Do
-          End Do
-        End Do          
-      End Do        
-! Calculate keys
-      coordEndBP = coordBP
+! loop through bp configs
+    Do configIDBP=1,maxConfigsBP
+! break if no more configs stored
+      If(bpInArr(configIDBP)%structure.eq."   ")Then
+        Exit  
+      End If
+! store id into configCountBP
+      configCountBP = configIDBP
+! BP Copies           
+      If(bpInArr(configIDBP)%structure.eq."FCC")Then    ! FCC
+        Call makeConfigCoords(configIDBP, coordStartBP, coordEndBP, fccUnit)
+        bpInArr(configIDBP)%atomsPerUnit = 4
+      End If          
+      If(bpInArr(configIDBP)%structure.eq."BCC")Then    ! BCC
+        Call makeConfigCoords(configIDBP, coordStartBP, coordEndBP, bccUnit)
+        bpInArr(configIDBP)%atomsPerUnit = 2
+      End If
+! store key data
       coordLengthBP = coordEndBP - coordStartBP + 1
-      configsAtomTotalBP = configsAtomTotalBP + coordLengthBP
-! Store keys  
-      configurationCoordsKeyBP(elementID,1) = coordStartBP
-      configurationCoordsKeyBP(elementID,2) = coordLengthBP
-      configurationCoordsKeyBP(elementID,3) = coordEndBP
-! reset start coord count
-      coordStartBP = coordEndBP + 1      
+      configurationCoordsKeyBP(configIDBP,1) = coordStartBP
+      configurationCoordsKeyBP(configIDBP,2) = coordLengthBP
+      configurationCoordsKeyBP(configIDBP,3) = coordEndBP
+! increment starting coord id
+      coordStartBP = coordEndBP + 1
     End Do
-    
-  
   End Subroutine makeConfigs
+    
+  Subroutine makeConfigCoords(configIDBP, coordStartBP, coordEndBP, unitCell)
+    Implicit None   ! Force declaration of all variables
+! Private variables  
+    Integer(kind=StandardInteger) :: configIDBP
+    Integer(kind=StandardInteger) :: coordStartBP, coordEndBP
+    Integer(kind=StandardInteger) :: coordID, i
+    Integer(kind=StandardInteger) :: xLoop, yLoop, zLoop
+    Real(kind=DoubleReal), Dimension(:,:) :: unitCell
+    Character(len=2) :: element
+    Integer(kind=StandardInteger) :: elementID
+    Real(kind=DoubleReal) :: alat
+    Integer(kind=StandardInteger) :: unitCopies
+! Init
+    coordID = coordStartBP
+    coordEndBP = coordStartBP
+    element = bpInArr(configIDBP)%element
+    elementID = QueryUniqueElement(element)
+    alat = bpInArr(configIDBP)%alat
+    unitCopies = bpInArr(configIDBP)%size
+! Store unit cell size    
+    bpUnitCellCount(configIDBP) = unitCopies
+! Only make if element is in EAM potential
+    If(elementID.gt.0)Then
+! Loop
+      Do xLoop=1,unitCopies
+        Do yLoop=1,unitCopies
+          Do zLoop=1,unitCopies 
+            Do i=1,size(unitCell,1)
+! Element ID           
+              configurationCoordsIBP(coordID,1) = elementID
+! Fractional coords
+              configurationCoordsRBP(coordID,4) = &
+              (xLoop + unitCell(i,1) - 1.0D0)/(1.0D0*unitCopies)
+              configurationCoordsRBP(coordID,5) = &
+              (yLoop + unitCell(i,2) - 1.0D0)/(1.0D0*unitCopies)
+              configurationCoordsRBP(coordID,6) = &
+              (zLoop + unitCell(i,3) - 1.0D0)/(1.0D0*unitCopies)
+! Real co-ordinates
+              configurationCoordsRBP(coordID,1) = &
+              configurationCoordsRBP(coordID,4) * (1.0D0*unitCopies) * alat
+              configurationCoordsRBP(coordID,2) = &
+              configurationCoordsRBP(coordID,5) * (1.0D0*unitCopies) * alat
+              configurationCoordsRBP(coordID,3) = &
+              configurationCoordsRBP(coordID,6) * (1.0D0*unitCopies) * alat
+! Increment
+              coordID = coordID + 1 
+            End Do  
+          End Do
+        End Do   
+      End Do
+      coordEndBP = coordID - 1    
+    End If
+    
+  End Subroutine makeConfigCoords
   
 
 ! ------------------------------------------------------------------------!
@@ -146,6 +189,8 @@ Module bpConfig
     Character(len=2) :: element
     Integer(kind=StandardInteger) :: output
     Integer(kind=StandardInteger) :: i, k, found
+! Init    
+    output = -1
 ! convert to uppercase
     element = adjustl(StrToUpper(element))
 ! loop through elements array

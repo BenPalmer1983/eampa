@@ -143,7 +143,7 @@ Module units
     If(inputUnit(1:4).eq."M   ")Then
       factorInput = 1.0D0
     End If
-    If(inputUnit(1:4).eq."A   ".or.inputUnit(1:4).eq."ANGS")Then
+    If(inputUnit(1:4).eq."A   ".or.inputUnit(1:4).eq."ANG ".or.inputUnit(1:4).eq."ANGS")Then
       factorInput = 1.0D-10
     End If
     If(inputUnit(1:4).eq."B   ".or.inputUnit(1:4).eq."BOHR")Then

@@ -32,7 +32,7 @@ Module eval
     Implicit None   ! Force declaration of all variables
     Integer(kind=StandardInteger) :: configID
 ! Calculate config energies,
-    Call calcEnergies()
+    Call calcEnergies()  ! calcEAM.f90
 ! Loop through configs and calculate RSS
     totalRSS = 0.0D0        
     crCount = 0
@@ -120,11 +120,8 @@ Module eval
     rssConfigsArr(configID)%energy = energyRSS
     rssConfigsArr(configID)%force = forceRSS
     rssConfigsArr(configID)%stress = stressRSS
-    rssConfigsArr(configID)%total = energyRSS + forceRSS + stressRSS
-    !print *,rssConfigsArr(configID)%energy,&
-    !rssConfigsArr(configID)%force,&
-    !rssConfigsArr(configID)%stress
-    
+    rssConfigsArr(configID)%total = energyRSS + forceRSS + stressRSS    
+    !print *,rssConfigsArr(configID)%total
   End Subroutine evalEAM_RSS
 
 ! ------------------------------------------------------------------------!

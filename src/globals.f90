@@ -12,20 +12,20 @@ Module globals
 ! ----------------------------------------
 
 ! Setup Modules
-  Use kinds
+  Use libBP
   Use types
   Use msubs
-  Use general
   
 ! Force declaration of all variables
   Implicit None
 !------------------------------------------------------------------------------ 
 ! Global Parameters
 !
-  Integer(kind=StandardInteger), Parameter :: maxConfigs = 1024
-  Integer(kind=StandardInteger), Parameter :: maxConfigsBP = 32
-  Integer(kind=StandardInteger), Parameter :: bpCopies = 4
-  Integer(kind=StandardInteger), Parameter :: aLatSamples = 7
+  Integer(kind=StandardInteger), Parameter :: maxConfigs = 1024    ! Maximum number of configurations able to load
+  Integer(kind=StandardInteger), Parameter :: maxConfigsBP = 32    ! Maximum number of bulk-property testing configurations
+  Integer(kind=StandardInteger), Parameter :: bpCopies = 4         ! Size (nxnxn) of bulk property crystals
+  Integer(kind=StandardInteger), Parameter :: aLatSamples = 7      ! number of energy-volume samples used to plot equation of state
+  Integer(kind=StandardInteger), Parameter :: ecSamples = 4        ! number of samples used to calculate cubic elastic constants
   Real(kind=DoubleReal), Parameter :: fccAlatBP = 4.0D0
   Real(kind=DoubleReal), Parameter :: bccAlatBP = 2.6D0
   Real(kind=DoubleReal), Parameter :: bpCutoffNL = 6.5D0
@@ -52,6 +52,7 @@ Module globals
 ! System Variables
   Real(kind=DoubleReal) :: largeArraySize
   Integer(kind=StandardInteger), Dimension(1:1024) :: processMap
+  Integer(kind=StandardInteger), Dimension(1:1024) :: processMapBP
   Integer(kind=StandardInteger), Dimension(1:1024,1:10) :: processMapE
 ! Other useful flags
   Logical :: quietOverride  
@@ -99,6 +100,9 @@ Module globals
   Character(len=255) :: configFilePathT
   Character(len=255) :: saveConfigFile
   Character(len=255) :: saveExpConfigFile
+! BP Config Details - User Input
+  Character(len=255) :: bpConfigFilePath
+  Logical :: bpPrintData = .false.
 ! DFT Settings
   Character(len=2), Dimension(1:300) :: dftElement
   Real(kind=DoubleReal), Dimension(1:300) :: dftOptEnergy
@@ -191,6 +195,13 @@ Module globals
   Integer(kind=StandardInteger) :: configsAtomTotal
     
 !------------------------------------------------------------------------------ 
+! Read BP Config File
+!  
+  Character(len=255), Dimension(1:65536) :: bpConfigInputData
+  Type(bpIn), Dimension(1:maxConfigsBP) :: bpInArr 
+
+ 
+!------------------------------------------------------------------------------ 
 ! Bulk Properties Config
 !   
 ! Counter  
@@ -275,8 +286,13 @@ Module globals
 ! Evaluate BP
 !   
 !
-  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:aLatSamples) :: alatEnergies 
-  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:aLatSamples) :: configVolBP
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP) :: undistortedCellEnergies = 0.0D0
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:aLatSamples) :: alatEnergies = 0.0D0 
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:aLatSamples) :: configVolBP = 0.0D0
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:ecSamples) :: ecEnergiesBP = 0.0D0 
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:ecSamples) :: ecStrainBP = 0.0D0 
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:2*ecSamples+1) :: ecEnergiesBP_T = 0.0D0 
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:2*ecSamples+1) :: ecStrainBP_T = 0.0D0 
   Type(rssBP), Dimension(1:maxConfigsBP) :: rssBPArr
     
 
@@ -301,6 +317,7 @@ Module globals
   Integer(kind=StandardInteger) :: crCount
   Integer(kind=StandardInteger) :: optRunType
   Integer(kind=StandardInteger) :: optEmbeddingFit
+  Integer(kind=StandardInteger) :: optDensityFit
 
 ! -----------------------
 ! Default variables
@@ -458,10 +475,10 @@ Module globals
   
 ! System Variables
   Public :: largeArraySize
-  Public :: processMap, processMapE
+  Public :: processMap, processMapBP, processMapE
   Public :: maxConfigs, maxConfigsBP
   Public :: bpCopies, fccAlatBP, bccAlatBP, bpCutoffNL, bpCutoff
-  Public :: aLatSamples
+  Public :: aLatSamples, ecSamples
 ! Default variables
   Public :: eamFunctionTypes
 ! Set defaults - debug options
@@ -474,6 +491,8 @@ Module globals
   Public :: globalConfigUnitVector
   Public :: configFilePath, configFilePathT
   Public :: saveConfigFile, saveExpConfigFile
+! BP Config Details - User Input
+  Public :: bpConfigFilePath, bpPrintData
 ! DFT Settings
   Public :: dftElement
   Public :: dftOptEnergy
@@ -574,8 +593,11 @@ Module globals
 !   
 ! EAM file array  
   Public :: eamInputData
-
-  
+    
+!------------------------------------------------------------------------------ 
+! Read BP Config File
+!  
+  Public :: bpInArr, bpConfigInputData   
   
 !------------------------------------------------------------------------------ 
 ! Bulk Properties Config
@@ -627,8 +649,10 @@ Module globals
 ! Evaluate BP
 !   
 !
-  Public :: alatEnergies 
-  Public :: configVolBP
+  Public :: undistortedCellEnergies
+  Public :: alatEnergies, configVolBP
+  Public :: ecEnergiesBP, ecStrainBP
+  Public :: ecEnergiesBP_T, ecStrainBP_T
   Public :: rssBPArr
   
 
@@ -652,7 +676,7 @@ Module globals
   Public :: countCalcRef
   Public :: crCount
   Public :: optRunType
-  Public :: optEmbeddingFit
+  Public :: optEmbeddingFit, optDensityFit
   
 ! Configuration Reference/Calculated Values
   Public :: configRef
@@ -759,7 +783,7 @@ Module globals
 ! Global Init Start time
     Call cpu_time(globalsTimeStart)
 ! Initialise Subroutine Variable
-    compileLine = "19:40:02  13/08/2015"
+    compileLine = "01:45:08  22/09/2015"
     PROGRAMEndTime = 0.0D0
       quietOverride = .false.
       timeStart = 0.0D0
@@ -796,6 +820,7 @@ Module globals
 ! System Variables
       largeArraySize = 0.0D0
       processMap = -1
+      processMapBP = -1
       processMapE = -1
 ! Debug options
       printToTerminal = .false.
@@ -835,7 +860,7 @@ Module globals
       configInputDataDFT = BlankStringArray(configInputDataDFT)
       configInputDataTemp = BlankStringArray(configInputDataTemp)
       configInputDataDFTTemp = BlankStringArray(configInputDataDFTTemp)
-      configLabelReplace = BlankString2DArray(configLabelReplace)
+      configLabelReplace = BlankStringArray(configLabelReplace)
       crystalUnitCell = 0.0D0
 ! Config Details - User Input
       globalConfigUnitVector = 0.0D0
@@ -854,6 +879,12 @@ Module globals
       refineEqVol = "NO "
       saveNLToFile = .false.
       saveForcesToFile = .true.
+    
+!------------------------------------------------------------------------------ 
+! Read BP Config File
+!  
+      bpConfigInputData = BlankStringArray(bpConfigInputData)         
+      
 !------------------------------------------------------------------------------ 
 ! Optimise
 !   
@@ -873,6 +904,7 @@ Module globals
       optForceZBL = .true.
       optRunType = 0
       optEmbeddingFit = 0
+      optDensityFit = 0
 ! Global Init End Time
       Call cpu_time(globalsTimeEnd)
 ! Store time duration

@@ -46,6 +46,10 @@ Module preCalc
     Do configID=1,configCount
       processMap(configID) = mod(configID-1,mpiProcessCount)
     End Do
+! Assign config to process map - bulk property configurations
+    Do configID=1,configCountBP
+      processMapBP(configID) = mod(configID-1,mpiProcessCount)
+    End Do
     Call outputProcessMapT()
 ! Synch MPI processes
     Call M_synchProcesses()

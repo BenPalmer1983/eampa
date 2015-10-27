@@ -13,21 +13,25 @@ PROGRAM eampa
 ! - energy, eV
 ! - length, Angstrom
 ! - forces, ev/Angstrom
+! - stress, ev/ang^3
+!
+! Printed units:
+! - energy, eV
+! - length, Angstrom
+! - forces, ev/Ang
+! - stress, GPa
 !
 ! Setup Modules
-  Use kinds          ! data kinds
+  Use libBP          ! data kinds
+  Use types
   Use msubs          ! mpi module
-  Use constants      ! physical constants module
-  Use units          ! unit conversion and normalisation
-  Use general        ! string functions
-  Use maths          ! maths functions
-  Use mMaths         ! mpi maths functions
   Use typesM
   Use globals        ! declare all globals
   Use initialise     ! initialise program
   Use loadData       ! load important data
   Use readinput      ! read input
   Use readEAM        ! read eam file
+  Use makePotential
   Use readConfig     ! read user/dft configurations
   Use bpConfig
   Use neighbourList  ! build neighbour list
@@ -75,29 +79,32 @@ PROGRAM eampa
 ! -----------------------------------------------------------------------
   If(eampaRunType.eq."EVAL")Then
 ! Read the EAM functions/functionals into memory
-    Call readEAMFile()
+    Call readEAMFile()             ! readEAM.f90 
 ! Read config file, dft output files and save these as one config file
-    Call readConfigFile()
+    Call readConfigFile()          ! readConfig.f90 
+! Read bulk property configs
+    Call readBpConfigFile()        ! readConfig.f90
 ! Prepare a 256 FCC config and 128 BCC config for bulk property testing
-    Call prepareBPConfig()
+    Call prepareBPConfig()         ! bpConfig.f90
 ! Save input files
-    Call outputInputFiles()
+    Call outputInputFiles()        ! output.f90
 ! Make neighbour list
-    Call makeNeighbourList()
+    Call makeNeighbourList()       ! neighbourList.f90
 ! Make bulk property neighbour list    
-    Call makeNeighbourListBP()
+    Call makeNeighbourListBP()     ! neighbourListBP.f90
 ! Pre calculation
-    Call runPreCalc()
+    Call runPreCalc()              ! preCalc.f90
 ! Pre calc summary
-    Call outputPreCalcSummaryT()
+    Call outputPreCalcSummaryT()   ! output.f90
 ! Calculate stress/energy/force of configuration/s
     quietOverride = .false.
-    Call evalEAM()
+    Call evalEAM()                 ! eval.f90
 ! Bulk Properties 
-    Call evalBulkProperties()
-    quietOverride = .false.
+    Call evalBulkProperties(.false.,.true.)      ! evalBP.f90
+! Output summary on input EAM potential    
+    Call outputEAMSummaryT()
 ! Finalise
-    Call runFinaliseEval()
+    Call runFinaliseEval()         ! finalise.f90  prints out run time data
   End If
 ! -----------------------------------------------------------------------  
 ! --- Run Type: OPTI
@@ -105,11 +112,13 @@ PROGRAM eampa
   If(eampaRunType.eq."OPTI")Then
   print *,"opti"
 ! Read the EAM functions/functionals into memory
-    Call readEAMFile()
+    Call readEAMFile()            ! readEAM.f90
 ! Read config file, dft output files and save these as one config file
-    Call readConfigFile()
+    Call readConfigFile()         ! readConfig.f90
+! Read bulk property configs
+    Call readBpConfigFile()       ! readConfig.f90
 ! Prepare a 256 FCC config and 128 BCC config for bulk property testing
-    Call prepareBPConfig()
+    Call prepareBPConfig()        ! bpConfig.f90
 ! Save input files
     Call outputInputFiles()
 ! Make neighbour list
@@ -123,7 +132,7 @@ PROGRAM eampa
 ! Run optimise
     Call optiEAM()
 ! Finalise
-    Call runFinaliseEval()
+    Call runFinaliseEval()         ! finalise.f90  prints out run time data
   End If
 ! -----------------------------------------------------------------------  
 ! --- END

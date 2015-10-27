@@ -14,12 +14,13 @@ Module readEAM
 ! Setup Modules
   Use kinds
   Use types
+  Use plotTypes
+  Use plot
   Use msubs
   Use constants
   Use maths
   Use general
   Use units
-  Use plot
   Use initialise
   Use loadData
   Use globals
@@ -33,12 +34,14 @@ Module readEAM
   Public :: readEAMFile
   Public :: eamDerivatives
   Public :: setEamNodes
+  Public :: rescaleEmbedNodes
   Public :: countEamNodes
   Public :: setEamSpline
   Public :: eamZblHardCore
   Public :: eamPairZbl
   Public :: AddUniqueElement
   Public :: loadInputEAM
+  Public :: eamCharts
 ! Public functions
   Public :: QueryUniqueElement
 
@@ -927,6 +930,33 @@ Module readEAM
 ! Store total number of nodes
     splineTotalNodes = nodeKey
   End Subroutine setEamNodes
+  
+  
+  Subroutine rescaleEmbedNodes(newDensityLimit)
+! Set nodes
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i, j
+    Real(kind=DoubleReal) :: rescFactor, newDensityLimit
+    Do i=1,size(splineNodesKey,1)
+      print *,i,splineNodesKey(i,1),splineNodesKey(i,3)
+      If(splineNodesKey(i,1).gt.0)Then    
+        If(splineNodesKey(i,3).eq.3)Then
+          rescFactor = newDensityLimit/splineNodesKey(i,6)
+          print *,i,newDensityLimit,splineNodesKey(i,6),rescFactor
+          Do j=splineNodesKey(i,4), splineNodesKey(i,6)
+            splineNodesData(j,1) = rescFactor * splineNodesData(j,1) 
+          End Do
+        End If
+      Else
+        Exit
+      End If
+    End Do 
+    
+    
+  End Subroutine rescaleEmbedNodes
+
+  
 
   Subroutine countEamNodes(totalNodes)
 ! Set nodes
@@ -946,26 +976,37 @@ Module readEAM
     End Do 
   End Subroutine countEamNodes
 
-  Subroutine setEamSpline()
+  Subroutine setEamSpline(calcDerivIn)
 ! Spline between nodes and store functions in eamKey/eamData
 ! Force ZBL Core for pair potentials
 ! exp(a+bx) style spline from  zbl to first node
     Implicit None   ! Force declaration of all variables
+! In    
+    Logical, Optional :: calcDerivIn
+    Logical :: calcDeriv
 ! Private variables
     Integer(kind=StandardInteger) :: functionCounter, i, j
     Integer(kind=StandardInteger) :: nodes, nodeStart, nodeLength, nodeEnd, eamPoint
     Integer(kind=StandardInteger) :: pointsPerFunction
     Real(kind=DoubleReal), Dimension(1:1001,1:4) :: splineDataPoints
     Real(kind=DoubleReal) :: x, changeX
-    Integer(kind=StandardInteger) :: zA, zB, nodesZ, nodesA
-    Integer(kind=StandardInteger) :: pointsZBL, pointsSpline, pointsExpSpline, pointsPolySpline
+    Integer(kind=StandardInteger) :: zA, zB
+    Integer(kind=StandardInteger) :: pointsZBL, pointsSpline
     Real(kind=DoubleReal), Dimension(1:3) :: yArray
     Integer(kind=StandardInteger), Dimension(1:1000) :: splineType
+    Logical, Dimension(1:1000) :: forceCalcDerv, interpNode
+! Optional argument    
+    calcDeriv = .false.
+    If(Present(calcDerivIn))Then
+      calcDeriv = calcDerivIn
+    End If
 ! Init variables
     eamKey = 0                 ! clear eam key
     eamData = 0.0D0            ! clear eam data
     splineDataPoints = 0.0D0   ! init temp spline points array
     pointsPerFunction = 1001   ! number of data points per function
+    forceCalcDerv = .false.
+    interpNode = .true.
 ! Loop through EAM functions
     functionCounter = 0
     Do i=1,size(splineNodesKey,1)    
@@ -981,7 +1022,9 @@ Module readEAM
         eamKey(functionCounter,6) = eamKey(functionCounter,4)+eamKey(functionCounter,5)-1  ! function end key
 ! Nodes used in spline
         nodes = splineNodeCount(splineNodesKey(i,3))
+! ----------------------------------------------------------------------
 ! Pair Potentials
+! ----------------------------------------------------------------------
         If(splineNodesKey(i,3).eq.1)Then       
 ! ZBL
           zA = elementsCharge(splineNodesKey(i,1))
@@ -1004,11 +1047,20 @@ Module readEAM
             eamData(eamPoint,2) = yArray(1)
             eamData(eamPoint,3) = yArray(2)
             eamData(eamPoint,4) = yArray(3)
-          End Do         
+          End Do      
+! set spline types          
           splineType = 1    ! default to poly
           splineType(1) = 2 ! first segment exp(poly) [3rd order]
+! leave node 1, 2 and end untouched (exp poly spline between 1-2 and end needs to be 0,0,0)        
+          forceCalcDerv = .true.
+          forceCalcDerv(1) = .false.
+          forceCalcDerv(nodeEnd-nodeStart+1) = .false.
+! choose which nodes to
+          interpNode = .true.
+          interpNode(1) = .false.
 ! Spline section
-          splineDataPoints = SplineNodesV(splineNodesData,pointsSpline,nodeStart,nodeEnd,pointsPerFunction,splineType)
+          splineDataPoints = SplineNodes(splineNodesData,pointsSpline,nodeStart,nodeEnd,&
+          pointsPerFunction,splineType,forceCalcDerv,interpNode)
           Do j=1,pointsSpline          
             eamPoint = eamKey(functionCounter,4)+j+pointsZBL-1
             eamData(eamPoint,1) = splineDataPoints(j,1)
@@ -1016,7 +1068,9 @@ Module readEAM
             eamData(eamPoint,3) = splineDataPoints(j,3)
             eamData(eamPoint,4) = splineDataPoints(j,4)
           End Do
-! Dens + Embe          
+! ----------------------------------------------------------------------
+! Dens + Embe       
+! ----------------------------------------------------------------------   
         Else        
 ! Set node start/end points
           nodeStart = splineNodesKey(i,4)
@@ -1024,13 +1078,27 @@ Module readEAM
           nodeEnd = splineNodesKey(i,6)
 ! spline between nodes       
           splineType = 1    ! default to poly
+! Force density fit to analytic type          
+          If(eamKey(functionCounter,3).eq.2.or.&
+          eamKey(functionCounter,3).eq.4.or.eamKey(functionCounter,3).eq.5)Then
+            If(optDensityFit.eq.1)Then
+              splineType = 6
+            End If
+          End If 
+! Force embed fit to analytic type          
           If(eamKey(functionCounter,3).eq.3.or.&
-          eamKey(functionCounter,3).eq.6.or.eamKey(functionCounter,3).eq.6)Then
+          eamKey(functionCounter,3).eq.6.or.eamKey(functionCounter,3).eq.7)Then
             If(optEmbeddingFit.eq.1)Then
-              splineType = 4
+              splineType = 7
             End If
           End If  
-          splineDataPoints = SplineNodesV(splineNodesData,pointsPerFunction,nodeStart,nodeEnd,pointsPerFunction,splineType)
+! force calculation of derivative/second derivative by point interpolation (except start and end nodes)          
+          forceCalcDerv = .true.
+          forceCalcDerv(1) = .false.
+          forceCalcDerv(nodeEnd-nodeStart+1) = .false.
+! spline
+          splineDataPoints = SplineNodes(splineNodesData,pointsPerFunction,nodeStart,nodeEnd,&
+          pointsPerFunction,splineType,forceCalcDerv)
 ! copy data into eamData array
           Do j=1,pointsPerFunction
             eamPoint = eamKey(functionCounter,4)+j-1
@@ -1045,56 +1113,9 @@ Module readEAM
         Exit  ! Exit, all functions cycled through
       End If
     End Do    
-       
-    Do i=1,eamFunctionCount
-      Do j=eamKey(i,4),eamKey(i,6)
-        If(mpiProcessID.eq.0)Then
-          !print *,i,j,eamData(j,1),eamData(j,2),eamData(j,3),eamData(j,4)
-        End If
-      End Do
-    End Do
   End Subroutine setEamSpline
 
-  
-  
-  
-  
-  
-  
-  Subroutine setEamSplineOpt()
-! Force ZBL Core
-    Implicit None   ! Force declaration of all variables
-! Private variables
-    Integer(kind=StandardInteger) :: functionCounter, i, j
-    Integer(kind=StandardInteger) :: nodes, nodeKey, nodeStart, nodeLength, nodeEnd, eamPoint
-    Real(kind=DoubleReal), Dimension(1:1001,1:4) :: splineDataPointsOpt
-! Init variables
-    splineDataPointsOpt = 0.0D0
-! Loop through EAM functions
-    FunctionCounter = 0
-    nodeKey = 0
-    Do i=1,size(eamKeyOpt,1)
-      If(eamKeyOpt(i,1).gt.0)Then
-        FunctionCounter = functionCounter + 1
-        nodes = splineNodeCount(eamKeyOpt(i,3))
-! Set node start/end points
-        nodeStart = splineNodesKeyOpt(i,4)
-        nodeLength = splineNodesKeyOpt(i,5)
-        nodeEnd = splineNodesKeyOpt(i,6)
-        splineDataPointsOpt = SplineNodes(splineNodesDataOpt,1001,nodeStart,nodeEnd)
-        Do j=1,1001
-          eamPoint = eamKeyOpt(i,4)+j-1
-          eamDataOpt(eamPoint,1) = splineDataPointsOpt(j,1)
-          eamDataOpt(eamPoint,2) = splineDataPointsOpt(j,2)
-          eamDataOpt(eamPoint,3) = splineDataPointsOpt(j,3)
-          eamDataOpt(eamPoint,4) = splineDataPointsOpt(j,4)
-        End Do
-      End If
-      If(functionCounter.eq.eamFunctionCount )Then
-        Exit  ! Exit, all functions cycled through
-      End If
-    End Do
-  End Subroutine setEamSplineOpt
+
 
   Subroutine eamZblHardCore()
 ! Force ZBL Core
@@ -1287,13 +1308,23 @@ Module readEAM
     End If
   End Subroutine eamDataDump
   
-  Subroutine eamCharts()
+  Subroutine eamCharts(prefixIn)
 ! Saves the eam file to the output directory
     Implicit None   ! Force declaration of all variables
+! In    
+    Character(*), Optional :: prefixIn
 ! Private variables
     Integer(kind=StandardInteger) :: functionCounter, i
-    Character(len=24) :: fileName
-    Type(chart) :: eamChart
+    !Integer(kind=StandardInteger), Dimension(1:1) :: fittingArr
+    Character(len=30) :: fileName
+    Type(plotData) :: eamPlotData
+    Character(Len=16) :: label
+    Character(len=16) :: prefix
+! Optional arguments
+    prefix = "                "
+    If(Present(prefixIn))Then
+      prefix = prefixIn
+    End If    
 ! Create output file
     If(mpiProcessID.eq.0)Then
       open(unit=999,file=trim(trim(outputDirectory)//"/"//"eam.dat"))
@@ -1303,30 +1334,35 @@ Module readEAM
         If(eamKey(i,1).gt.0)Then
           functionCounter = functionCounter + 1
           write(fileName,"(I4)") functionCounter
-          fileName = "Input_EAM_"//adjustl(trim(fileName))
+          fileName = adjustl(trim(prefix))//"EAM_"//adjustl(trim(fileName))
           fileName = trim(fileName)//"_"//eamFunctionTypes(eamKey(i,3))
-! Set chart values
-          eamChart%title = "Plot for "//eamFunctionTypes(eamKey(i,3))
-          eamChart%xAxis = "Radius"
-          eamChart%yAxis = "Energy"     
-          eamChart%yMin = 1.1D99   ! No yMin    
-          eamChart%yMax = -1.1D99  ! No yMax  
-! Make chart          
-          Call makePlot(outputDirectory, trim(fileName), tempDirectory, &
-          eamData, 1, 2, eamKey(i,4), eamKey(i,6), eamChart)
+! Chart settings    
+          Call plotInit(eamPlotData)
+          eamPlotData%tempDirectory = trim(tempDirectory)
+          eamPlotData%outputDirectory = trim(outputDirectory)
+          eamPlotData%outputName = trim(fileName)
+          eamPlotData%title = "Plot for "//eamFunctionTypes(eamKey(i,3))
+          eamPlotData%xAxis = "Radius"
+          eamPlotData%yAxis = "Energy"  
+          eamPlotData%cleanPyFile = .true.
+          If(eamKey(i,3).eq.1)Then          
+            eamPlotData%yMin = -10.0D0 
+            eamPlotData%yMax = 100.0D0 
+          Else
+            eamPlotData%yMin = 1.1D99 
+            eamPlotData%yMax = -1.1D99
+          End If                    
+          Call plotAdd(eamPlotData, eamData, label, "", eamKey(i,4), eamKey(i,6), 1, 2)
+          Call plotMake(eamPlotData)  
           If(eamKey(i,3).eq.1)Then  ! Do a "close up" of the pair potential            
             write(fileName,"(I4)") functionCounter
             fileName = "Input_EAM_"//adjustl(trim(fileName))
             fileName = trim(fileName)//"_"//eamFunctionTypes(eamKey(i,3))//"_C"
 ! Set chart values
-            eamChart%title = "Plot for "//eamFunctionTypes(eamKey(i,3))
-            eamChart%xAxis = "Radius"
-            eamChart%yAxis = "Energy"   
-            eamChart%yMin = -1.0D0       
-            eamChart%yMax = 10.0D0        
-! Make chart            
-            Call makePlot(outputDirectory, trim(fileName), tempDirectory, &
-            eamData, 1, 2, eamKey(i,4), eamKey(i,6), eamChart)
+            eamPlotData%outputName = trim(fileName)
+            eamPlotData%yMin = -1.0D0 
+            eamPlotData%yMax = 10.0D0 
+            Call plotMake(eamPlotData)   
           End If
         End If
         If(functionCounter.eq.eamFunctionCount )Then

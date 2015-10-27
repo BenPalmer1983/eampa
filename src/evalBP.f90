@@ -15,6 +15,7 @@ Module evalBP
   Use maths
   Use general
   Use units
+  Use plotTypes
   Use plot
   Use globals
   Use initialise
@@ -29,14 +30,35 @@ Module evalBP
   Private
 ! Public Subroutines
   Public :: evalBulkProperties
-  Public :: bpAlat
+  Public :: evalBP_PrintRSS
   Contains
 ! ---------------------------------------------------------------------------------------------------  
-  Subroutine evalBulkProperties()
+  Subroutine evalBulkProperties(printRssIn,makeChartIn)
     Implicit None   ! Force declaration of all variables
     Integer(kind=StandardInteger) :: configID
+    Logical, optional :: printRssIn
+    Logical, optional :: makeChartIn
+    Logical :: printRss
+    Logical :: makeChart
+! Optional arguments
+    printRss = .false.
+    makeChart = .false.
+    If(Present(printRssIn))Then
+      printRss = printRssIn
+    End If
+    If(Present(makeChartIn))Then
+      makeChart = makeChartIn
+    End If
+    
+    Call bpStoreUndistortedNL()
+    
 ! Calculate alat (and fit EoS)
-    Call bpEoS() !evalBP.f90 
+    Call bpEoS(makeChart) !evalBP.f90 
+    
+    Call bpEC(makeChart)
+    
+    
+    
 ! Loop through configs and calculate RSS
     If(mpiProcessID.eq.0)Then
       Do configID=1,configCountBP
@@ -46,81 +68,61 @@ Module evalBP
     End If
 ! Distribute value
     Call M_distDouble(totalRSS)
-
-
+! Print   
+    If(printRss)Then
+      Call evalBP_PrintRSS()
+    End If  
   End Subroutine evalBulkProperties
 ! ---------------------------------------------------------------------------------------------------
-  Subroutine bpEoS()
+  Subroutine bpStoreUndistortedNL()
+! Store neighbour list for each bulk property config 
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: configID
+    Do configID=1,configCountBP    
+      Call bpStoreNL(configID)
+    End Do
+  End Subroutine bpStoreUndistortedNL
+! ---------------------------------------------------------------------------------------------------
+  Subroutine bpEoS(makeChart)
 ! Calculates the lattice parameter - also gives the optimum energy, bulk modulus and derivative 
 ! using Birch Murnaghan fit  
     Implicit None   ! Force declaration of all variables
 ! Private variables
-    Real(kind=DoubleReal) :: dLatInc
     Logical :: makeChart
+    Real(kind=DoubleReal) :: dLatInc
     Real(kind=DoubleReal) :: bpTimeStart, bpTimeEnd
 ! Start time    
     Call cpu_time(bpTimeStart)
 ! One attempt
-    aLatBP(1) = 4.04D0
-    makeChart = .false.
     dLatInc = 0.02D0
-    Call bpAlatProcess(dLatInc, makeChart)
+    Call bpEoSProcess(dLatInc, makeChart)
 ! End time    
     Call cpu_time(bpTimeEnd)
     evalTimeBP = evalTimeBP + bpTimeEnd - bpTimeStart
 ! Results stored in calcBulkProperties
   End Subroutine bpEoS
 ! ---------------------------------------------------------------------------------------------------
-  Subroutine bpAlat()
-! Calculates the lattice parameter - also gives the optimum energy, bulk modulus and derivative 
-! using Birch Murnaghan fit  
-    Implicit None   ! Force declaration of all variables
-! Private variables
-    Real(kind=DoubleReal) :: dLatInc
-    Logical :: makeChart
-    Real(kind=DoubleReal) :: bpTimeStart, bpTimeEnd
-! Start time    
-    Call cpu_time(bpTimeStart)
-! First attempt
-    makeChart = .true.
-    dLatInc = 0.05D0
-    Call bpAlatProcess(dLatInc, makeChart)
-! Refine, second attempt
-    makeChart = .true.
-    If(eosChart)Then
-      makeChart = .true.   ! Override if set in user input file
-    End If
-    dLatInc = 0.01D0
-    Call bpAlatProcess(dLatInc, makeChart)  
-! End time    
-    Call cpu_time(bpTimeEnd)
-    evalTimeBP = evalTimeBP + bpTimeEnd - bpTimeStart
-! Results stored in calcBulkProperties
-  End Subroutine bpAlat
-! ---------------------------------------------------------------------------------------------------
-  Subroutine bpAlatProcess(dLatInc, makeChart)
+  Subroutine bpEoSProcess(dLatInc, makeChart)
 ! Calculates the lattice parameter - also gives the optimum energy, bulk modulus and derivative 
 ! using Birch Murnaghan fit  
     Implicit None   ! Force declaration of all variables
 ! Private variables
     Integer(kind=StandardInteger) :: configID, i, j, k 
-    Real(kind=DoubleReal) :: dAlat, aLatCalc, dLatInc
+    Integer(kind=StandardInteger) :: unitCopies
+    Real(kind=DoubleReal) :: alat, dAlat, aLatCalc, dLatInc
     Real(kind=DoubleReal), Dimension(1:3,1:3) :: dMatrix
-    Real(kind=DoubleReal), Dimension(1:aLatSamples,1:2) :: energyVolume
+    Real(kind=DoubleReal), Dimension(1:aLatSamples,1:2) :: energyVolume, energyAlat
     Real(kind=DoubleReal), Dimension(1:4) :: coefficientsBM
-    Real(kind=DoubleReal), Dimension(1:100,1:2) :: chartPoints
-    Type(chart) :: alatChart
+    Real(kind=DoubleReal), Dimension(1:100,1:2) :: chartPoints    
+    Type(plotData) :: bpPlotData
     Logical :: makeChart
     Character(len=32) :: fileName
     Character(len=32) :: tempStr
-    Character(len=8) :: tempName
+    Character(len=8) :: tempName  
 ! Init variables
     dMatrix = 0.0D0
     energyVolume = 0.0D0       
-! Store neighbour list for each bulk property config 
-    Do configID=1,configCountBP    
-      Call bpStoreNL(configID)
-    End Do
     k = 0
     Do i=LowerInc(aLatSamples),UpperInc(aLatSamples)
       k = k + 1
@@ -128,8 +130,10 @@ Module evalBP
       dAlat = 1.0D0*i*dLatInc
 ! Volume per atom
       Do configID=1,configCountBP  
-        configVolBP(configID,k) = (aLatBP(configID) * bpCopies * (1.0D0+dAlat))**3/&
-        configurationCoordsKeyBP(configID,2)   
+        alat = bpInArr(configID)%alat
+        unitCopies = bpInArr(configID)%size
+        configVolBP(configID,k) = (alat * unitCopies * (1.0D0+dAlat))**3/&
+        configurationCoordsKeyBP(configID,2)  
       End Do        
 ! Load config nl points
       If(i.gt.LowerInc(aLatSamples))Then
@@ -148,7 +152,13 @@ Module evalBP
       End Do
 ! Calc energies of all configurations with distortion applied      
 ! Need to sort out MPI optimisation better here
-      Call calcEnergiesBP()
+      Call calcEnergiesBP()  ! bpCalcEAM.f90
+! Save undistorted energy for use later     
+      If(i.eq.0)Then
+        Do configID=1,configCountBP  
+          undistortedCellEnergies(configID) = configCalcEnergiesBP(configID)
+        End Do  
+      End If  
 ! Store Data - root process only
       If(mpiProcessID.eq.0)Then
         Do configID=1,configCountBP  
@@ -163,40 +173,285 @@ Module evalBP
         Do i=1,aLatSamples
           energyVolume(i,1) = configVolBP(configID,i)
           energyVolume(i,2) = alatEnergies(configID,i)
+          energyAlat(i,1) = (bpInArr(configID)%atomsPerUnit*configVolBP(configID,i))**(1.0D0/3.0D0)
+          energyAlat(i,2) = alatEnergies(configID,i)
         End Do  
-! Fit points to birch-murn   
-        coefficientsBM = BirchMurnFit_R(energyVolume)   ! maths.f90
+! Fit points to birch-murn           
+        coefficientsBM = BirchMurnFit(energyVolume, 1.0D0, 9.0D0)         
 ! Make chart if required
         If(makeChart)Then
-! Make points
-          chartPoints = BirchMurnPoints(coefficientsBM,&
-          energyVolume(1,1),energyVolume(aLatSamples,1),100)   ! maths.f90
-! Convert points to ang (alat not volume)        
-          Do i=1,100
-            chartPoints(i,1) = (bpUnitCellCount(configID)*chartPoints(i,1))**(1.0D0/3.0D0)  
-          End Do
-! Chart labels
-          alatChart%title = "Equation of State"    
-          alatChart%xAxis = "Unit Cell Alat/Ang"    
-          alatChart%yAxis = "Energy per Atom/eV"    
-          Call randFileName(tempName)
+! Chart settings   
+          Call plotInit(bpPlotData)
+          tempName = RandName()
           write(tempStr,"(I4)") configID          
           fileName = "EoS_"//trim(adjustl(tempStr))//"_"//tempName
-          Call makePlot(outputDirectory, trim(fileName), tempDirectory, &
-          chartPoints, 1, 2, 1, 100, alatChart, .false.)
+          bpPlotData%tempDirectory = trim(tempDirectory)
+          bpPlotData%outputDirectory = trim(outputDirectory)
+          bpPlotData%outputName = trim(fileName)
+          bpPlotData%title = "Equation of State"    
+          bpPlotData%xAxis = "Unit Cell Alat/Ang"    
+          bpPlotData%yAxis = "Energy per Atom/eV" 
+          bpPlotData%cleanPyFile = .true.
+          bpPlotData%dataFile = .true.
+! Add data
+          Call plotAdd(bpPlotData, energyAlat,"","BM1,BM2")
+          Call plotStyle(bpPlotData,"o","--")
+! Make
+          Call plotMake(bpPlotData)             
         End If  
-        aLatCalc = (bpUnitCellCount(configID)*coefficientsBM(2))**(1.0D0/3.0D0)     
+        aLatCalc = (bpInArr(configID)%atomsPerUnit*coefficientsBM(2))**(1.0D0/3.0D0)     
 ! ---- Store results
         calcBulkProperties(configID)%alat = aLatCalc
         calcBulkProperties(configID)%v0 = coefficientsBM(2)
         calcBulkProperties(configID)%e0 = coefficientsBM(1)
-        calcBulkProperties(configID)%b0 = UnitConvert(coefficientsBM(3),"EVAN3","GPA")
+        calcBulkProperties(configID)%b0 = coefficientsBM(3)
         calcBulkProperties(configID)%bp0 = coefficientsBM(4)
-! ---- Update lattice parameter
-        !aLatBP(configID) = aLatCalc     
+! ---- Output data
+        If(bpPrintData)Then   
+          Call outputBpData(configID,energyVolume)
+        End If  
       End Do
     End If    
-  End Subroutine bpAlatProcess
+  End Subroutine bpEoSProcess
+! ---------------------------------------------------------------------------------------------------
+  Subroutine bpEC(makeChart)
+! Elastic Constants 
+! Method of M Mehl 1990
+! calcBulkProperties(configID)%alat, calcBulkProperties(configID)%b0 
+! using Birch Murnaghan fit  
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Logical :: makeChart
+    Real(kind=DoubleReal) :: dLatInc
+    Real(kind=DoubleReal) :: bpTimeStart, bpTimeEnd
+    Real(kind=DoubleReal), Dimension(1:3,1:3) :: dMatrix
+    Integer(kind=StandardInteger) :: configID
+    Integer(kind=StandardInteger) :: i, j, k
+    Real(kind=DoubleReal) :: dStrain, strain
+    Real(kind=DoubleReal), Dimension(1:ecSamples,1:2) :: dataPoints
+    Real(kind=DoubleReal), Dimension(1:(2*ecSamples+1),1:2) :: dataPointsT
+    Real(kind=DoubleReal), Dimension(1:maxConfigsBP) :: tetragonal, orthorhombic, monoclinic
+    Real(kind=DoubleReal), Dimension(1:3) :: coefficients
+    Real(kind=DoubleReal) :: volume, orthVal, tetraVal, monoclinicVal, bulkVal, avgOrthTetra
+    Type(plotData) :: ecPlotData
+    Character(len=32) :: fileName
+    Character(len=32) :: tempStr
+! Start time    
+    Call cpu_time(bpTimeStart)
+! Elastic constants are calculated for Cubic Crystals only - C11 C12 C44
+!
+! Init energy-strain arrays
+    ecEnergiesBP = 0.0D0
+    ecStrainBP = 0.0D0
+    Do configID=1,configCountBP
+      ecEnergiesBP(configID,1) = undistortedCellEnergies(configID)
+    End Do    
+    dStrain = 0.01D0
+! ---------------------------------------------------
+! Tetragonal
+! ---------------------------------------------------
+! c11-c12 = c2/(3V)  
+    k = 0  
+    Do i=(-1*ecSamples),ecSamples
+      k = k + 1
+      If(i.eq.0)Then
+        Do configID=1,configCountBP  
+          ecEnergiesBP_T(configID,k) = undistortedCellEnergies(configID)
+          ecStrainBP_T(configID,k) = 0.0D0
+        End Do  
+      Else
+        strain = (i)*dStrain
+! Load       
+        Do configID=1,configCountBP  
+          Call bpLoadNL(configID)
+        End Do      
+! Prepare distortion matrix
+        dMatrix = 0.0D0
+        Do j=1,3
+          dMatrix(j,j) = 1.0D0
+        End Do
+        dMatrix(1,1) = dMatrix(1,1) + strain
+        dMatrix(2,2) = dMatrix(2,2) + strain
+        dMatrix(3,3) = dMatrix(3,3) + (1.0D0+strain)**(-2) - 1.0D0      
+! Apply distortion matrix to each config
+        Do configID=1,configCountBP  
+          Call applyDistortion(configID, dMatrix)
+        End Do
+! calculate energies      
+        Call calcEnergiesBP()  ! bpCalcEAM.f90      
+        Do configID=1,configCountBP  
+          ecEnergiesBP_T(configID,k) = configCalcEnergiesBP(configID)
+          ecStrainBP_T(configID,k) = strain
+        End Do      
+      End If
+    End Do  
+! Store data points and fit (make chart if requested)    
+    Do configID=1,configCountBP
+      Do i=1,(2*ecSamples+1)
+        dataPointsT(i,1) = ecStrainBP_T(configID,i)
+        dataPointsT(i,2) = ecEnergiesBP_T(configID,i)
+      End Do    
+      coefficients = PolyFit(dataPointsT,2)      
+      tetragonal(configID) = coefficients(3)
+! Make chart if required
+      If(makeChart)Then
+! Chart settings   
+        Call plotInit(ecPlotData)
+        write(tempStr,"(I4)") configID          
+        fileName = "EC_Tetragonal_"//trim(adjustl(tempStr))
+        ecPlotData%tempDirectory = trim(tempDirectory)
+        ecPlotData%outputDirectory = trim(outputDirectory)
+        ecPlotData%outputName = trim(fileName)
+        ecPlotData%title = "Equation of State"    
+        ecPlotData%xAxis = "Unit Cell Alat/Ang"    
+        ecPlotData%yAxis = "Energy per Atom/eV" 
+        ecPlotData%cleanPyFile = .true.
+        ecPlotData%dataFile = .true.
+! Add data
+        Call plotAdd(ecPlotData, dataPointsT,"","POLY2")
+        Call plotStyle(ecPlotData,"o","--")
+! Make
+        Call plotMake(ecPlotData)             
+      End If 
+    End Do
+! ---------------------------------------------------
+! Orthorhombic
+! ---------------------------------------------------
+! c11-c12 = c2/V    
+    Do i=2,ecSamples
+      strain = (i-1)*dStrain
+! Load       
+      Do configID=1,configCountBP  
+        Call bpLoadNL(configID)
+      End Do      
+! Prepare distortion matrix
+      dMatrix = 0.0D0
+      Do j=1,3
+        dMatrix(j,j) = 1.0D0
+      End Do
+      dMatrix(1,1) = dMatrix(1,1) + strain
+      dMatrix(2,2) = dMatrix(2,2) - strain
+      dMatrix(3,3) = dMatrix(3,3) + strain**2/(1-strain**2)
+! Apply distortion matrix to each config
+      Do configID=1,configCountBP  
+        Call applyDistortion(configID, dMatrix)
+      End Do
+! calculate energies      
+      Call calcEnergiesBP()  ! bpCalcEAM.f90      
+      Do configID=1,configCountBP  
+        ecEnergiesBP(configID,i) = configCalcEnergiesBP(configID)
+        ecStrainBP(configID,i) = strain
+      End Do      
+    End Do  
+! Store data points and fit (make chart if requested)    
+    Do configID=1,configCountBP
+      Do i=1,ecSamples
+        dataPoints(i,1) = ecStrainBP(configID,i)
+        dataPoints(i,2) = ecEnergiesBP(configID,i)
+      End Do    
+      coefficients = PolyFit(dataPoints,2)      
+      orthorhombic(configID) = coefficients(3)
+! Make chart if required
+      If(makeChart)Then
+! Chart settings   
+        Call plotInit(ecPlotData)
+        write(tempStr,"(I4)") configID          
+        fileName = "EC_Orthorhombic_"//trim(adjustl(tempStr))
+        ecPlotData%tempDirectory = trim(tempDirectory)
+        ecPlotData%outputDirectory = trim(outputDirectory)
+        ecPlotData%outputName = trim(fileName)
+        ecPlotData%title = "Equation of State"    
+        ecPlotData%xAxis = "Unit Cell Alat/Ang"    
+        ecPlotData%yAxis = "Energy per Atom/eV" 
+        ecPlotData%cleanPyFile = .true.
+        ecPlotData%dataFile = .true.
+! Add data
+        Call plotAdd(ecPlotData, dataPoints,"","POLY2")
+        Call plotStyle(ecPlotData,"o","--")
+! Make
+        Call plotMake(ecPlotData)             
+      End If 
+    End Do
+! ---------------------------------------------------
+! Monoclinic
+! ---------------------------------------------------
+! c44 = 2c2/V    
+    Do i=2,ecSamples
+      strain = (i-1)*dStrain
+! Load       
+      Do configID=1,configCountBP  
+        Call bpLoadNL(configID)
+      End Do      
+! Prepare distortion matrix
+      dMatrix = 0.0D0
+      Do j=1,3
+        dMatrix(j,j) = 1.0D0
+      End Do
+      dMatrix(2,1) = dMatrix(2,1) + 0.5D0*strain
+      dMatrix(1,2) = dMatrix(1,2) + 0.5D0*strain
+      dMatrix(3,3) = dMatrix(3,3) + strain**2/(4.0D0-strain**2)
+! Apply distortion matrix to each config
+      Do configID=1,configCountBP  
+        Call applyDistortion(configID, dMatrix)
+      End Do
+! calculate energies      
+      Call calcEnergiesBP()  ! bpCalcEAM.f90      
+      Do configID=1,configCountBP  
+        ecEnergiesBP(configID,i) = configCalcEnergiesBP(configID)
+        ecStrainBP(configID,i) = strain
+      End Do      
+    End Do  
+! Store data points and fit (make chart if requested)    
+    Do configID=1,configCountBP
+      Do i=1,ecSamples
+        dataPoints(i,1) = ecStrainBP(configID,i)
+        dataPoints(i,2) = ecEnergiesBP(configID,i)
+      End Do    
+      coefficients = PolyFit(dataPoints,2)      
+      monoclinic(configID) = coefficients(3)
+! Make chart if required
+      If(makeChart)Then
+! Chart settings   
+        Call plotInit(ecPlotData)
+        write(tempStr,"(I4)") configID          
+        fileName = "EC_Monoclinic_"//trim(adjustl(tempStr))
+        ecPlotData%tempDirectory = trim(tempDirectory)
+        ecPlotData%outputDirectory = trim(outputDirectory)
+        ecPlotData%outputName = trim(fileName)
+        ecPlotData%title = "Equation of State"    
+        ecPlotData%xAxis = "Unit Cell Alat/Ang"    
+        ecPlotData%yAxis = "Energy per Atom/eV" 
+        ecPlotData%cleanPyFile = .true.
+        ecPlotData%dataFile = .true.
+! Add data
+        Call plotAdd(ecPlotData, dataPoints,"","POLY2")
+        Call plotStyle(ecPlotData,"o","--")
+! Make
+        Call plotMake(ecPlotData)             
+      End If 
+    End Do    
+! Calculate elastic constants
+    Do configID=1,configCountBP
+      volume = calcBulkProperties(configID)%v0
+      bulkVal = calcBulkProperties(configID)%b0
+      tetraVal = tetragonal(configID)/(3.0D0*volume)
+      orthVal = orthorhombic(configID)/(1.0D0*volume)
+      avgOrthTetra = 0.5D0*(tetraVal+orthVal)
+      monoclinicVal = (2.0D0*monoclinic(configID))/(1.0D0*volume)
+      calcBulkProperties(configID)%c12 = (3.0D0*bulkVal-avgOrthTetra)/3.0D0
+      calcBulkProperties(configID)%c11 = avgOrthTetra+calcBulkProperties(configID)%c12
+      calcBulkProperties(configID)%c44 = monoclinicVal
+      calcBulkProperties(configID)%shearConstant = (calcBulkProperties(configID)%c11-&
+                                                   calcBulkProperties(configID)%c12)/2.0D0
+      
+    End Do  
+    
+! End time    
+    Call cpu_time(bpTimeEnd)
+    evalTimeBP = evalTimeBP + bpTimeEnd - bpTimeStart
+! Results stored in calcBulkProperties
+  End Subroutine bpEC  
+  
 ! ---------------------------------------------------------------------------------------------------
   Subroutine evalBP_RSS(configID)
 ! calculate rss from bulk property calculated values
@@ -204,7 +459,8 @@ Module evalBP
 ! Private variables
     Integer(kind=StandardInteger) :: configID
     Real(kind=DoubleReal) :: aLatRSS, v0RSS, e0RSS, b0RSS, bp0RSS
-    Real(kind=DoubleReal) :: c11RSS, c12RSS, c44RSS
+    Real(kind=DoubleReal) :: c11RSS, c12RSS, c44RSS, eosRSS 
+    Type(eos) :: refEoS, calcEoS
 ! Init
     aLatRSS = 0.0D0
     v0RSS = 0.0D0
@@ -215,29 +471,26 @@ Module evalBP
     c12RSS = 0.0D0
     c44RSS = 0.0D0
 ! calculate each rss
-    aLatRSS = rssWeighting(4)*RSSCalc(refBulkProperties(configID)%alat,calcBulkProperties(configID)%alat)
-    v0RSS = rssWeighting(4)*RSSCalc(refBulkProperties(configID)%v0,calcBulkProperties(configID)%v0)
-    e0RSS = rssWeighting(5)*RSSCalc(refBulkProperties(configID)%e0,calcBulkProperties(configID)%e0)
-    b0RSS = rssWeighting(6)*RSSCalc(refBulkProperties(configID)%b0,calcBulkProperties(configID)%b0)
-    bp0RSS = 1.0D0*RSSCalc(refBulkProperties(configID)%bp0,calcBulkProperties(configID)%bp0)
-    c11RSS = rssWeighting(7)*RSSCalc(refBulkProperties(configID)%c11,calcBulkProperties(configID)%c11)
-    c12RSS = rssWeighting(7)*RSSCalc(refBulkProperties(configID)%c12,calcBulkProperties(configID)%c12)
-    c44RSS = rssWeighting(7)*RSSCalc(refBulkProperties(configID)%c44,calcBulkProperties(configID)%c44)
-! Convert RSS of GPA values to eVang3
-    b0RSS = UnitConvert(b0RSS, "GPA", "EVAN3")
-    bp0RSS = UnitConvert(bp0RSS, "GPA", "EVAN3")
-    c11RSS = UnitConvert(c11RSS, "GPA", "EVAN3")
-    c12RSS = UnitConvert(c12RSS, "GPA", "EVAN3")
-    c44RSS = UnitConvert(c44RSS, "GPA", "EVAN3")
-! Store
-    rssBPArr(configID)%alat = aLatRSS
-    rssBPArr(configID)%v0 = v0RSS
-    rssBPArr(configID)%e0 = e0RSS
-    rssBPArr(configID)%b0 = b0RSS   
-    rssBPArr(configID)%bp0 = bp0RSS
-    rssBPArr(configID)%c11 = c11RSS
-    rssBPArr(configID)%c12 = c12RSS
-    rssBPArr(configID)%c44 = c44RSS
+    rssBPArr(configID)%alat = RSSCalc(bpInArr(configID)%alat,calcBulkProperties(configID)%alat,rssWeighting(4))
+    rssBPArr(configID)%v0 = RSSCalc(bpInArr(configID)%v0,calcBulkProperties(configID)%v0,rssWeighting(4))
+    rssBPArr(configID)%e0 = RSSCalc(bpInArr(configID)%e0,calcBulkProperties(configID)%e0,rssWeighting(5))
+    rssBPArr(configID)%b0 = RSSCalc(bpInArr(configID)%b0,calcBulkProperties(configID)%b0,rssWeighting(6))
+    rssBPArr(configID)%bp0 = RSSCalc(bpInArr(configID)%bp0,calcBulkProperties(configID)%bp0,1.0D0)
+    rssBPArr(configID)%c11 = RSSCalc(bpInArr(configID)%c11,calcBulkProperties(configID)%c11,rssWeighting(7))
+    rssBPArr(configID)%c12 = RSSCalc(bpInArr(configID)%c12,calcBulkProperties(configID)%c12,rssWeighting(7))
+    rssBPArr(configID)%c44 = RSSCalc(bpInArr(configID)%c44,calcBulkProperties(configID)%c44,rssWeighting(7))
+    !rssBPArr(configID)%alat = rssWeighting(4)*RSSCalc(bpInArr(configID)%alat,calcBulkProperties(configID)%alat)
+    !rssBPArr(configID)%v0 = rssWeighting(4)*RSSCalc(bpInArr(configID)%v0,calcBulkProperties(configID)%v0)
+    !rssBPArr(configID)%e0 = rssWeighting(5)*RSSCalc(bpInArr(configID)%e0,calcBulkProperties(configID)%e0)
+    !rssBPArr(configID)%b0 = rssWeighting(6)*RSSCalc(bpInArr(configID)%b0,calcBulkProperties(configID)%b0)
+    !rssBPArr(configID)%bp0 = 1.0D0*RSSCalc(bpInArr(configID)%bp0,calcBulkProperties(configID)%bp0)
+    !rssBPArr(configID)%c11 = rssWeighting(7)*RSSCalc(bpInArr(configID)%c11,calcBulkProperties(configID)%c11)
+    !rssBPArr(configID)%c12 = rssWeighting(7)*RSSCalc(bpInArr(configID)%c12,calcBulkProperties(configID)%c12)
+    !rssBPArr(configID)%c44 = rssWeighting(7)*RSSCalc(bpInArr(configID)%c44,calcBulkProperties(configID)%c44)
+    
+    
+! Zero B'0 - input is just a guess at the moment
+    rssBPArr(configID)%bp0 = 0.0D0
 ! Check NaN
     If(ISNAN(calcBulkProperties(configID)%alat))Then
       rssBPArr(configID)%alat = 1.0D20
@@ -251,12 +504,81 @@ Module evalBP
     If(ISNAN(calcBulkProperties(configID)%b0))Then
       rssBPArr(configID)%b0 = 1.0D20
     End If
-    
+! EoS RSS    
+! Set up data types to compare                 
+    refEoS%e0 = bpInArr(configID)%e0
+    refEoS%v0 = bpInArr(configID)%v0   
+    refEoS%b0 = bpInArr(configID)%b0
+    refEoS%bp0 = bpInArr(configID)%bp0
+    calcEoS%e0 = calcBulkProperties(configID)%e0
+    calcEoS%v0 = calcBulkProperties(configID)%v0
+    calcEoS%b0 = calcBulkProperties(configID)%b0
+    calcEoS%bp0 = calcBulkProperties(configID)%bp0
+! calculate and store EoS RSS
+    Call evalBP_EosRSS(refEoS, calcEoS, eosRSS)  
+    rssBPArr(configID)%eos = eosRSS     
 ! Sum
-    rssBPArr(configID)%total = aLatRSS+e0RSS+b0RSS+c11RSS+c12RSS+c44RSS  
-    
+    rssBPArr(configID)%total = rssBPArr(configID)%alat+rssBPArr(configID)%v0+&
+    rssBPArr(configID)%e0+rssBPArr(configID)%b0+rssBPArr(configID)%bp0+&
+    rssBPArr(configID)%c11+rssBPArr(configID)%c12+rssBPArr(configID)%c44+&
+    rssBPArr(configID)%eos    
   End Subroutine evalBP_RSS
   
+  Subroutine evalBP_EosRSS(refEoS, calcEoS, rss)
+! calculate rss between reference EoS and calculated
+    Implicit None   ! Force declaration of all variables
+! Arg
+    Type(eos) :: refEoS, calcEoS
+    Real(kind=DoubleReal) :: rss, vol, increment, eCalc, eRef
+    Real(kind=DoubleReal), Dimension(1:4) :: calcEoS_Arr, refEoS_Arr
+! Private variables
+    Integer(kind=StandardInteger) :: i
+! Init vars    
+    vol = 0.80D0*refEoS%v0
+    increment = (0.40D0*refEoS%v0)/99.0D0
+    calcEoS_Arr(1) = calcEoS%e0
+    calcEoS_Arr(2) = calcEoS%v0
+    calcEoS_Arr(3) = calcEoS%b0
+    calcEoS_Arr(4) = calcEoS%bp0
+    refEoS_Arr(1) = refEoS%e0
+    refEoS_Arr(2) = refEoS%v0
+    refEoS_Arr(3) = refEoS%b0
+    refEoS_Arr(4) = refEoS%bp0
+    rss = 0.0D0
+! Loop through comparison points
+    Do i=1,100    
+! increment for next loop
+      vol = vol + increment
+      eCalc = BirchMurnCalc(vol,calcEoS_Arr)
+      eRef = BirchMurnCalc(vol,refEoS_Arr)
+      rss = rss + (eCalc-eRef)**2
+    End Do  
+  End Subroutine evalBP_EosRSS
+  
+  
+  Subroutine evalBP_PrintRSS()
+! calculate rss between reference EoS and calculated
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: configID
+! Print
+    If(mpiProcessID.eq.0)Then
+      print *,"eval rss"
+      Do configID=1,configCountBP  
+        print *,"RSS Values: BP Config ",configID
+        print *,"alat   ",rssBPArr(configID)%aLat
+        print *,"v0     ",rssBPArr(configID)%v0
+        print *,"e0     ",rssBPArr(configID)%e0
+        print *,"b0     ",rssBPArr(configID)%b0
+        print *,"bp0    ",rssBPArr(configID)%bp0
+        print *,"eos    ",rssBPArr(configID)%eos
+        print *,"c11    ",rssBPArr(configID)%c11
+        print *,"c12    ",rssBPArr(configID)%c12
+        print *,"c44    ",rssBPArr(configID)%c44
+        print *,"Total  ",rssBPArr(configID)%total
+      End Do
+    End If    
+  End Subroutine evalBP_PrintRSS
 
 ! ------------------------------------------------------------------------!
 !                                                                         !
@@ -288,15 +610,6 @@ Module evalBP
     End If    
   End Function UpperInc
 ! ---------------------------------------------------------------------------------------------------
-  Function RSSCalc(inputA, inputB) RESULT (output)
-! Get value of function at x
-    Implicit None ! Force declaration of all variables
-! Declare variables
-    Real(kind=DoubleReal) :: inputA, inputB, output
-    output = 0.0D0
-    If(inputA.gt.-2.0D20.and.inputB.gt.-2.0D20)Then
-      output = (inputA-inputB)**2
-    End If    
-  End Function RSSCalc
+
 ! ---------------------------------------------------------------------------------------------------
 End Module evalBP

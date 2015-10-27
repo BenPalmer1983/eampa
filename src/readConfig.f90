@@ -28,13 +28,14 @@ Module readConfig
   Private
 ! Public Subroutines
   Public :: readConfigFile
+  Public :: readBpConfigFile
 
   Contains
   Subroutine readConfigFile()
     Implicit None   ! Force declaration of all variables
 ! Print out
     If(TerminalPrint())Then
-      print *,"READ CONFIG:"
+      print *,"READ CONFIG: ",trim(configFilePath)
     End If
 ! Private variables
     Call cpu_time(timeStart)
@@ -171,7 +172,7 @@ Module readConfig
       If(readFlag.eq.0)Then
         If(fileRow(1:7).eq."#NEWDFT")Then
           readFlag = 1
-          configLabelReplace = BlankString2DArray(configLabelReplace)
+          configLabelReplace = BlankStringArray(configLabelReplace)
         End If
       Else
         If(fileRow(1:3).eq."#RC")Then
@@ -890,6 +891,123 @@ Module readConfig
       End Do
     End If
   End Subroutine AddUniqueElement
+  
+  
+  
+  
+  
+  
+  Subroutine readBpConfigFile()
+    Implicit None   ! Force declaration of all variables
+! Private
+    Integer(kind=StandardInteger) :: i, fileRows, rowID, configID
+    Integer(kind=StandardInteger) :: intTemp
+    Real(kind=DoubleReal) :: dpTemp
+    Character(Len=255) :: fileRowUC
+    Character(len=32) :: bufferA, bufferB, bufferC
+    Logical :: readData    
+! Print out
+    If(TerminalPrint())Then
+      print *,"READ BP CONFIG: ",trim(bpConfigFilePath)
+    End If
+! Private variables
+    Call cpu_time(timeStart)
+! Load config file into memory
+    Call readFile(trim(bpConfigFilePath), bpConfigInputData, fileRows)
+! Print to terminal    
+    If(TerminalPrint())Then
+      print *,"Rows: ",fileRows
+    End If  
+! Read in data
+    configID = 0
+    rowID = 0
+    readData = .false.
+    Do i=1,fileRows
+      fileRowUC = strtoupper(trim(bpConfigInputData(i)))
+      If(fileRowUC(1:4).eq."#NEW")Then
+        readData = .true.
+        configID = configID + 1
+      End If
+      If(fileRowUC(1:4).eq."#END")Then
+        readData = .false.
+! ----- Fill in gaps
+! Calculate bulk properties V0
+        If(bpInArr(configID)%structure.eq."FCC")Then
+          bpInArr(configID)%v0 = ((bpInArr(configID)%aLat)**3)/4.0D0
+        End If  
+        If(bpInArr(configID)%structure.eq."BCC")Then
+          bpInArr(configID)%v0 = ((bpInArr(configID)%aLat)**3)/2.0D0
+        End If  
+        !If(bpInArr(configID)%structure.eq."HCP")Then
+          !bpInArr(configID)%v0 = ((bpInArr(configID)%aLat)**3)/2.0D0
+        !End If  
+      End If
+      If(readData)Then
+        If(fileRowUC(1:5).eq."#STRU")Then        
+          Read(fileRowUC,*) bufferA, bufferB
+          bpInArr(configID)%structure = bufferB(1:3)          
+        End If
+        If(fileRowUC(1:5).eq."#SIZE")Then        
+          Read(fileRowUC,*) bufferA, bufferB
+          Read(bufferB,*) intTemp
+          bpInArr(configID)%size = intTemp          
+        End If
+        If(fileRowUC(1:4).eq."#ELE")Then        
+          Read(fileRowUC,*) bufferA, bufferB
+          bpInArr(configID)%element = bufferB(1:2)          
+        End If
+        If(fileRowUC(1:5).eq."#ALAT")Then        
+          Read(fileRowUC,*) bufferA, bufferB, bufferC
+          Read(bufferB,*) dpTemp
+          bpInArr(configID)%alat = UnitConvert(dpTemp, bufferC, "ANGS")
+        End If
+        If(fileRowUC(1:3).eq."#E0")Then        
+          Read(fileRowUC,*) bufferA, bufferB, bufferC
+          Read(bufferB,*) dpTemp
+          bpInArr(configID)%e0 = UnitConvert(dpTemp, bufferC, "EV")          
+        End If
+        If(fileRowUC(1:3).eq."#B0")Then        
+          Read(fileRowUC,*) bufferA, bufferB, bufferC
+          Read(bufferB,*) dpTemp
+          bpInArr(configID)%b0 = UnitConvert(dpTemp, bufferC, "EVAN3")          
+        End If
+        If(fileRowUC(1:4).eq."#BP0")Then        
+          Read(fileRowUC,*) bufferA, bufferB
+          Read(bufferB,*) dpTemp
+          bpInArr(configID)%bp0 = dpTemp          
+        End If
+        If(fileRowUC(1:4).eq."#C11")Then        
+          Read(fileRowUC,*) bufferA, bufferB, bufferC
+          Read(bufferB,*) dpTemp
+          bpInArr(configID)%c11 = UnitConvert(dpTemp, bufferC, "EVAN3")         
+        End If
+        If(fileRowUC(1:4).eq."#C12")Then        
+          Read(fileRowUC,*) bufferA, bufferB, bufferC
+          Read(bufferB,*) dpTemp
+          bpInArr(configID)%c12 = UnitConvert(dpTemp, bufferC, "EVAN3")         
+        End If
+        If(fileRowUC(1:4).eq."#C44")Then        
+          Read(fileRowUC,*) bufferA, bufferB, bufferC
+          Read(bufferB,*) dpTemp
+          bpInArr(configID)%c44 = UnitConvert(dpTemp, bufferC, "EVAN3")         
+        End If
+      End If
+    End Do
+
+    
+
+! Synch MPI processes
+    Call M_synchProcesses()
+    Call cpu_time(timeEnd)
+    
+    
+! Output
+    If(TerminalPrint())Then
+      print *,"Atom bp configurations loaded: ",(timeEnd-timeStart),"s"
+    End If
+  End Subroutine readBpConfigFile
+  
+  
 
 ! ------------------------------------------------------------------------!
 !                                                                        !

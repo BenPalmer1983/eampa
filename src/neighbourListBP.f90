@@ -39,8 +39,8 @@ Module neighbourListBP
     Integer(kind=StandardInteger) :: configID, coordStart, coordLength, coordEnd
     Integer(kind=StandardInteger) :: atomA, atomB, nlKey, asKey
     Integer(kind=StandardInteger) :: configStart, configEnd, configLength
-    Integer(kind=StandardInteger) :: xCopy, yCopy, zCopy
     Integer(kind=StandardInteger) :: i, l, m, n
+    Integer(kind=StandardInteger) :: unitCopies
     Real(kind=DoubleReal) :: rCutoffSq
     Real(kind=DoubleReal) :: aLat, xShift, yShift, zShift
     Real(kind=DoubleReal) :: xA, xB, yA, yB, zA, zB, xdSq, ydSq, zdSq, rdSq
@@ -58,12 +58,15 @@ Module neighbourListBP
     End Do
 ! print *,"NL",configStart
 ! Loop through configurations
-    Do configID=1,configCount
+    Do configID=1,configCountBP
 ! Init config specific variables
       rMin = 2.0D21
       rMax = -2.0D21
 ! Check config is there
       If(configurationCoordsKeyBP(configID,1).gt.0)Then
+! Config data      
+        aLat = bpInArr(configID)%alat
+        unitCopies = bpInArr(configID)%size
 ! Init looping variables
         atomA = 0
         atomB = 0
@@ -72,23 +75,17 @@ Module neighbourListBP
         coordStart = configurationCoordsKeyBP(configID,1)
         coordLength = configurationCoordsKeyBP(configID,2)
         coordEnd = configurationCoordsKeyBP(configID,3)
-! If(nlCutoff.lt.0.0D0)Then
+! separation cutoff
         rCutoffSq = bpCutoffNL**2
-! Else
-!  rCutoffSq = nlCutoff**2
-! End If
-        xCopy = bpCopies   
-        yCopy = bpCopies
-        zCopy = bpCopies
-        aLat = aLatBP(configID)
+        !print *,aLat,coordStart,coordLength,coordEnd,unitCopies
 ! loop through Atom B 3x3x3
         Do l=-1,1
           Do m=-1,1
             Do n=-1,1
 ! Set co-ordinate shift
-              xShift = aLat * xCopy * l
-              yShift = aLat * yCopy * m
-              zShift = aLat * zCopy * n
+              xShift = aLat * unitCopies * l
+              yShift = aLat * unitCopies * m
+              zShift = aLat * unitCopies * n
 ! Reset unique key list
               nlUniqueKeysBP = 0
 ! Loop through atom pairs
@@ -196,9 +193,11 @@ Module neighbourListBP
       Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"nlFileBP.dat",&
       status="old",position="append",action="write")
       Do configID=1,configCountBP
+      
         write(1,"(A15,I8)") "Configuration: ",configID
         configStart = neighbourListKeyBP(configID,1)
         configEnd = neighbourListKeyBP(configID,3)
+        
         Do i=configStart,configEnd
           write(1,"(I8,I8,I8,F14.7)") i,neighbourListIBP(i,3),neighbourListIBP(i,4),&
           neighbourListRBP(i)

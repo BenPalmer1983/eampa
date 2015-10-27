@@ -8,8 +8,7 @@ Module eamGen
 ! Updated: 12th Aug 2014
 ! ----------------------------------------
 ! Setup Modules
-  Use kinds
-  Use maths
+  Use libBP
 ! Force declaration of all variables
   Implicit None
 ! Public subroutines

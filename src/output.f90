@@ -34,6 +34,7 @@ Module output
   Public :: outputNLFile
   Public :: outputSplineNodes
   Public :: outputInputFiles
+  Public :: outputBpData
 ! Public Subroutines - Output to output file
   Public :: outputNLSummary
   Public :: outputEvaluate
@@ -62,6 +63,8 @@ Module output
   Public :: outputPreCalcSummaryT
   Public :: outputEnergyT
   Public :: outputBpT
+  Public :: outputEAMSummaryT
+  Public :: outputRssT
   
   
   
@@ -389,6 +392,47 @@ Module output
     End If
   End Subroutine outputData
 
+  Subroutine outputBpData(configID,datapoints)
+! Saves the eam file to the output directory
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i, configID
+    Real(kind=DoubleReal), Dimension(:,:) :: datapoints
+! Print out
+    If(mpiProcessID.eq.0)Then
+      open(unit=999,file=trim(trim(outputDirectory)//"/"//"bpData.dat"),&
+      status="old",position="append",action="write")
+      write(999,"(A32)") "--------------------------------"
+      write(999,"(A12,I8)") "Config ID:  ",configID
+      write(999,"(A32)") "--------------------------------"
+      Do i=1,size(datapoints,1)
+        write(999,"(I8,F16.8,F16.8)") &
+        i,datapoints(i,1),datapoints(i,2)
+      End Do
+      write(999,"(A1)") " "
+      
+      write(999,"(A42)") "     Reference       Calculated        RSS"
+      write(999,"(A5,F16.8,A1,F16.8,A1,F16.8)") "aLat ",&
+      bpInArr(configID)%alat," ",calcBulkProperties(configID)%alat,&
+      " ",(bpInArr(configID)%alat-calcBulkProperties(configID)%alat)**2      
+      write(999,"(A5,F16.8,A1,F16.8,A1,F16.8)") "v0   ",&
+      bpInArr(configID)%v0," ",calcBulkProperties(configID)%v0,&
+      " ",(bpInArr(configID)%v0-calcBulkProperties(configID)%v0)**2      
+      write(999,"(A5,F16.8,A1,F16.8,A1,F16.8)") "e0   ",&
+      bpInArr(configID)%e0," ",calcBulkProperties(configID)%e0,&
+      " ",(bpInArr(configID)%e0-calcBulkProperties(configID)%e0)**2      
+      write(999,"(A5,F16.8,A1,F16.8,A1,F16.8)") "b0   ",&
+      bpInArr(configID)%b0," ",calcBulkProperties(configID)%b0,&
+      " ",(bpInArr(configID)%b0-calcBulkProperties(configID)%b0)**2      
+      write(999,"(A5,F16.8,A1,F16.8,A1,F16.8)") "bp0   ",&
+      bpInArr(configID)%bp0," ",calcBulkProperties(configID)%bp0,&
+      " ",(bpInArr(configID)%bp0-calcBulkProperties(configID)%bp0)**2      
+      Close(999)
+    End If
+    
+    
+  End Subroutine outputBpData
+
 ! ---------------------------------------------------------------------------------------------------
 ! Save to output file
 ! ---------------------------------------------------------------------------------------------------
@@ -503,10 +547,16 @@ Module output
       write(999,"(A64)") "----------------------------------------------------------------"
       write(999,"(A64)") "                         Process Map                            "
       write(999,"(A64)") "----------------------------------------------------------------"
-      write(999,"(A64)") "MapID  Ener                                                     "
+      write(999,"(A64)") "MapID  Process                                                  "
       Do i=1,maxConfigs
         If(neighbourListKey(i,1).gt.0)Then
           write(999,"(I6,I6,I6)") i,processMap(i)
+        End If
+      End Do
+      write(999,"(A64)") "MapID  Process  (BP)                                            "
+      Do i=1,maxConfigsBP
+        If(neighbourListKeyBP(i,1).gt.0)Then
+          write(999,"(I6,I6,I6)") i,processMapBP(i)
         End If
       End Do
       Close(999)
@@ -817,7 +867,7 @@ Module output
       print *,""
       print *,"                         Process Map                            "
       print *,"----------------------------------------------------------------"
-      print *,"Config  Ener                                                     "
+      print *,"Config  Process                                                 "
       Do i=1,maxConfigs
         If(processMap(i).ge.0)Then
           print "(I6,A2,I6)",i,"  ",processMap(i)
@@ -825,6 +875,14 @@ Module output
           exit
         End If
       End Do
+      print *,"Config  Process  (BP)                                           "
+      Do i=1,maxConfigsBP
+        If(processMapBP(i).ge.0)Then
+          print "(I6,A2,I6)",i,"  ",processMapBP(i)
+        Else
+          exit
+        End If
+      End Do      
       print *,""
     End If
   End Subroutine outputProcessMapT
@@ -880,7 +938,8 @@ Module output
     Integer(kind=StandardInteger) :: configID
 ! Only on root process
     If(TerminalPrint())Then
-      Print *,"Energies:"
+      Print *,""
+      Print *,"Configurations:"
       Do configID=1,configCount
         print "(I4,A3,I8,A1,F14.7,A1,F14.7,A2,F14.7,A1,A2,F14.7,A1)",&
         configID,"   ",configurationCoordsKeyG(configID,2)," ",&
@@ -890,20 +949,190 @@ Module output
         " (",configRefEnergies(configID),")",&
         " [",rssConfigsArr(configID)%energy,"]"
       End Do
-      print *,"Bulk Protperties: FCC"
-      print *,"aLat: ",calcBulkProperties(1)%aLat,&
-      " (ref: ",refBulkProperties(1)%aLat,")"," [",rssBPArr(1)%aLat,"]"
-      print *,"e0: ",calcBulkProperties(1)%e0,&
-      " (ref: ",refBulkProperties(1)%e0,")"," [",rssBPArr(1)%e0,"]"
-      print *,"b0: ",calcBulkProperties(1)%b0,&
-      " (ref: ",refBulkProperties(1)%b0,")"," [",rssBPArr(1)%b0,"]"
-      print *,"Total RSS: ",totalRSS
-      print *,""
+      print *,"Bulk Protperties:"
+      Do configID=1,configCountBP
+        print *,"Config ",configID      
+        print *,"aLat: ",calcBulkProperties(configID)%aLat,&
+        " (ref: ",bpInArr(configID)%alat,")"," [",rssBPArr(configID)%aLat,"]"
+        print *,"v0: ",calcBulkProperties(configID)%v0,&
+        " (ref: ",bpInArr(configID)%v0,")"," [",rssBPArr(configID)%v0,"]"
+        print *,"e0: ",calcBulkProperties(configID)%e0,&
+        " (ref: ",bpInArr(configID)%e0,")"," [",rssBPArr(configID)%e0,"]"
+        print *,"b0: ",calcBulkProperties(configID)%b0,&
+        " (ref: ",bpInArr(configID)%b0,")"," [",rssBPArr(configID)%b0,"]"        
+      End Do
     End If
   End Subroutine outputBpT 
   
   
+  Subroutine outputRssT()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i
+    Real(kind=DoubleReal) :: configRSS, bpConfigRSS    
+! Init values
+    configRSS = 0.0D0  
+    bpConfigRSS = 0.0D0     
+! Config RSS
+    print *,"Config RSS"
+    print *,"Config       Energy ref    Energy calc   Energy rss    ",&
+    "Forces rss     Stress rss     "
+    Do i=1,configCount
+      print "(A1,I3,A6,F14.7,F14.7,F14.7,F14.7,F14.7)",&
+      " ",i,"     ",&
+      configRefEnergies(i),configCalcEnergies(i),&
+      rssConfigsArr(i)%energy,rssConfigsArr(i)%force,&
+      rssConfigsArr(i)%stress
+! sum RSS
+      configRSS = configRSS + rssConfigsArr(i)%energy + &
+      rssConfigsArr(i)%force + rssConfigsArr(i)%stress      
+    End Do
+    print *,"Config rss: ",configRSS
+   
+    print *,"BP RSS"    
+    print *,"    Alat           V0             E0             B0             EoS   "
+    Do i=1,configCountBP
+      print "(F14.7,A1,F14.7,A1,F14.7,A1,F14.7,A1,F14.7)",&
+      rssBPArr(i)%alat," ",rssBPArr(i)%v0," ",rssBPArr(i)%e0," ",&
+      rssBPArr(i)%b0," ",rssBPArr(i)%eos
+      bpConfigRSS = bpConfigRSS + rssBPArr(i)%v0 + rssBPArr(i)%alat + rssBPArr(i)%e0 +&
+      rssBPArr(i)%b0 + rssBPArr(i)%eos
+    End Do
+    print *,"BP Config rss: ",bpConfigRSS
+    print *,"Total rss: ",(configRSS+bpConfigRSS)," (",totalRSS,")"
   
+  End Subroutine outputRssT 
+  
+  
+  Subroutine outputEAMSummaryT()
+! Output summary of the current EAM after calculations have been run
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i, configID, functionCounter
+    Type(tableObj) :: table
+    Character(Len=16), Dimension(1:1) :: rowA_Str
+    Real(kind=DoubleReal), Dimension(1:1) :: rowA
+    Real(kind=DoubleReal), Dimension(1:3) :: row
+    Real(kind=DoubleReal) :: rssVal
+    Character(Len=512) :: rowHeadings
+    Character(Len=4) :: configStr
+! Only on root process
+    If(TerminalPrint())Then
+      Print *,"---------------------------------------------------------------------------------------"
+      Print *,"                         Summary of current EAM Potential                              "
+      Print *,"---------------------------------------------------------------------------------------"
+      Print *,""
+      Print *,"EAM Potential details:"
+      Print *,"Type: ",eamType
+      Do i=1,size(eamKey,1)
+        If(eamKey(i,1).gt.0)Then
+          functionCounter = functionCounter + 1
+          If(eamKey(i,2).gt.0)Then
+            Print *,i,eamFunctionTypes(eamKey(i,3))," ",&
+            elements(eamKey(i,1))," ",elements(eamKey(i,2)),eamKey(i,4)," to ",eamKey(i,6)
+          Else
+            Print *,i,eamFunctionTypes(eamKey(i,3))," ",&
+            elements(eamKey(i,1)),eamKey(i,4)," to ",eamKey(i,6)
+          End If
+        End If
+        If(functionCounter.eq.eamFunctionCount)Then
+          Exit
+        End If
+      End Do       
+      
+      Print *,""
+      Print *,"---------------------------------------------------------------------------------------"
+      print *,"                                Bulk Protperties                                    "
+      Do configID=1,configCountBP
+        Call printTableInit(table)
+        table%colWidth = 20        
+        table%padR = 1
+        table%padL = 1
+        configStr = IntToStr(configID)
+        Call printTableAddHeadersRC(table,trim("Config "//adjustl(configStr)))
+        rowHeadings = BlankString(rowHeadings)
+        rowHeadings = "Structure,Atoms in Calc,NL Length,"
+        rowHeadings = trim(rowHeadings)//"Alat (ang),v0 (ang3),e0 (eV),b0 (ev/ang3),c11 (ev/ang3),"
+        rowHeadings = trim(rowHeadings)//"c12 (ev/ang3),c44 (ev/ang3),b0 (GPa),"
+        rowHeadings = trim(rowHeadings)//"c11 (GPa),c12 (GPa),c44 (GPa)"
+        Call printTableAddHeadersR(table,"Calculated,Reference,RSS")    
+        Call printTableAddHeadersC(table,trim(rowHeadings))  
+        
+        ! atom structure 
+        rowA_Str(1) = Trim(bpInArr(configID)%structure)
+        Call printTableAddRow(table,rowA_Str)    
+        ! atoms in calc 
+        rowA(1) = configurationCoordsKeyBP(configID,2)
+        Call printTableAddRow(table,rowA)    
+        ! neighbour list length 
+        rowA(1) = neighbourListKeyBP(configID,2)
+        Call printTableAddRow(table,rowA)       
+        ! alat
+        row(1) = calcBulkProperties(configID)%aLat
+        row(2) = bpInArr(configID)%alat
+        row(3) = rssBPArr(configID)%aLat
+        Call printTableAddRow(table,row)
+        ! v0
+        row(1) = calcBulkProperties(configID)%v0
+        row(2) = bpInArr(configID)%v0
+        row(3) = rssBPArr(configID)%v0
+        Call printTableAddRow(table,row)    
+        ! e0
+        row(1) = calcBulkProperties(configID)%e0
+        row(2) = bpInArr(configID)%e0
+        row(3) = rssBPArr(configID)%e0
+        Call printTableAddRow(table,row)   
+        ! b0
+        row(1) = calcBulkProperties(configID)%b0
+        row(2) = bpInArr(configID)%b0
+        row(3) = rssBPArr(configID)%b0
+        Call printTableAddRow(table,row)   
+        ! c11
+        row(1) = calcBulkProperties(configID)%c11
+        row(2) = bpInArr(configID)%c11
+        row(3) = rssBPArr(configID)%c11
+        Call printTableAddRow(table,row)   
+        ! c12
+        row(1) = calcBulkProperties(configID)%c12
+        row(2) = bpInArr(configID)%c12
+        row(3) = rssBPArr(configID)%c12
+        Call printTableAddRow(table,row)  
+        ! c44
+        row(1) = calcBulkProperties(configID)%c44
+        row(2) = bpInArr(configID)%c44
+        row(3) = rssBPArr(configID)%c44
+        Call printTableAddRow(table,row)  
+        ! b0
+        row(1) = UnitConvert(calcBulkProperties(configID)%b0,"EVAN3","GPA")
+        row(2) = UnitConvert(bpInArr(configID)%b0,"EVAN3","GPA")
+        rssVal = RSSCalc(row(1),row(2),rssWeighting(6))
+        row(3) = rssVal
+        Call printTableAddRow(table,row)  
+        ! c11
+        row(1) = UnitConvert(calcBulkProperties(configID)%c11,"EVAN3","GPA")
+        row(2) = UnitConvert(bpInArr(configID)%c11,"EVAN3","GPA")
+        rssVal = RSSCalc(row(1),row(2),rssWeighting(7))
+        row(3) = rssVal
+        Call printTableAddRow(table,row)   
+        ! c12
+        row(1) = UnitConvert(calcBulkProperties(configID)%c12,"EVAN3","GPA")
+        row(2) = UnitConvert(bpInArr(configID)%c12,"EVAN3","GPA")
+        rssVal = RSSCalc(row(1),row(2),rssWeighting(7))
+        row(3) = rssVal
+        Call printTableAddRow(table,row)  
+        ! c44
+        row(1) = UnitConvert(calcBulkProperties(configID)%c44,"EVAN3","GPA")
+        row(2) = UnitConvert(bpInArr(configID)%c44,"EVAN3","GPA")
+        rssVal = RSSCalc(row(1),row(2),rssWeighting(7))
+        row(3) = rssVal
+        Call printTableAddRow(table,row)  
+    
+        Call printTableMake(table)       
+        
+      End Do
+    End If
+  End Subroutine outputEAMSummaryT 
   
   
   

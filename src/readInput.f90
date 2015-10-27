@@ -36,7 +36,6 @@ Module readinput
     Real(kind=DoubleReal) :: timeStartRI, timeEndRI
     Real(kind=DoubleReal) :: dftEnergyTemp
     Integer(kind=StandardInteger) :: dftAtomCountTemp
-    Real(kind=DoubleReal), Dimension(1:12) :: fccReferenceValues, bccReferenceValues
 ! Print out
     If(mpiProcessID.eq.0)Then
       print *,"READ INPUT:"
@@ -244,6 +243,19 @@ Module readinput
         End Do
       End If
 ! ----------------------------------
+! Bulk Property Config Details
+! ----------------------------------
+      If(fileRow(1:17).eq."#BPCONFIGURATIONS")Then
+        j = j + 1
+        fileRow = userInputData(j)   !read next line
+        bpConfigFilePath = trim(adjustl(fileRow))
+      End If
+      If(fileRow(1:12).eq."#BPPRINTDATA")Then
+        j = j + 1
+        fileRow = userInputData(j)   !read next line
+        bpPrintData = UserTrueFalse(fileRow)
+      End If
+! ----------------------------------
 ! Neighbour List Settings
 ! ----------------------------------
       If(fileRow(1:9).eq."#NLCUTOFF")Then
@@ -367,25 +379,6 @@ Module readinput
         j = j + 1
         fileRow = userInputData(j)   !read next line
         Read(fileRow,*) eosFitRSSOption
-      End If
-! ----------------------------------
-! BP Reference Data
-! ----------------------------------
-      If(fileRow(1:7).eq."#FCCREF")Then
-        j = j + 1
-        fileRow = userInputData(j)   !read next line
-        Call strToDPArr(fileRow,fccReferenceValues)
-        refBulkProperties(1)%alat = fccReferenceValues(1)
-        refBulkProperties(1)%e0 = fccReferenceValues(2)
-        refBulkProperties(1)%b0 = fccReferenceValues(3)
-      End If
-      If(fileRow(1:7).eq."#BCCREF")Then
-        j = j + 1
-        fileRow = userInputData(j)   !read next line
-        Call strToDPArr(fileRow,bccReferenceValues)
-        refBulkProperties(2)%alat = bccReferenceValues(1)
-        refBulkProperties(2)%e0 = bccReferenceValues(2)
-        refBulkProperties(2)%b0 = bccReferenceValues(3)
       End If
       j = j + 1
     End Do

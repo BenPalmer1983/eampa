@@ -23,6 +23,7 @@ Module globals
 !
   Integer(kind=StandardInteger), Parameter :: maxConfigs = 1024    ! Maximum number of configurations able to load
   Integer(kind=StandardInteger), Parameter :: maxConfigsBP = 32    ! Maximum number of bulk-property testing configurations
+  Integer(kind=StandardInteger), Parameter :: maxConfigsRelax = 4    ! Maximum number of bulk-property testing configurations
   Integer(kind=StandardInteger), Parameter :: bpCopies = 4         ! Size (nxnxn) of bulk property crystals
   Integer(kind=StandardInteger), Parameter :: aLatSamples = 7      ! number of energy-volume samples used to plot equation of state
   Integer(kind=StandardInteger), Parameter :: ecSamples = 4        ! number of samples used to calculate cubic elastic constants
@@ -215,8 +216,8 @@ Module globals
   Type(bulkProperties), Dimension(1:maxConfigsBP) :: calcBulkProperties
 
 !------------------------------------------------------------------------------ 
-! Neighbour List
-!   
+! Neighbour List up to 1024 configs, nl per config approx 10,000
+! Current settings limit to approx 80, increase before compiling if neccessary
 ! 
   Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeys               ! 2.0MB
   Integer(kind=StandardInteger) :: neighbourListCount
@@ -234,20 +235,38 @@ Module globals
 
 !------------------------------------------------------------------------------ 
 ! Neighbour List for Bulk Property Configs
-!   
+! Maximum usually 32
 ! 
-  Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeysBP              ! 2.0MB
+  Integer(kind=StandardInteger), Dimension(1:32000) :: nlUniqueKeysBP              ! 2.0MB
   Integer(kind=StandardInteger) :: neighbourListCountBP
   Integer(kind=StandardInteger), Dimension(1:maxConfigsBP,1:3) :: neighbourListKeyBP
   Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:5) :: neighbourListKeyRBP
-  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIBP      ! 12.0MB
-  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRBP               ! 4.0MB
-  Real(kind=DoubleReal), Dimension(1:800000,1:12) :: neighbourListCoordsBP             ! 48.0MB
+  Integer(kind=StandardInteger), Dimension(1:32000,1:6) :: neighbourListIBP      ! 12.0MB
+  Real(kind=DoubleReal), Dimension(1:32000) :: neighbourListRBP               ! 4.0MB
+  Real(kind=DoubleReal), Dimension(1:32000,1:12) :: neighbourListCoordsBP             ! 48.0MB
   Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpreadBP
 ! Temporary NL arrays
-  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRBP_T  
-  Real(kind=DoubleReal), Dimension(1:800000,1:6) :: neighbourListCoordsBP_T  
+  Real(kind=DoubleReal), Dimension(1:32000) :: neighbourListRBP_T  
+  Real(kind=DoubleReal), Dimension(1:32000,1:6) :: neighbourListCoordsBP_T  
 
+
+
+!------------------------------------------------------------------------------ 
+! Neighbour List for geometric relaxation
+! Maximum usually 4 (probably 1 config at a time)
+! 
+  Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeysRelax              ! 2.0MB
+  Integer(kind=StandardInteger) :: neighbourListCountRelax
+  Integer(kind=StandardInteger), Dimension(1:maxConfigsRelax,1:3) :: neighbourListKeyRelax
+  Real(kind=DoubleReal), Dimension(1:maxConfigsRelax,1:5) :: neighbourListKeyRRelax
+  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIRelax      ! 12.0MB
+  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRRelax               ! 4.0MB
+  Real(kind=DoubleReal), Dimension(1:800000,1:12) :: neighbourListCoordsRelax             ! 48.0MB
+  Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpreadRelax
+! Temporary NL arrays
+  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRRelax_T  
+  Real(kind=DoubleReal), Dimension(1:800000,1:6) :: neighbourListCoordsRelax_T    
+  
 !------------------------------------------------------------------------------ 
 ! Precalc
 !   

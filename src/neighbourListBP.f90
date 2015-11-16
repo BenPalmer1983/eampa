@@ -11,6 +11,7 @@ Module neighbourListBP
 ! --------------------------------------------------------------!
 
 ! Setup Modules
+  Use mpi
   Use kinds
   Use msubs
   Use constants
@@ -21,6 +22,8 @@ Module neighbourListBP
   Use loadData
   Use globals
   Use output
+  Use geomTypes
+  Use geom
 ! Force declaration of all variables
   Implicit None
 ! Privacy of variables/functions/subroutines
@@ -41,163 +44,92 @@ Module neighbourListBP
     Integer(kind=StandardInteger) :: configStart, configEnd, configLength
     Integer(kind=StandardInteger) :: i, l, m, n
     Integer(kind=StandardInteger) :: unitCopies
-    Real(kind=DoubleReal) :: rCutoffSq
+    Real(kind=DoubleReal) :: rCutoff, rCutoffSq
     Real(kind=DoubleReal) :: aLat, xShift, yShift, zShift
     Real(kind=DoubleReal) :: xA, xB, yA, yB, zA, zB, xdSq, ydSq, zdSq, rdSq
     Real(kind=DoubleReal) :: rMin, rMax
+    Real(kind=DoubleReal) :: startTime, endTime
+    Type(nlType) :: nl
+    Call initNL(nl)
 ! Start time
     Call cpu_time(timeStart)
 ! Init variables
     neighbourListCountBP = 0
-    configStart = 1
 ! Prepare NL key array - clear all above configIDStart
-    Do i=1,maxConfigsBP
-      neighbourListKeyBP(i,1) = 0
-      neighbourListKeyBP(i,2) = 0
-      neighbourListKeyBP(i,3) = 0
-    End Do
-! print *,"NL",configStart
+    Do configID=1,maxConfigsBP
+      neighbourListKeyBP(configID,1) = 0
+      neighbourListKeyBP(configID,2) = 0
+      neighbourListKeyBP(configID,3) = 0
+    End Do    
 ! Loop through configurations
+    nlKey = 0
+    configStart = 1
     Do configID=1,configCountBP
 ! Init config specific variables
       rMin = 2.0D21
       rMax = -2.0D21
+! Start time
+      startTime = MPI_Wtime()
 ! Check config is there
       If(configurationCoordsKeyBP(configID,1).gt.0)Then
-! Config data      
-        aLat = bpInArr(configID)%alat
-        unitCopies = bpInArr(configID)%size
-! Init looping variables
-        atomA = 0
-        atomB = 0
-        nlKey = 0
-        configLength = 0
+! Config init values      
         coordStart = configurationCoordsKeyBP(configID,1)
         coordLength = configurationCoordsKeyBP(configID,2)
         coordEnd = configurationCoordsKeyBP(configID,3)
-! separation cutoff
-        rCutoffSq = bpCutoffNL**2
-        !print *,aLat,coordStart,coordLength,coordEnd,unitCopies
-! loop through Atom B 3x3x3
-        Do l=-1,1
-          Do m=-1,1
-            Do n=-1,1
-! Set co-ordinate shift
-              xShift = aLat * unitCopies * l
-              yShift = aLat * unitCopies * m
-              zShift = aLat * unitCopies * n
-! Reset unique key list
-              nlUniqueKeysBP = 0
-! Loop through atom pairs
-              Do atomA=1,coordLength
-                Do atomB=1,coordLength
-                  If(l.eq.0.and.m.eq.0.and.n.eq.0.and.atomA.eq.atomB)Then  ! Don't self count atom
-                  Else
-! calculate the key of the atom A atom B combination
-! half length list A=i,B=j == A=j,B=i
-                    If(atomA.lt.atomB)Then
-                      nlKey = (atomB-1)*(atomB-2)/2+atomA
-                    Else
-                      nlKey = (atomA-1)*(atomA-2)/2+atomB
-                    End If
-!
-                    If(nlUniqueKeysBP(nlKey).eq.0)Then
-                      nlUniqueKeysBP(nlKey) = 1
-                      xA = 1.0D0*configurationCoordsRBP(coordStart+atomA-1,1)
-                      xB = 1.0D0*(xshift + configurationCoordsRBP(coordStart+atomB-1,1))
-                      yA = 1.0D0*configurationCoordsRBP(coordStart+atomA-1,2)
-                      yB = 1.0D0*(yshift + configurationCoordsRBP(coordStart+atomB-1,2))
-                      zA = 1.0D0*configurationCoordsRBP(coordStart+atomA-1,3)
-                      zB = 1.0D0*(zshift + configurationCoordsRBP(coordStart+atomB-1,3))
-                      xdSq = (xA-xB)**2
-                      If(xdSq.le.rCutoffSq)Then
-                        ydSq = (yA-yB)**2
-                        If(ydSq.le.rCutoffSq)Then
-                          zdSq = (zA-zB)**2
-                          If(zdSq.le.rCutoffSq)Then
-                            rdSq = xdSq + ydSq + zdSq
-                            If(rdSq.le.rCutoffSq)Then
-                              neighbourListCountBP = neighbourListCountBP + 1
-                              configLength = configLength + 1
-! Store atom type/id data
-                              neighbourListIBP(neighbourListCountBP,1) = &
-                              configurationCoordsIBP(coordStart+atomA-1,1)  !Atom A type
-                              neighbourListIBP(neighbourListCountBP,2) = &
-                              configurationCoordsIBP(coordStart+atomB-1,1)  !Atom B type
-                              neighbourListIBP(neighbourListCountBP,3) = atomA  !Atom A id
-                              neighbourListIBP(neighbourListCountBP,4) = atomB  !Atom B id
-                              neighbourListIBP(neighbourListCountBP,5) = nlKey  !Atom A-B Key
-                              If(l.eq.0.and.m.eq.0.and.n.eq.0)Then
-                                neighbourListIBP(neighbourListCountBP,6) = 1
-                              Else
-                                neighbourListIBP(neighbourListCountBP,6) = 0
-                              End If
+        aLat = (bpInArr(configID)%alat)*(bpInArr(configID)%size)  
+        rCutoff = bpCutoffNL
+        rCutoffSq = rCutoff**2
+! make nl        
+        Call makeNL(nl, configurationCoordsIBP, configurationCoordsRBP, coordStart, coordEnd, 6.5D0, aLat) 
+        Do i=1,nl%length
+          nlKey = nlKey + 1
+! key/type
+          neighbourListIBP(nlKey,1) = nl%i(i,3)  !Atom A type
+          neighbourListIBP(nlKey,2) = nl%i(i,4)  !Atom B type
+          neighbourListIBP(nlKey,3) = nl%i(i,1)  !Atom A id
+          neighbourListIBP(nlKey,4) = nl%i(i,2)  !Atom B id
+          neighbourListIBP(nlKey,5) = 0  !Atom A-B Key
+          neighbourListIBP(nlKey,6) = nl%i(i,5)
 ! Store atom separation
-                              neighbourListRBP(neighbourListCountBP) = rdSq**0.5
+          neighbourListRBP(nlKey) = nl%r(i,1)
 ! Atom coordinate data
-                              neighbourListCoordsBP(neighbourListCountBP,1) = xA
-                              neighbourListCoordsBP(neighbourListCountBP,2) = yA
-                              neighbourListCoordsBP(neighbourListCountBP,3) = zA
-                              neighbourListCoordsBP(neighbourListCountBP,4) = xB
-                              neighbourListCoordsBP(neighbourListCountBP,5) = yB
-                              neighbourListCoordsBP(neighbourListCountBP,6) = zB
-                              neighbourListCoordsBP(neighbourListCountBP,7) = xA-xB
-                              neighbourListCoordsBP(neighbourListCountBP,8) = yA-yB
-                              neighbourListCoordsBP(neighbourListCountBP,9) = zA-zB
-                              neighbourListCoordsBP(neighbourListCountBP,10) = &
-                              (xA-xB)/neighbourListRBP(neighbourListCountBP)
-                              neighbourListCoordsBP(neighbourListCountBP,11) = &
-                              (yA-yB)/neighbourListRBP(neighbourListCountBP)
-                              neighbourListCoordsBP(neighbourListCountBP,12) = &
-                              (zA-zB)/neighbourListRBP(neighbourListCountBP)
-! Tally atom separation
-                              asKey = Ceiling(neighbourListRBP(neighbourListCountBP)*100)
-                              If(asKey.lt.1)Then
-                                asKey = 1
-                              End If
-                              !atomSeparationSpread(asKey) = atomSeparationSpread(asKey) + 1
-                              If(neighbourListRBP(neighbourListCountBP).lt.rMin)Then
-                                rMin = neighbourListRBP(neighbourListCountBP)
-                              End If
-                              If(neighbourListRBP(neighbourListCountBP).gt.rMax)Then
-                                rMax = neighbourListRBP(neighbourListCountBP)
-                              End If
-                            End If
-                          End If
-                        End If
-                      End If
-                    End If
-                  End If
-                End Do
-              End Do
-            End Do
-          End Do
-        End Do
+          neighbourListCoordsBP(nlKey,1) = nl%r(i,5)  ! xA
+          neighbourListCoordsBP(nlKey,2) = nl%r(i,6)
+          neighbourListCoordsBP(nlKey,3) = nl%r(i,7)
+          neighbourListCoordsBP(nlKey,4) = nl%r(i,8)
+          neighbourListCoordsBP(nlKey,5) = nl%r(i,9)
+          neighbourListCoordsBP(nlKey,6) = nl%r(i,10) ! zB
+          neighbourListCoordsBP(nlKey,7) = 0.0D0
+          neighbourListCoordsBP(nlKey,8) = 0.0D0
+          neighbourListCoordsBP(nlKey,9) = 0.0D0
+          neighbourListCoordsBP(nlKey,10) = nl%r(i,2)
+          neighbourListCoordsBP(nlKey,11) = nl%r(i,3)
+          neighbourListCoordsBP(nlKey,12) = nl%r(i,4)
+        End Do        
 ! Store nl key
         neighbourListKeyBP(configID,1) = configStart
-        neighbourListKeyBP(configID,2) = configLength
-        neighbourListKeyBP(configID,3) = configStart+configLength-1
+        neighbourListKeyBP(configID,2) = nl%length
+        neighbourListKeyBP(configID,3) = configStart+nl%length-1
 ! Store other data
-        neighbourListKeyRBP(configID,1) = rCutoffSq**0.5D0
-        neighbourListKeyRBP(configID,2) = rMin
-        neighbourListKeyRBP(configID,3) = rMax
+        neighbourListKeyRBP(configID,1) = nl%rVerlet
+        neighbourListKeyRBP(configID,2) = nl%rMin
+        neighbourListKeyRBP(configID,3) = nl%rMax
 ! Increment configStart for next loop/config
-        configStart = configStart + configLength
-      End If
-      Call cpu_time(timeEnd)
-      Call timeAcc(nlTimeBP,timeStart,timeEnd)
+        configStart = configStart + nl%length
+      End If  
+! End time
+      endTime = MPI_Wtime()    
+      Call timeAcc(nlTime,startTime,endTime)
     End Do  ! End loop configs
-! Output
-    If(mpiProcessID.eq.0)Then
+! Output to file
+    If(mpiProcessID.eq.0.and.saveNLToFile)Then
 ! save to file
       Open(UNIT=1,FILE=Trim(outputDirectory)//"/"//"nlFileBP.dat",&
       status="old",position="append",action="write")
       Do configID=1,configCountBP
-      
         write(1,"(A15,I8)") "Configuration: ",configID
         configStart = neighbourListKeyBP(configID,1)
         configEnd = neighbourListKeyBP(configID,3)
-        
         Do i=configStart,configEnd
           write(1,"(I8,I8,I8,F14.7)") i,neighbourListIBP(i,3),neighbourListIBP(i,4),&
           neighbourListRBP(i)

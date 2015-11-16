@@ -180,10 +180,10 @@ Module bpConfig
   
 
 ! ------------------------------------------------------------------------!
-!                                                                        !
-! MODULE FUNCTIONS                                                       !
-!                                                                        !
-!                                                                        !
+!                                                                         !
+! MODULE FUNCTIONS                                                        !
+!                                                                         !
+!                                                                         !
 ! ------------------------------------------------------------------------!
   Function QueryUniqueElement (element) RESULT (output)
     Character(len=2) :: element

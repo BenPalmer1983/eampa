@@ -16105,5 +16105,38 @@ Module loadData
       print *,"Data loaded: ",(subEndTime-subStartTime),"s"
     End If
   End Subroutine loadIsotopeData
+    
+
+! ------------------------------------------------------------------------!
+!                                                                         !
+! MODULE FUNCTIONS                                                        !
+!                                                                         !
+!                                                                         !
+! ------------------------------------------------------------------------!
+  
+  Function QueryAtomicNumber (elementIn) RESULT (output)
+    Character(*) :: elementIn
+    Character(len=2) :: element
+    Integer(kind=StandardInteger) :: output
+    Integer(kind=StandardInteger) :: i, k, found
+! Init    
+    output = -1
+    If(Len(elementIn).eq.1)Then
+      element(1:1) = elementIn(1:1)
+      element(1:1) = " "
+    Else  
+      element = elementIn(1:2)
+    End If    
+! convert to uppercase
+    element = adjustl(StrToUpper(element))    
+    Do i=0,118
+      If(element.eq.elementSymbol(i))Then
+        output = i
+        Exit
+      End If  
+    End Do
+  End Function QueryAtomicNumber
+  
+  
 
 End Module loadData

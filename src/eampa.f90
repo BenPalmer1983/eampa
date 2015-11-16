@@ -14,12 +14,20 @@ PROGRAM eampa
 ! - length, Angstrom
 ! - forces, ev/Angstrom
 ! - stress, ev/ang^3
+! - mass, atomic mass A
+! - acceleration, ang/ns^2
+! - time, ns  (nano seconds)
 !
 ! Printed units:
 ! - energy, eV
 ! - length, Angstrom
 ! - forces, ev/Ang
 ! - stress, GPa
+! 
+! Calculations:
+! F = m a
+! m = F (1/a)
+! a = F/m        a [ang/ns^2] = 9.6485E9 * (F[ev/ang]/m[amu])
 !
 ! Setup Modules
   Use libBP          ! data kinds
@@ -36,12 +44,14 @@ PROGRAM eampa
   Use bpConfig
   Use neighbourList  ! build neighbour list
   Use neighbourListBP  ! build neighbour list for bulk property configs
+  Use neighbourListRelax  ! build neighbour list for bulk property configs
   Use preCalc
   Use calcEAM
   Use bpCalcEAM
   Use eval
   Use opti
   Use evalBP
+  Use relax
   Use output
   Use finalise
 ! Force declaration of all variables
@@ -103,6 +113,9 @@ PROGRAM eampa
     Call evalBulkProperties(.false.,.true.)      ! evalBP.f90
 ! Output summary on input EAM potential    
     Call outputEAMSummaryT()
+    
+    Call makeRelaxConfigs()
+    Call relaxAtoms()
 ! Finalise
     Call runFinaliseEval()         ! finalise.f90  prints out run time data
   End If

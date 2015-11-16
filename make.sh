@@ -19,11 +19,6 @@ binFile="eampaDev.x "
 fortLine="mpif90 -g \
 -fbounds-check -mtune=native " # -Wno-unused-function -fcheck=all  -Wall -O3 
 # Build files
-buildFiles="msubs.f90 \
-globals.f90 initialise.f90 \
-input.f90 prep.f90 productionLoss.f90 \
-output.f90 activity.f90"
-
 
 buildFiles="types.f90 \
 msubs.f90 \
@@ -34,10 +29,10 @@ loadData.f90 output.f90 \
 eamGen.f90 \
 readInput.f90 readEAM.f90 makePotential.f90 \
 readConfig.f90 bpConfig.f90 \
-neighbourList.f90 neighbourListBP.f90 \
+neighbourList.f90 neighbourListBP.f90 neighbourListRelax.f90 \
 preCalc.f90 \
-calcEAM.f90 bpCalcEAM.f90 \
-eval.f90 evalBP.f90 \
+calcEAM.f90 bpCalcEAM.f90 relaxCalcEAM.f90  \
+eval.f90 evalBP.f90 relax.f90 \
 opti.f90 \
 finalise.f90 \
 eampa.f90"

@@ -21,7 +21,9 @@ Module globals
 !------------------------------------------------------------------------------ 
 ! Global Parameters
 !
-  Integer(kind=StandardInteger), Parameter :: maxConfigs = 1024    ! Maximum number of configurations able to load
+  Integer(kind=StandardInteger), Parameter :: atomsPerConfig = 1024
+  Integer(kind=StandardInteger), Parameter :: nlLenPerConfig = 16000
+  Integer(kind=StandardInteger), Parameter :: maxConfigs = 64    ! Maximum number of configurations able to load
   Integer(kind=StandardInteger), Parameter :: maxConfigsBP = 32    ! Maximum number of bulk-property testing configurations
   Integer(kind=StandardInteger), Parameter :: maxConfigsRelax = 4    ! Maximum number of bulk-property testing configurations
   Integer(kind=StandardInteger), Parameter :: bpCopies = 4         ! Size (nxnxn) of bulk property crystals
@@ -52,9 +54,9 @@ Module globals
   Integer(kind=StandardInteger) :: mpiProcessCount, mpiProcessID
 ! System Variables
   Real(kind=DoubleReal) :: largeArraySize
-  Integer(kind=StandardInteger), Dimension(1:1024) :: processMap
-  Integer(kind=StandardInteger), Dimension(1:1024) :: processMapBP
-  Integer(kind=StandardInteger), Dimension(1:1024,1:10) :: processMapE
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs) :: processMap
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs) :: processMapBP
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:10) :: processMapE
 ! Other useful flags
   Logical :: quietOverride  
 
@@ -127,7 +129,7 @@ Module globals
   Integer(kind=StandardInteger) :: embeRescale
 ! RSS calculation options
   Real(kind=DoubleReal), Dimension(1:20) :: rssWeighting
-  Real(kind=DoubleReal), Dimension(1:1024) :: configWeighting
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configWeighting
 ! PW Batch Files - User Input
   Character(len=16) :: pwbRunType
   Character(len=255) :: pwbConfigFilePath                                          ! 255Bytes
@@ -214,18 +216,31 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:maxConfigsBP) :: aLatBP
   Integer(kind=StandardInteger), Dimension(1:maxConfigsBP) :: bpUnitCellCount
   Type(bulkProperties), Dimension(1:maxConfigsBP) :: calcBulkProperties
+  
+ 
+!------------------------------------------------------------------------------ 
+! Relax Config
+!   
+! Counter  
+  Integer(kind=StandardInteger) :: configCountRelax
+  Integer(kind=StandardInteger), Dimension(1:maxConfigsRelax,1:3) :: configurationCoordsKeyRelax  !     1 start, 2 length, 3 end
+  Integer(kind=StandardInteger), Dimension(1:8192,1:1) :: configurationCoordsIRelax  !     1 atomID
+  Real(kind=DoubleReal), Dimension(1:8192,1:6) :: configurationCoordsRRelax          !     1 x, 2 y, 3 z
+  Integer(kind=StandardInteger) :: configsAtomTotalRelax
+  Real(kind=DoubleReal), Dimension(1:maxConfigsRelax) :: aLatRelax
+  Integer(kind=StandardInteger), Dimension(1:maxConfigsRelax) :: relaxUnitCellCount
 
 !------------------------------------------------------------------------------ 
 ! Neighbour List up to 1024 configs, nl per config approx 10,000
 ! Current settings limit to approx 80, increase before compiling if neccessary
 ! 
-  Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeys               ! 2.0MB
+  Integer(kind=StandardInteger), Dimension(1:nlLenPerConfig*maxConfigs) :: nlUniqueKeys               ! 2.0MB
   Integer(kind=StandardInteger) :: neighbourListCount
   Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:3) :: neighbourListKey
   Real(kind=DoubleReal), Dimension(1:maxConfigs,1:5) :: neighbourListKeyR
-  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListI         ! 12.0MB
-  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListR                     ! 4.0MB
-  Real(kind=DoubleReal), Dimension(1:800000,1:12) :: neighbourListCoords             ! 48.0MB
+  Integer(kind=StandardInteger), Dimension(1:nlLenPerConfig*maxConfigs,1:6) :: neighbourListI         ! 12.0MB
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigs) :: neighbourListR                     ! 4.0MB
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigs,1:12) :: neighbourListCoords             ! 48.0MB
   Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpread
 ! Temporary NL arrays
  ! Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIT         ! 16.0MB
@@ -237,17 +252,17 @@ Module globals
 ! Neighbour List for Bulk Property Configs
 ! Maximum usually 32
 ! 
-  Integer(kind=StandardInteger), Dimension(1:32000) :: nlUniqueKeysBP              ! 2.0MB
+  Integer(kind=StandardInteger), Dimension(1:nlLenPerConfig*maxConfigsBP) :: nlUniqueKeysBP              ! 2.0MB
   Integer(kind=StandardInteger) :: neighbourListCountBP
   Integer(kind=StandardInteger), Dimension(1:maxConfigsBP,1:3) :: neighbourListKeyBP
-  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:5) :: neighbourListKeyRBP
-  Integer(kind=StandardInteger), Dimension(1:32000,1:6) :: neighbourListIBP      ! 12.0MB
-  Real(kind=DoubleReal), Dimension(1:32000) :: neighbourListRBP               ! 4.0MB
-  Real(kind=DoubleReal), Dimension(1:32000,1:12) :: neighbourListCoordsBP             ! 48.0MB
+  Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:6) :: neighbourListKeyRBP
+  Integer(kind=StandardInteger), Dimension(1:nlLenPerConfig*maxConfigsBP,1:6) :: neighbourListIBP      ! 12.0MB
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigsBP) :: neighbourListRBP               ! 4.0MB
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigsBP,1:12) :: neighbourListCoordsBP             ! 48.0MB
   Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpreadBP
 ! Temporary NL arrays
-  Real(kind=DoubleReal), Dimension(1:32000) :: neighbourListRBP_T  
-  Real(kind=DoubleReal), Dimension(1:32000,1:6) :: neighbourListCoordsBP_T  
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigsBP) :: neighbourListRBP_T  
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigsBP,1:6) :: neighbourListCoordsBP_T  
 
 
 
@@ -255,17 +270,17 @@ Module globals
 ! Neighbour List for geometric relaxation
 ! Maximum usually 4 (probably 1 config at a time)
 ! 
-  Integer(kind=StandardInteger), Dimension(1:800000) :: nlUniqueKeysRelax              ! 2.0MB
+  Integer(kind=StandardInteger), Dimension(1:nlLenPerConfig*maxConfigsRelax) :: nlUniqueKeysRelax    
   Integer(kind=StandardInteger) :: neighbourListCountRelax
   Integer(kind=StandardInteger), Dimension(1:maxConfigsRelax,1:3) :: neighbourListKeyRelax
-  Real(kind=DoubleReal), Dimension(1:maxConfigsRelax,1:5) :: neighbourListKeyRRelax
-  Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIRelax      ! 12.0MB
-  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRRelax               ! 4.0MB
-  Real(kind=DoubleReal), Dimension(1:800000,1:12) :: neighbourListCoordsRelax             ! 48.0MB
+  Real(kind=DoubleReal), Dimension(1:maxConfigsRelax,1:6) :: neighbourListKeyRRelax                            ! 1 rcutoff, 2 rmin, 3 rmax, 6 alat sim cube 
+  Integer(kind=StandardInteger), Dimension(1:nlLenPerConfig*maxConfigsRelax,1:11) :: neighbourListIRelax      ! 12.0MB
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigsRelax) :: neighbourListRRelax               ! 4.0MB
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigsRelax,1:12) :: neighbourListCoordsRelax             ! 48.0MB
   Integer(kind=StandardInteger), Dimension(1:2000) :: atomSeparationSpreadRelax
 ! Temporary NL arrays
-  Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRRelax_T  
-  Real(kind=DoubleReal), Dimension(1:800000,1:6) :: neighbourListCoordsRelax_T    
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigsRelax) :: neighbourListRRelax_T  
+  Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigsRelax,1:6) :: neighbourListCoordsRelax_T    
   
 !------------------------------------------------------------------------------ 
 ! Precalc
@@ -286,7 +301,7 @@ Module globals
 !   
 !    
   Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configCalcEnergies  
-  Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configCalcForces  
+  Real(kind=DoubleReal), Dimension(1:atomsPerConfig*maxConfigs,1:3) :: configCalcForces  
   Real(kind=DoubleReal), Dimension(1:maxConfigs,1:9) :: configCalcStresses
   
   
@@ -320,6 +335,16 @@ Module globals
 !   
 !  
   Real(kind=DoubleReal), Dimension(1:maxConfigsBP) :: configCalcEnergiesBP  
+  
+      
+
+!------------------------------------------------------------------------------ 
+! relaxCalcEAM
+!   
+!  
+  Real(kind=DoubleReal), Dimension(1:maxConfigsRelax) :: configCalcEnergiesRelax  
+  Real(kind=DoubleReal), Dimension(1:atomsPerConfig*maxConfigsRelax,1:3) :: configCalcForcesRelax 
+  Real(kind=DoubleReal), Dimension(1:atomsPerConfig*maxConfigsRelax,1:2) :: configAtomEnergyRelax
   
   
   
@@ -365,25 +390,25 @@ Module globals
 
 ! Read Configuration File
   Integer(kind=StandardInteger) :: configCountT, configCountRI                      ! 4bit
-  Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsI         ! 41KB        1 xcopy, 2 ycopy, 3 zcopy, 4 forces,
-  Real(kind=DoubleReal), Dimension(1:1024,1:30) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 BM   21-29 configUnitVector
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:20) :: configurationsI         ! 41KB        1 xcopy, 2 ycopy, 3 zcopy, 4 forces,
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:30) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 BM   21-29 configUnitVector
 
 
 ! Configuration Reference/Calculated Values
-  Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configRef                       !             1 Energy PA, 2 EqVol
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:20) :: configRef                       !             1 Energy PA, 2 EqVol
                     !             1 Energy, 2 EqVol    (maybe)
   Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configRefForces                !       1 fx, 2 fy, 3 fz
 
   Real(kind=DoubleReal), Dimension(1:100000,1:2) :: configAtomEnergy
-  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configRefStresses
-  Real(kind=DoubleReal), Dimension(1:1024) :: configRefEnergies
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:9) :: configRefStresses
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configRefEnergies
 
-  Real(kind=DoubleReal), Dimension(1:1024) :: configRefEV                          ! Equilibrium volume
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configRefEV                          ! Equilibrium volume
 
 
-  Real(kind=DoubleReal), Dimension(1:1024) :: configRefBM
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configRefBM
 
-  Real(kind=DoubleReal), Dimension(1:1024,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:10) :: configRSS                       ! 1 energy, 2 forces, 3 stresses
   Real(kind=DoubleReal), Dimension(1:20) :: testConfigRSS                          ! 1FccALat,2FccEMin,3FccBM,4FccEoS,5FccC11,6FccC12,7FccC44,8BccALat,9BccEMin,10BccBM,11BccEoS,12BccC11,13BccC12,14BccC44
   Real(kind=DoubleReal) :: totalRSS
   Real(kind=DoubleReal) :: optimumRSS, startRSS, configTotalRSS, bestRSS
@@ -413,8 +438,17 @@ Module globals
 ! ----------------------------------------------
 ! Results
 ! ----------------------------------------------
-  Real(kind=DoubleReal), Dimension(1:1024) :: calcConfigEnergies
-  Real(kind=DoubleReal), Dimension(1:200000,1:3) :: calcConfigForces
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: calcConfigEnergies
+  Real(kind=DoubleReal), Dimension(1:maxConfigs*atomsPerConfig,1:3) :: calcConfigForces
+  
+  
+! ----------------------------------------------
+! MD
+! ----------------------------------------------
+  Real(kind=DoubleReal), Dimension(1:maxConfigs*atomsPerConfig,1:3) :: mdAcceleration
+  Real(kind=DoubleReal), Dimension(1:maxConfigs*atomsPerConfig,1:3) :: mdVelocity
+  Real(kind=DoubleReal), Dimension(1:maxConfigs*atomsPerConfig,1:3) :: mdCoordChange
+  
 
 ! ----------------------------------------------
 ! EAM Testing
@@ -440,31 +474,31 @@ Module globals
 ! Input Config Neighbour List
 ! ----------------------------------------------
   Integer(kind=StandardInteger) :: neighbourListCountInput
-  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: neighbourListKeyInput
-  Real(kind=DoubleReal), Dimension(1:1024,1:1) :: neighbourListKeyRInput
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:3) :: neighbourListKeyInput
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:1) :: neighbourListKeyRInput
   Integer(kind=StandardInteger), Dimension(1:800000,1:6) :: neighbourListIInput
   Real(kind=DoubleReal), Dimension(1:800000) :: neighbourListRInput
   Real(kind=DoubleReal), Dimension(1:800000,12) :: neighbourListCoordsInput
   
   Integer(kind=StandardInteger) :: configCountInput
-  Integer(kind=StandardInteger), Dimension(1:1024,1:20) :: configurationsIInput
-  Real(kind=DoubleReal), Dimension(1:1024,1:30) :: configurationsRInput
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:20) :: configurationsIInput
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:30) :: configurationsRInput
   Integer(kind=StandardInteger) :: coordCountInput
-  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKeyInput
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:3) :: configurationCoordsKeyInput
   Integer(kind=StandardInteger), Dimension(1:50000,1:1) :: configurationCoordsIInput
   Real(kind=DoubleReal), Dimension(1:50000,1:3) :: configurationCoordsRInput
   Real(kind=DoubleReal), Dimension(1:50000,1:3) :: configurationForcesRInput
   Integer(kind=StandardInteger) :: coordCountGInput
-  Integer(kind=StandardInteger), Dimension(1:1024,1:3) :: configurationCoordsKeyGInput
+  Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:3) :: configurationCoordsKeyGInput
   Integer(kind=StandardInteger), Dimension(1:100000,1:1) :: configurationCoordsIGInput
   Real(kind=DoubleReal), Dimension(1:100000,1:6) :: configurationCoordsRGInput
-  Real(kind=DoubleReal), Dimension(1:1024) :: configVolumeInput
-  Real(kind=DoubleReal), Dimension(1:1024,1:20) :: configRefInput
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configVolumeInput
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:20) :: configRefInput
   Real(kind=DoubleReal), Dimension(1:100000,1:3) :: configRefForcesInput
-  Real(kind=DoubleReal), Dimension(1:1024,1:9) :: configRefStressesInput
-  Real(kind=DoubleReal), Dimension(1:1024) :: configRefEnergiesInput
-  Real(kind=DoubleReal), Dimension(1:1024) :: configRefEVInput
-  Real(kind=DoubleReal), Dimension(1:1024) :: configRefBMInput
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:9) :: configRefStressesInput
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configRefEnergiesInput
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configRefEVInput
+  Real(kind=DoubleReal), Dimension(1:maxConfigs) :: configRefBMInput
 
 ! Times
   Real(kind=DoubleReal) :: timeStart, timeEnd, timeDuration
@@ -495,7 +529,7 @@ Module globals
 ! System Variables
   Public :: largeArraySize
   Public :: processMap, processMapBP, processMapE
-  Public :: maxConfigs, maxConfigsBP
+  Public :: maxConfigs, maxConfigsBP, maxConfigsRelax
   Public :: bpCopies, fccAlatBP, bccAlatBP, bpCutoffNL, bpCutoff
   Public :: aLatSamples, ecSamples
 ! Default variables
@@ -626,6 +660,14 @@ Module globals
   Public :: calcBulkProperties
   
 !------------------------------------------------------------------------------ 
+! Relax Config
+!     
+  Public :: configCountRelax, configurationCoordsKeyRelax
+  Public :: configurationCoordsIRelax, configurationCoordsRRelax
+  Public :: configsAtomTotalRelax, aLatRelax
+  Public :: relaxUnitCellCount
+  
+!------------------------------------------------------------------------------ 
 ! Neighbour List
 !   
   Public :: nlUniqueKeys, neighbourListCount
@@ -641,7 +683,16 @@ Module globals
   Public :: neighbourListIBP, neighbourListRBP
   Public :: neighbourListCoordsBP, atomSeparationSpreadBP  
 ! Temporary NL arrays
-  Public :: neighbourListRBP_T, neighbourListCoordsBP_T  
+  Public :: neighbourListRBP_T, neighbourListCoordsBP_T    
+      
+!------------------------------------------------------------------------------ 
+! Neighbour List for Relax Configs
+! 
+  Public :: nlUniqueKeysRelax, neighbourListCountRelax
+  Public :: neighbourListKeyRelax, neighbourListKeyRRelax
+  Public :: neighbourListIRelax, neighbourListRRelax
+  Public :: neighbourListCoordsRelax, atomSeparationSpreadRelax  
+  Public :: neighbourListRRelax_T, neighbourListCoordsRelax_T
   
 !------------------------------------------------------------------------------ 
 ! Precalc
@@ -672,16 +723,21 @@ Module globals
   Public :: alatEnergies, configVolBP
   Public :: ecEnergiesBP, ecStrainBP
   Public :: ecEnergiesBP_T, ecStrainBP_T
-  Public :: rssBPArr
-  
-
+  Public :: rssBPArr 
 
 !------------------------------------------------------------------------------ 
 ! BpCalcEAM
 !   
-!  
-  
+!    
   Public :: configCalcEnergiesBP  
+
+!------------------------------------------------------------------------------ 
+! relaxCalcEAM
+!   
+!    
+  Public :: configCalcEnergiesRelax  
+  Public :: configCalcForcesRelax  
+  Public :: configAtomEnergyRelax  
   
 !------------------------------------------------------------------------------ 
 ! Optimise
@@ -736,9 +792,21 @@ Module globals
   Public :: calculationDensity
   Public :: calculationDensityS
   Public :: pairForce
+  
+! ----------------------------------------------
 ! Results
-  Public :: calcConfigEnergies
-  Public :: calcConfigForces
+! ----------------------------------------------
+
+  Public :: calcConfigEnergies, calcConfigForces
+  
+    
+! ----------------------------------------------
+! MD
+! ----------------------------------------------
+  
+  Public :: mdAcceleration, mdVelocity, mdCoordChange
+  
+  
 ! EAM Testing
   Public :: fccCalcValues, bccCalcValues
   Public :: fccALat, fccEMin, fccVolMin, fccBM, fccBMP

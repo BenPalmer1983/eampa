@@ -38,6 +38,11 @@ Module globals
 !     1      2      3      4      5      6      7      8      9     10  
 !------------------------------------------------------------------------------ 
 
+!------------------------------------------------------------------------------ 
+! Program Configuration/Settings
+!
+  Type(progSettings) :: eampaSettings
+
 
 !------------------------------------------------------------------------------ 
 ! My standard variables
@@ -90,6 +95,7 @@ Module globals
   Character(len=255) :: eamFilePath
   Character(len=255) :: eamNodesFilePath
   Character(len=64) :: eamSaveFile
+  Integer(kind=StandardInteger) :: potentialType = 1 ! 1 tabulated  2 analytic
   Integer(kind=StandardInteger) :: eamInterpPoints
   Real(kind=DoubleReal), Dimension(1:6) :: zblHardCore = 1.0D0                            ! 1 Pair ZBL end, 2 Pair Spline End, 3 Dens Value, 4 De
   Integer(kind=StandardInteger), Dimension(1:50) :: splineNodeCount
@@ -101,7 +107,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:3,1:3) :: globalConfigUnitVector
   Character(len=255) :: configFilePath
   Character(len=255) :: configFilePathT
-  Character(len=255) :: saveConfigFile
+ ! Character(len=255) :: saveConfigFile
   Character(len=255) :: saveExpConfigFile
 ! BP Config Details - User Input
   Character(len=255) :: bpConfigFilePath
@@ -123,7 +129,11 @@ Module globals
   Logical :: eamForceZBL
   Logical :: eosChart
 ! Optimise options
+  Integer(kind=StandardInteger) :: anOptRandLoops=0
   Real(kind=DoubleReal), Dimension(1:10) :: varyNodeOptions
+  Integer(kind=StandardInteger) :: optRunType=0
+  Integer(kind=StandardInteger) :: optFrom=1
+!  
   Integer(kind=StandardInteger) :: optLoops
   Integer(kind=StandardInteger) :: reduceNodes
   Integer(kind=StandardInteger) :: embeRescale
@@ -151,6 +161,10 @@ Module globals
   Character(len=2), Dimension(1:300) :: elements                                   ! 0.6KB
   Integer(kind=StandardInteger) :: elementsCount
   Integer(kind=StandardInteger), Dimension(1:300) :: elementsCharge                ! 1.2KB
+! Analytic potential functions  
+  Type(analyticFunctions), Dimension(1:100) :: apfData
+  Type(analyticFunctions), Dimension(1:100) :: apfDataIn
+  Type(analyticFunctions), Dimension(1:100) :: apfDataOpt
 ! Read EAM File
   Integer(kind=StandardInteger) :: eamFunctionCount, eamPairCount, eamDensCount, eamEmbeCount
   Integer(kind=StandardInteger) :: eamDdenCount, eamSdenCount, eamDembCount, eamSembCount
@@ -237,7 +251,7 @@ Module globals
   Integer(kind=StandardInteger), Dimension(1:nlLenPerConfig*maxConfigs) :: nlUniqueKeys               ! 2.0MB
   Integer(kind=StandardInteger) :: neighbourListCount
   Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:3) :: neighbourListKey
-  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:5) :: neighbourListKeyR
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:6) :: neighbourListKeyR
   Integer(kind=StandardInteger), Dimension(1:nlLenPerConfig*maxConfigs,1:6) :: neighbourListI         ! 12.0MB
   Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigs) :: neighbourListR                     ! 4.0MB
   Real(kind=DoubleReal), Dimension(1:nlLenPerConfig*maxConfigs,1:12) :: neighbourListCoords             ! 48.0MB
@@ -293,7 +307,7 @@ Module globals
 !   
 !
   Type(rssConfig), Dimension(1:maxConfigs) :: rssConfigsArr
-  
+  Type(rssConfig) :: rssConfigsArrTotal
 
 
 !------------------------------------------------------------------------------ 
@@ -328,6 +342,7 @@ Module globals
   Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:2*ecSamples+1) :: ecEnergiesBP_T = 0.0D0 
   Real(kind=DoubleReal), Dimension(1:maxConfigsBP,1:2*ecSamples+1) :: ecStrainBP_T = 0.0D0 
   Type(rssBP), Dimension(1:maxConfigsBP) :: rssBPArr
+  Type(rssBP) :: rssBPArrTotal
     
 
 !------------------------------------------------------------------------------ 
@@ -352,14 +367,13 @@ Module globals
 ! Optimise
 !   
 !   
-  Type(saConfig) :: saConfigIn
+  Type(saConfig), Dimension(1:20) :: saConfigIn
   Integer(kind=StandardInteger) :: optLogCounter
   Logical :: optForceZBL
 ! LMA calc and ref values
   Real(kind=DoubleReal), Dimension(1:100000,1:2) :: calcRef
   Integer(kind=StandardInteger) :: countCalcRef
   Integer(kind=StandardInteger) :: crCount
-  Integer(kind=StandardInteger) :: optRunType
   Integer(kind=StandardInteger) :: optEmbeddingFit
   Integer(kind=StandardInteger) :: optDensityFit
 
@@ -391,7 +405,7 @@ Module globals
 ! Read Configuration File
   Integer(kind=StandardInteger) :: configCountT, configCountRI                      ! 4bit
   Integer(kind=StandardInteger), Dimension(1:maxConfigs,1:20) :: configurationsI         ! 41KB        1 xcopy, 2 ycopy, 3 zcopy, 4 forces,
-  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:30) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 BM   21-29 configUnitVector
+  Real(kind=DoubleReal), Dimension(1:maxConfigs,1:30) :: configurationsR                 ! 164KB       1 lp, 2-10 xx-zz, 11 rc, 12 vc   21-29 configUnitVector
 
 
 ! Configuration Reference/Calculated Values
@@ -506,7 +520,11 @@ Module globals
   Real(kind=DoubleReal) :: efsCalcTime, efsCalcTimeBP, evalTimeBP
 
   Private
-! -----------------------
+
+!------------------------------------------------------------------------------ 
+! Global Parameters
+!
+
 ! Subroutine
   Public :: initGlobals
   Public :: storeTime
@@ -537,13 +555,18 @@ Module globals
 ! Set defaults - debug options
   
 
+!------------------------------------------------------------------------------ 
+! Program Configuration/Settings
+!
+  Public :: eampaSettings  
 
+  
   Public :: eamForceSpline
   Public :: eamForceZBL
 ! Config Details - User Input
   Public :: globalConfigUnitVector
   Public :: configFilePath, configFilePathT
-  Public :: saveConfigFile, saveExpConfigFile
+  Public :: saveExpConfigFile
 ! BP Config Details - User Input
   Public :: bpConfigFilePath, bpPrintData
 ! DFT Settings
@@ -559,7 +582,11 @@ Module globals
   Public :: saveForcesToFile, saveNLToFile
   Public :: eosChart
 ! Optimise options
+  Public :: anOptRandLoops
   Public :: varyNodeOptions
+  Public :: optRunType
+  Public :: optFrom
+!  
   Public :: optLoops
   Public :: reduceNodes
   Public :: embeRescale
@@ -596,6 +623,8 @@ Module globals
   Public :: elements
   Public :: elementsCount
   Public :: elementsCharge
+! Analytic potential functions  
+  Public :: apfData, apfDataIn, apfDataOpt
 ! Read EAM File
   Public :: eamFunctionCount, eamPairCount, eamDensCount, eamEmbeCount
   Public :: eamDdenCount, eamSdenCount, eamDembCount, eamSembCount
@@ -634,7 +663,7 @@ Module globals
 ! Input File - User Input  
   Public :: inputFilePath
 ! EAM Details - User Input
-  Public :: eamFilePath, eamNodesFilePath, eamSaveFile
+  Public :: eamFilePath, eamNodesFilePath, eamSaveFile, potentialType
   Public :: eamInterpPoints, zblHardCore, splineNodeCount
   Public :: splineTotalNodes, eamMakeAlloy, eamFileType
   Public :: makeEAMCharts
@@ -706,6 +735,7 @@ Module globals
 !   
 !
   Public :: rssConfigsArr
+  Public :: rssConfigsArrTotal
 
 
 !------------------------------------------------------------------------------ 
@@ -724,6 +754,7 @@ Module globals
   Public :: ecEnergiesBP, ecStrainBP
   Public :: ecEnergiesBP_T, ecStrainBP_T
   Public :: rssBPArr 
+  Public :: rssBPArrTotal 
 
 !------------------------------------------------------------------------------ 
 ! BpCalcEAM
@@ -750,7 +781,6 @@ Module globals
   Public :: calcRef
   Public :: countCalcRef
   Public :: crCount
-  Public :: optRunType
   Public :: optEmbeddingFit, optDensityFit
   
 ! Configuration Reference/Calculated Values
@@ -870,7 +900,7 @@ Module globals
 ! Global Init Start time
     Call cpu_time(globalsTimeStart)
 ! Initialise Subroutine Variable
-    compileLine = "01:45:08  22/09/2015"
+    compileLine = "01:00:08  22/12/2015"
     PROGRAMEndTime = 0.0D0
       quietOverride = .false.
       timeStart = 0.0D0
@@ -953,7 +983,6 @@ Module globals
       globalConfigUnitVector = 0.0D0
       configFilePath = BlankString(configFilePath)
       configFilePathT = BlankString(configFilePathT)
-      saveConfigFile = BlankString(saveConfigFile)
       saveExpConfigFile = BlankString(saveExpConfigFile)
 ! DFT Settings
       dftElement = BlankStringArray(dftElement)
@@ -989,7 +1018,6 @@ Module globals
       pairForce = 0.0D0
       optLogCounter = 0
       optForceZBL = .true.
-      optRunType = 0
       optEmbeddingFit = 0
       optDensityFit = 0
 ! Global Init End Time

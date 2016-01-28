@@ -13,6 +13,7 @@ Module initialise
 
 ! Setup Modules
   Use kinds
+  Use types
   Use msubs
   Use constants
   Use maths
@@ -78,15 +79,13 @@ Module initialise
       call idate(theDate)   ! theDate(1)=day, (2)=month, (3)=year
       call itime(theTime)   ! theDate(1)=hour, (2)=minute, (3)=second
       print *,""
-      print *,"----------------------------------------------------------------------"
+      Call printBR() ! -----------------------------------------------------------
       print "(A47)","    Activity Code University of Birmingham 2014"
       print "(A14,A24)","    Compiled: ",compileLine
       print "(A19,I4)","    MPI Processes: ",mpiProcessCount
       print "(A16,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I4.4)",&
       "    Started at: ",theTime(1),":",theTime(2)," ",theDate(1),"/",theDate(2),"/",theDate(3)
-      print "(A34,F8.4,A5,F8.4,A3)","    Large array memory allocated: ",&
-      largeArraySize,"MB  (",(mpiProcessCount*largeArraySize),"MB)"
-      print *,"----------------------------------------------------------------------"
+      Call printBR() ! -----------------------------------------------------------
       print *,""
       print *,""
     End If
@@ -94,11 +93,16 @@ Module initialise
     Call initVars()
     Call makeDirectories()
     Call initDataFiles()
+    Call loadEampaSettings()
+        
+    
   End Subroutine runInitialise
 
 ! Read initVars
   Subroutine initVars()
-! declare private variables
+!   
+    Implicit None   ! Force declaration of all variables
+! Private variables
     Integer(kind=StandardInteger) :: i,j
     Character(len=512) :: blankLine
     Do j=1,512
@@ -119,7 +123,9 @@ Module initialise
 
 ! Run all the input subroutines
   Subroutine initDataFiles()
-! Internal subroutine variables
+!   
+    Implicit None   ! Force declaration of all variables
+! Private variables
     Integer(kind=StandardInteger), Dimension(1:3) :: theTime, theDate
 ! Call date subroutines
     Call idate(theDate)   ! theDate(1)=day, (2)=month, (3)=year
@@ -311,6 +317,26 @@ Module initialise
       close(969)
     End If
   End Subroutine initDataFiles
+  
+  
+  Subroutine loadEampaSettings()
+! Load eampa program settings - if file not there, just uses default settings  
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Logical :: exists
+    Character(len=255) :: eampaConfFile
+! Load from file
+    eampaConfFile = Trim(currentWorkingDirectory)//"/eampa.conf"
+    If(FileExists(eampaConfFile))Then
+      
+    Else
+      
+    End If
+
+  !eampaSettings
+  
+  End Subroutine loadEampaSettings
+  
 
 ! ------------------------------------------------------------------------!
 !                                                                        !

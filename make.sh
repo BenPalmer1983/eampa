@@ -26,6 +26,7 @@ typesM.f90 \
 globals.f90  \
 initialise.f90 \
 loadData.f90 output.f90 \
+analytic.f90 \
 eamGen.f90 \
 readInput.f90 readEAM.f90 makePotential.f90 \
 readConfig.f90 bpConfig.f90 \

@@ -42,6 +42,7 @@ Module neighbourList
     Integer(kind=StandardInteger) :: xCopy, yCopy, zCopy
     Integer(kind=StandardInteger) :: i, l, m, n
     Real(kind=DoubleReal) :: rCutoff, rCutoffSq
+    Real(kind=DoubleReal) :: rVerlet, rVerletSq
     Real(kind=DoubleReal) :: aLat, xShift, yShift, zShift
     Real(kind=DoubleReal) :: xA, xB, yA, yB, zA, zB, xdSq, ydSq, zdSq, rdSq
     Real(kind=DoubleReal) :: rMin, rMax
@@ -77,9 +78,11 @@ Module neighbourList
         zCopy = configurationsI(configID,3)
         aLat = configurationsR(configID,1)        
         rCutoff = configurationsR(configID,11)
-        rCutoffSq = rCutoff**2
+        rCutoffSq = rCutoff**2    
+        rVerlet = configurationsR(configID,12)
+        rVerletSq = rVerlet**2
 ! make nl        
-        Call makeNL(nl, configurationCoordsIG, configurationCoordsRG, coordStart, coordEnd, 6.5D0, aLat * xCopy) 
+        Call makeNL(nl, configurationCoordsIG, configurationCoordsRG, coordStart, coordEnd, rVerlet, aLat * xCopy) 
         Do i=1,nl%length
           nlKey = nlKey + 1
 ! key/type
@@ -110,9 +113,10 @@ Module neighbourList
         neighbourListKey(configID,2) = nl%length
         neighbourListKey(configID,3) = configStart+nl%length-1
 ! Store other data
-        neighbourListKeyR(configID,1) = nl%rVerlet
+        neighbourListKeyR(configID,1) = rCutoff
         neighbourListKeyR(configID,2) = nl%rMin
         neighbourListKeyR(configID,3) = nl%rMax
+        neighbourListKeyR(configID,6) = rVerlet
 ! Increment configStart for next loop/config
         configStart = configStart + nl%length
       End If  

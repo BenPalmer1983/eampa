@@ -46,6 +46,8 @@ Module types
     Real(kind=DoubleReal) :: c12=-2.1D20
     Real(kind=DoubleReal) :: c44=-2.1D20
     Real(kind=DoubleReal) :: shearConstant=-2.1D20
+    Real(kind=DoubleReal) :: rCut = 6.5D0
+    Real(kind=DoubleReal) :: vCut = 7.5D0
   End Type  
 
   Type :: bulkProperties
@@ -88,14 +90,65 @@ Module types
   End Type   
   
   Type :: saConfig
-    Real(kind=DoubleReal) ::         temp=10.0D0
+    Integer(kind=StandardInteger) :: saCount = 1
+    Integer(kind=StandardInteger) :: saType = 1  ! 1 spine/tab, 2 analytic
+    Real(kind=DoubleReal) ::         tempStart=10.0D0
     Real(kind=DoubleReal) ::         tempEnd=0.1D0
     Integer(kind=StandardInteger) :: tempLoops=5
     Integer(kind=StandardInteger) :: varLoops=100
     Real(kind=DoubleReal) ::         maxVar=0.05D0
     Real(kind=DoubleReal) ::         minVar=0.0005D0
-    Integer(kind=StandardInteger) :: refinementLoops=3
+    Integer(kind=StandardInteger) :: refinementLoops=1
   End Type 
+  
+  Type :: analyticFunctions
+! -----------------  
+    Integer(kind=StandardInteger) :: functionCount
+! -----------------  
+    Character(len=4) :: functionType="    "
+    Character(len=4) :: elementA="    "
+    Character(len=4) :: elementB="    "
+    Integer(kind=StandardInteger) :: dataPointCount = 0
+    Real(kind=DoubleReal):: pairZBL = 0.0D0
+    Integer(kind=StandardInteger) :: pairZBL_A = 1
+    Integer(kind=StandardInteger) :: pairZBL_B = 1
+    Integer(kind=StandardInteger) :: functionForm = 0
+    Integer(kind=StandardInteger) :: functionParameterCount = 0
+    Real(kind=DoubleReal), Dimension(1:10) :: functionParameters = 0.0D0
+    Real(kind=DoubleReal), Dimension(1:10) :: functionParametersLB = 0.0D0
+    Real(kind=DoubleReal), Dimension(1:10) :: functionParametersUB = 0.0D0
+    Real(kind=DoubleReal), Dimension(1:10000,1:4) :: dataPoints = 0.0D0
+    Real(kind=DoubleReal) :: fMin = 0.0D0
+    Real(kind=DoubleReal) :: fMax = 10.0D0    
+  End Type 
+  
+  
+  
+  
+  
+  
+!-------------------------------------------------------------------------------------------------------------- 
+  
+  
+! Program settings
+  Type :: progSettings
+    Logical ::                       eamCharts=.true.
+  End Type 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
 End Module types

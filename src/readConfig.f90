@@ -33,10 +33,6 @@ Module readConfig
   Contains
   Subroutine readConfigFile()
     Implicit None   ! Force declaration of all variables
-! Print out
-    If(TerminalPrint())Then
-      print *,"READ CONFIG: ",trim(configFilePath)
-    End If
 ! Private variables
     Call cpu_time(timeStart)
 ! Load config file into memory
@@ -46,15 +42,14 @@ Module readConfig
     Call resetConfigVars()
     Call processFile()
     Call expandCoordinates()
-    Call outputConfigPoints()
+    Call outputConfigPoints(0)  ! output.f90
+    Call outputConfigPoints(1)  ! output.f90
+    Call outputConfigPoints(2)  ! output.f90
 ! Synch MPI processes
     Call M_synchProcesses()
     Call cpu_time(timeEnd)
     Call timeAcc(configLoadTime,timeStart,timeEnd)
 ! Output
-    If(TerminalPrint())Then
-      print *,"Atom configurations loaded: ",(timeEnd-timeStart),"s"
-    End If
   End Subroutine readConfigFile
 
   Subroutine loadFile()
@@ -64,10 +59,6 @@ Module readConfig
 ! Private variables
     Integer(kind=StandardInteger) :: ios, i, j
     Character(len=255) :: fileRow, fileRowCaps
-! Output to Terminal
-    If(TerminalPrint())Then
-      Print *,"Loading user config file ",trim(configFilePath)
-    End If
 ! Read config file into memory
     j = 0
     Open(UNIT=1,FILE=trim(configFilePath))
@@ -102,6 +93,7 @@ Module readConfig
 ! Private variables
     Integer(kind=StandardInteger) :: i,j,m,n,writeFile,tempLastRow,readFlag
     Integer(kind=StandardInteger) :: replCount
+    Integer(kind=StandardInteger) :: ccX, ccY, ccZ
     Real(kind=DoubleReal) :: radiusCutoff,confWeight
     Character(len=255) :: fileRow, fileRowB
     Character(len=255) :: dftFilePath
@@ -112,8 +104,8 @@ Module readConfig
     bufferB = BlankString(bufferB)
     bufferC = BlankString(bufferC)
     bufferD = BlankString(bufferD)
-    confWeight = 1.0D0
 ! Loop through file rows
+    confWeight = 1.0D0
     m = 0
     n = 0
     writeFile = 0
@@ -126,8 +118,10 @@ Module readConfig
 ! Check if normal or dft config
       If(fileRow(1:7).eq."#NEWDFT")Then
         writeFile = 2
+        confWeight = 1.0D0
       ElseIf(fileRow(1:4).eq."#NEW")Then
         writeFile = 1
+        confWeight = 1.0D0
       End If
 ! Save to memory
       If(writeFile.eq.1)Then
@@ -171,13 +165,23 @@ Module readConfig
       End If
       If(readFlag.eq.0)Then
         If(fileRow(1:7).eq."#NEWDFT")Then
+          confWeight = 1.0D0
           readFlag = 1
+          ccX = 1
+          ccY = 1
+          ccZ = 1
           configLabelReplace = BlankStringArray(configLabelReplace)
         End If
       Else
         If(fileRow(1:3).eq."#RC")Then
           Read(fileRow,*) bufferA, bufferB, bufferC
           Read(bufferB,*) radiusCutoff
+        End If
+        If(fileRow(1:3).eq."#CC")Then
+          Read(fileRow,*) bufferA, bufferB, bufferC, bufferD
+          Read(bufferB,*) ccX
+          Read(bufferC,*) ccY
+          Read(bufferD,*) ccZ
         End If
         If(fileRow(1:5).eq."#TYPE")Then
           Read(fileRow,*) bufferA, bufferB
@@ -186,6 +190,10 @@ Module readConfig
         If(fileRow(1:5).eq."#PATH")Then
           Read(fileRow,*) bufferA, bufferB
           dftFilePath = Trim(bufferB)
+        End If
+        If(fileRow(1:3).eq."#CW")Then
+          Read(fileRow,*) bufferA, bufferB
+          Read(bufferB,*) confWeight
         End If
         If(fileRow(1:5).eq."#REPL")Then
           Read(fileRow,*) bufferA, bufferB, bufferC
@@ -209,7 +217,7 @@ Module readConfig
             End If
           End Do
 ! Read in file
-          Call readPWSCFFile(dftFilePath, radiusCutoff, confWeight)
+          Call readPWSCFFile(dftFilePath, radiusCutoff, confWeight, ccX, ccY, ccZ)
         End If
       End If
     End Do
@@ -225,10 +233,11 @@ Module readConfig
     configInputData = configInputDataTemp
   End Subroutine readDFTFiles
 
-  Subroutine readPWSCFFile(dftFilePath, dftInRadiusCutoff, confWeight)
+  Subroutine readPWSCFFile(dftFilePath, dftInRadiusCutoff, confWeight, ccX, ccY, ccZ)
 ! Read in configuration file
     Implicit None  ! Force declaration of all variables
 ! Declare private variables
+    Integer(kind=StandardInteger) :: ccX, ccY, ccZ
     Integer(kind=StandardInteger) :: ios, i, j, k, m
     Character(len=255) :: dftFilePath
     Character(len=255) :: fileRow, fileLineBuffer
@@ -324,7 +333,7 @@ Module readConfig
           fileLineBuffer = fileRow(33:100)
           read(fileLineBuffer,*) bufferA, bufferB
           read(bufferA,*) aLat
-          aLat = UnitConvert(aLat,"Bohr","A")
+          aLat = UnitConvert(aLat,"BOHR","ANG")
         End If
 ! Crystal Axes/Unit Vector - scf
         If(readType.eq.0.and.fileRow(1:18).eq."     crystal axes:")Then
@@ -410,13 +419,23 @@ Module readConfig
             read(bufferA,*) atomCoords(j,1)
             read(bufferB,*) atomCoords(j,2)
             read(bufferC,*) atomCoords(j,3)
+            atomCoords(j,1) = Mod(atomCoords(j,1),1.0D0)
+            atomCoords(j,2) = Mod(atomCoords(j,2),1.0D0)
+            atomCoords(j,3) = Mod(atomCoords(j,3),1.0D0)
           End Do
         End If
 ! atom forces
         If(fileRow(1:27).eq."     Forces acting on atoms")Then
-          Read(101,"(A255)",IOSTAT=ios) fileRow !read blank line
+          Do j=1,10
+            Read(101,"(A255)",IOSTAT=ios) fileRow !read blank line
+            If(fileRow(6:9).eq."atom")Then
+              exit
+            End If
+          End Do
           Do j=1,numberOfAtoms
-            Read(101,"(A255)",IOSTAT=ios) fileRow
+            If(j.gt.1)Then
+              Read(101,"(A255)",IOSTAT=ios) fileRow
+            End If  
             fileLineBuffer = fileRow(33:76)
             read(fileLineBuffer,*) bufferA, bufferB, bufferC
             read(bufferA,*) atomForcess(j,1)
@@ -500,7 +519,7 @@ Module readConfig
     m = m + 1
 !
     fileRow = BlankString(fileRow)
-    write(fileRow,"(A9)") "#CC 1 1 1"
+    write(fileRow,"(A4,I2,A1,I2,A1,I2)") "#CC ",ccX," ",ccY," ",ccZ
     configInputDataDFTTemp(m) = trim(fileRow)
     m = m + 1
 !
@@ -515,7 +534,7 @@ Module readConfig
     m = m + 1
 !
     fileRow = BlankString(fileRow)
-    write(fileRow,"(A5,F10.7,A3)") "#EPA ",configEnergyPerAtom," EV"
+    write(fileRow,"(A5,F16.7,A3)") "#EPA ",configEnergyPerAtom," EV"
     configInputDataDFTTemp(m) = trim(fileRow)
     m = m + 1
 !
@@ -615,6 +634,14 @@ Module readConfig
       If(fileRow(1:3).eq."#RC")Then
         Read(fileRow,*) bufferA, bufferB
         Read(bufferB,*) configurationsR(configID,11)
+        If(configurationsR(configID,12).le.0.0D0.or.&
+        configurationsR(configID,12).ge.20.0D0)Then
+          configurationsR(configID,12) = configurationsR(configID,11)
+        End If
+      End If
+      If(fileRow(1:3).eq."#VC")Then
+        Read(fileRow,*) bufferA, bufferB
+        Read(bufferB,*) configurationsR(configID,12)
       End If
 ! Integers
       If(fileRow(1:3).eq."#CC")Then
@@ -642,6 +669,9 @@ Module readConfig
           Read(bufferB,*) configurationCoordsR(coordCount,1)
           Read(bufferC,*) configurationCoordsR(coordCount,2)
           Read(bufferD,*) configurationCoordsR(coordCount,3)
+          configurationCoordsR(coordCount,1) = Modulus(configurationCoordsR(coordCount,1),1.0D0)
+          configurationCoordsR(coordCount,2) = Modulus(configurationCoordsR(coordCount,2),1.0D0)
+          configurationCoordsR(coordCount,3) = Modulus(configurationCoordsR(coordCount,3),1.0D0)
 ! Read in forces
           If(configurationsI(configID,4).eq.1)Then
             Read(fileRow,*) bufferA, bufferB, bufferC, bufferD, bufferE, bufferF, bufferG
@@ -701,9 +731,6 @@ Module readConfig
         configurationCoordsKey(configID,2) = coordLength
         configurationCoordsKey(configID,3) = coordStart+coordLength-1
         coordStart = coordStart + coordLength
-        If(TerminalPrint())Then
-          print *,"Loaded: ",configID,coordStart,(coordStart+coordLength-1),"(",coordLength,")"
-        End If
         coordLength = 0
       End If
     End Do
@@ -894,9 +921,6 @@ Module readConfig
   
   
   
-  
-  
-  
   Subroutine readBpConfigFile()
     Implicit None   ! Force declaration of all variables
 ! Private
@@ -906,18 +930,10 @@ Module readConfig
     Character(Len=255) :: fileRowUC
     Character(len=32) :: bufferA, bufferB, bufferC
     Logical :: readData    
-! Print out
-    If(TerminalPrint())Then
-      print *,"READ BP CONFIG: ",trim(bpConfigFilePath)
-    End If
 ! Private variables
     Call cpu_time(timeStart)
 ! Load config file into memory
-    Call readFile(trim(bpConfigFilePath), bpConfigInputData, fileRows)
-! Print to terminal    
-    If(TerminalPrint())Then
-      print *,"Rows: ",fileRows
-    End If  
+    Call readFile(trim(bpConfigFilePath), bpConfigInputData, fileRows) 
 ! Read in data
     configID = 0
     rowID = 0
@@ -938,9 +954,6 @@ Module readConfig
         If(bpInArr(configID)%structure.eq."BCC")Then
           bpInArr(configID)%v0 = ((bpInArr(configID)%aLat)**3)/2.0D0
         End If  
-        !If(bpInArr(configID)%structure.eq."HCP")Then
-          !bpInArr(configID)%v0 = ((bpInArr(configID)%aLat)**3)/2.0D0
-        !End If  
       End If
       If(readData)Then
         If(fileRowUC(1:5).eq."#STRU")Then        
@@ -991,20 +1004,21 @@ Module readConfig
           Read(bufferB,*) dpTemp
           bpInArr(configID)%c44 = UnitConvert(dpTemp, bufferC, "EVAN3")         
         End If
+        If(fileRowUC(1:3).eq."#RC")Then        
+          Read(fileRowUC,*) bufferA, bufferB
+          Read(bufferB,*) dpTemp
+          bpInArr(configID)%rCut = dpTemp         
+        End If
+        If(fileRowUC(1:3).eq."#VC")Then        
+          Read(fileRowUC,*) bufferA, bufferB
+          Read(bufferB,*) dpTemp
+          bpInArr(configID)%vCut = dpTemp        
+        End If
       End If
     End Do
-
-    
-
 ! Synch MPI processes
     Call M_synchProcesses()
     Call cpu_time(timeEnd)
-    
-    
-! Output
-    If(TerminalPrint())Then
-      print *,"Atom bp configurations loaded: ",(timeEnd-timeStart),"s"
-    End If
   End Subroutine readBpConfigFile
   
   

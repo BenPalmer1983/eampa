@@ -73,14 +73,14 @@ Module readEAM
     eamKeyInput = eamKey
     eamDataInput = eamData
 ! Set eam spline nodes
-    If(eamForceSpline)Then
-      Call setEamNodes()
-      Call saveEamNodes("input_splined.nodes")
-      Call setEamSpline()
-      Call saveEamFile("input_splined.pot")   
-    End If
+    !If(eamForceSpline)Then
+    !  Call setEamNodes()
+    !  Call saveEamNodes("input_splined.nodes")
+    !  Call setEamSpline()
+    !  Call saveEamFile("input_splined.pot")   
+    !End If
 ! Output summary of EAM to the output file
-    Call outputSummary()
+    Call outputEAMFunctionsT()
 ! Export EAM data to file
     Call eamDataDump()
 ! Synchronise Processes
@@ -106,9 +106,6 @@ Module readEAM
     Integer(kind=StandardInteger) :: ios, i, n
     Character(len=255) :: fileRow
 ! Output to Terminal
-    If(TerminalPrint())Then
-      Print *,"Reading user eam file ",trim(eamFilePath)
-    End If
     Open(UNIT=1,FILE=Trim(eamFilePath))
     n = 0
     eamType = 1  ! Set EAM as default
@@ -149,9 +146,6 @@ Module readEAM
       End If
     End Do
     Close(1)
-    If(TerminalPrint())Then
-      Print *,"EAM loaded into memory.  Type: ",eamType
-    End If
   End Subroutine prepFile
 
 ! -----------------------------------------------
@@ -637,9 +631,6 @@ Module readEAM
     FunctionStart = 1
     FunctionLength = 0
 ! Output to Terminal
-    If(TerminalPrint())Then
-      Print *,"Reading data to eam arrays"
-    End If
 ! ---------------------------
 ! Step 1 - store elements
 ! ---------------------------
@@ -665,16 +656,6 @@ Module readEAM
         Call AddUniqueElement(elementA)
       End If
     End Do
-! Output to Terminal
-    If(TerminalPrint())Then
-      Print *,"Elements loaded from potential:"
-      Do i=1,size(elements,1)
-        If(elements(i).eq."ZZ")Then
-          exit
-        End If
-        Print *,elements(i)
-      End Do
-    End If
 ! ---------------------------
 ! Step 2 - prep function counts
 ! ---------------------------
@@ -706,12 +687,6 @@ Module readEAM
         eamSembCount = elementsCount
         eamDembCount = elementsCount
       End If
-    End If
-! Output to Terminal
-    If(TerminalPrint())Then
-      Print *,"EAM elements: ",elementsCount
-      Print *,"EAM type: ",eamType
-      Print *,"Expected functions: ",eamFunctionCount
     End If
 ! ---------------------------
 ! Step 3 - store potential functions
@@ -943,7 +918,6 @@ Module readEAM
       If(splineNodesKey(i,1).gt.0)Then    
         If(splineNodesKey(i,3).eq.3)Then
           rescFactor = newDensityLimit/splineNodesKey(i,6)
-          print *,i,newDensityLimit,splineNodesKey(i,6),rescFactor
           Do j=splineNodesKey(i,4), splineNodesKey(i,6)
             splineNodesData(j,1) = rescFactor * splineNodesData(j,1) 
           End Do
@@ -1243,44 +1217,6 @@ Module readEAM
     End If
   End Subroutine eamPairZbl
 
-  Subroutine outputSummary()
-! Saves the eam file to the output directory
-    Implicit None   ! Force declaration of all variables
-! Private variables
-    Integer(kind=StandardInteger) :: i, functionCounter
-! Print out
-    If(TerminalPrint())Then
-      print *,"Read EAM Potential Functions"
-      print *,"EAM Type: ",eamType
-      If(eamType.eq.1)Then
-        print *,"Pair: ",eamPairCount,", Dens: ",eamDensCount,&
-        ", Dens: ",eamEmbeCount,", Total: ",eamFunctionCount
-      End If
-      print *,"EAM Potential Functions Summary"
-      functionCounter = 0
-      Do i=1,size(eamKey,1)
-        If(eamKey(i,1).gt.0)Then
-          functionCounter = functionCounter + 1
-          If(eamKey(i,2).gt.0)Then
-            print "(I4,A1,A4,A1,I2,A2,A2,A1,I2,A2,A2,A1,I2,A2,I7,A1,I7,A1,I7)",&
-            functionCounter," ",eamFunctionTypes(eamKey(i,3)),"(",eamKey(i,3),") ",&
-            elements(eamKey(i,1)),"(",eamKey(i,1),") ",&
-            elements(eamKey(i,2)),"(",eamKey(i,2),") ",&
-            eamKey(i,4)," ",eamKey(i,5)," ",eamKey(i,6)
-          Else
-            print "(I4,A1,A4,A1,I2,A2,A2,A1,I2,A2,A7,I7,A1,I7,A1,I7)",&
-            functionCounter," ",eamFunctionTypes(eamKey(i,3)),"(",eamKey(i,3),") ",&
-            elements(eamKey(i,1)),"(",eamKey(i,1),") ",&
-            "       ",&
-            eamKey(i,4)," ",eamKey(i,5)," ",eamKey(i,6)
-          End If
-        End If
-        If(functionCounter.eq.eamFunctionCount )Then
-          Exit  ! Exit, all functions cycled through
-        End If
-      End Do
-    End If
-  End Subroutine outputSummary
 
   Subroutine eamDataDump()
 ! Saves the eam file to the output directory
@@ -1356,7 +1292,7 @@ Module readEAM
           Call plotMake(eamPlotData)  
           If(eamKey(i,3).eq.1)Then  ! Do a "close up" of the pair potential            
             write(fileName,"(I4)") functionCounter
-            fileName = "Input_EAM_"//adjustl(trim(fileName))
+            fileName = adjustl(trim(prefix))//"EAM_"//adjustl(trim(fileName))
             fileName = trim(fileName)//"_"//eamFunctionTypes(eamKey(i,3))//"_C"
 ! Set chart values
             eamPlotData%outputName = trim(fileName)

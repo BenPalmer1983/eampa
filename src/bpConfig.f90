@@ -34,9 +34,6 @@ Module bpConfig
     Implicit None   ! Force declaration of all variables
 ! Private variables
 ! Print out
-    If(TerminalPrint())Then
-      print *,"Build Configurations for Bulk Property Testing"
-    End If
     Call resetBPConfig() 
 ! Make
     Call makeConfigs()

@@ -46,7 +46,7 @@ Module finalise
       print *,""
       print *,""
       print *,"                           Run Time"
-      print *,"----------------------------------------------------------------------"
+      Call printBR() ! -----------------------------------------------------------
       print *,"Globals Init Time:         ",globInitTime
       print *,"EAM Potential Load Time:   ",eamLoadTime
       print *,"Configuration input:       ",configLoadTime

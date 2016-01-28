@@ -13,6 +13,7 @@ Module output
 
 ! Setup Modules
   Use kinds
+  Use types
   Use msubs
   Use constants
   Use maths
@@ -61,11 +62,13 @@ Module output
   Public :: outputTestingSummaryT
   Public :: outputProcessMapT
   Public :: outputPreCalcSummaryT
+  Public :: outputPreCalcSummaryBpT
+  Public :: outputEAMFunctionsT
+  Public :: outputEAMAnParams
   Public :: outputEnergyT
   Public :: outputBpT
   Public :: outputEAMSummaryT
   Public :: outputRssT
-  
   
   
   Contains
@@ -114,10 +117,6 @@ Module output
       End If
 ! Close file
       Close(118)
-    End If
-! Output to Terminal
-    If(TerminalPrint())Then
-      Print *,"Saved to: ",trim(filePath)
     End If
   End Subroutine saveEamFile
   
@@ -767,33 +766,79 @@ Module output
     End If
   End Subroutine outputCleanupList
 
-  Subroutine outputConfigPoints()
+  Subroutine outputConfigPoints(printTypeIn)
 ! Saves the eam file to the output directory
     Implicit None   ! Force declaration of all variables
+! In/Out    
+    Integer(kind=StandardInteger), Optional :: printTypeIn
 ! Private variables
+    Integer(kind=StandardInteger) :: printType
     Integer(kind=StandardInteger) :: configID,i
     Integer(kind=StandardInteger) :: coordStart, coordLength, coordEnd
+! Optional
+    printType = 0
+    If(Present(printTypeIn))Then
+      printType = printTypeIn
+    End If
+! Root process    
     If(mpiProcessID.eq.0)Then
-      open(unit=999,file=trim(trim(outputDirectory)//"/"//"configPoints.dat"))
-      write(999,"(A22,I8)") "Configurations:       ", configCount
-      Do configID=1,configCount
-        coordStart = configurationCoordsKeyG(configID,1)
-        coordLength = configurationCoordsKeyG(configID,2)
-        coordEnd = configurationCoordsKeyG(configID,3)
-        write(999,"(A7,I4,A3,I8,I8,A1,I8,A1)") "Config ",configID,"   ",coordStart,coordEnd,"(",coordLength,")"
-        Do i=coordStart,coordEnd
-          write(999,"(A8,A4,A2,F14.6,A2,F14.6,A2,F14.6,A4,F14.6,A2,F14.6,A2,F14.6)") &
-          "        ",&
-          elements(configurationCoordsIG(i,1)),"  ",&
-          configurationCoordsRG(i,1),"  ",&
-          configurationCoordsRG(i,2),"  ",&
-          configurationCoordsRG(i,3),"    ",&
-          configurationCoordsRG(i,4),"  ",&
-          configurationCoordsRG(i,5),"  ",&
-          configurationCoordsRG(i,6)
+      If(printType.eq.0)Then
+        open(unit=999,file=trim(trim(outputDirectory)//"/"//"configPoints.dat"))
+        write(999,"(A22,I8)") "Configurations:       ", configCount
+        Do configID=1,configCount
+          coordStart = configurationCoordsKeyG(configID,1)
+          coordLength = configurationCoordsKeyG(configID,2)
+          coordEnd = configurationCoordsKeyG(configID,3)
+          write(999,"(A7,I4,A3,I8,I8,A1,I8,A1)") "Config ",configID,"   ",coordStart,coordEnd,"(",coordLength,")"
+          Do i=coordStart,coordEnd
+            write(999,"(A8,A2,F14.6,A2,F14.6,A2,F14.6,A4,F14.6,A2,F14.6,A2,F14.6)") &
+            adjustl(elements(configurationCoordsIG(i,1))),"  ",&
+            configurationCoordsRG(i,1),"  ",&
+            configurationCoordsRG(i,2),"  ",&
+            configurationCoordsRG(i,3),"    ",&
+            configurationCoordsRG(i,4),"  ",&
+            configurationCoordsRG(i,5),"  ",&
+            configurationCoordsRG(i,6)
+          End Do
+        End Do  
+        Close(999)
+      End If
+      If(printType.eq.1)Then
+        open(unit=999,file=trim(trim(outputDirectory)//"/"//"configPointsAngs.dat"))
+        write(999,"(A22,I8)") "Configurations:       ", configCount
+        Do configID=1,configCount
+          coordStart = configurationCoordsKeyG(configID,1)
+          coordLength = configurationCoordsKeyG(configID,2)
+          coordEnd = configurationCoordsKeyG(configID,3)
+          write(999,"(A7,I4,A3,I8,I8,A1,I8,A1)") "Config ",configID,"   ",coordStart,coordEnd,"(",coordLength,")"
+          Do i=coordStart,coordEnd
+            write(999,"(A8,A2,F14.6,A2,F14.6,A2,F14.6)") &
+            adjustl(elements(configurationCoordsIG(i,1))),"  ",&
+            configurationCoordsRG(i,1),"  ",&
+            configurationCoordsRG(i,2),"  ",&
+            configurationCoordsRG(i,3)
+          End Do
         End Do
-      End Do
-      Close(999)
+        Close(999)
+      End If
+      If(printType.eq.2)Then
+        open(unit=999,file=trim(trim(outputDirectory)//"/"//"configPointsFrac.dat"))
+        write(999,"(A22,I8)") "Configurations:       ", configCount
+        Do configID=1,configCount
+          coordStart = configurationCoordsKeyG(configID,1)
+          coordLength = configurationCoordsKeyG(configID,2)
+          coordEnd = configurationCoordsKeyG(configID,3)
+          write(999,"(A7,I4,A3,I8,I8,A1,I8,A1)") "Config ",configID,"   ",coordStart,coordEnd,"(",coordLength,")"
+          Do i=coordStart,coordEnd
+            write(999,"(A8,A2,F14.6,A2,F14.6,A2,F14.6)") &
+            adjustl(elements(configurationCoordsIG(i,1))),"  ",&
+            configurationCoordsRG(i,4),"  ",&
+            configurationCoordsRG(i,5),"  ",&
+            configurationCoordsRG(i,6)
+          End Do
+        End Do
+        Close(999)
+      End If
     End If
   End Subroutine outputConfigPoints
 
@@ -865,9 +910,9 @@ Module output
 ! Only on root process
     If(TerminalPrint())Then
       print *,""
-      print *,"                         Process Map                            "
-      print *,"----------------------------------------------------------------"
-      print *,"Config  Process                                                 "
+      print *,"                             Process Map                                 "
+      Call printBR() ! -----------------------------------------------------------
+      print *,"Config  Process                                                          "
       Do i=1,maxConfigs
         If(processMap(i).ge.0)Then
           print "(I6,A2,I6)",i,"  ",processMap(i)
@@ -895,19 +940,122 @@ Module output
 ! Only on root process
     If(TerminalPrint())Then
       print *,""
-      print *,"                         Config Summary                         "
-      print *,"----------------------------------------------------------------"
-      print *,"Conf    Atoms    Vol        Rcut   Rmin   Rmax                                "
+      print *,"                           Config Summary                                "
+      Call printBR() ! -----------------------------------------------------------
+      print *,"Conf    Atoms    Vol        Rcut   Vcut   Rmin   Rmax   Nl Len  ConfW       "
       Do configID=1,configCount
-        print "(I4,A3,I6,A3,F10.4,A1,F6.3,A1,F6.3,A1,F6.3)",&
-        configID,"   ",configurationCoordsKeyG(configID,2),"   ",&
-        configVolume(configID)," ",neighbourListKeyR(configID,1)," ",&
-        neighbourListKeyR(configID,2)," ",neighbourListKeyR(configID,3)
+        print "(I4,A3,I6,A3,F10.4,A1,F6.3,A1,F6.3,A1,F6.3,A1,F6.3,A1,I6,A2,F6.3)",&
+        configID,"   ",&
+        configurationCoordsKeyG(configID,2),"   ",&
+        configVolume(configID)," ",&
+        neighbourListKeyR(configID,1)," ",&
+        neighbourListKeyR(configID,6)," ",&
+        neighbourListKeyR(configID,2)," ",&
+        neighbourListKeyR(configID,3)," ",&
+        neighbourListKey(configID,2),"  ",&
+        configWeighting(configID)        
       End Do
       print *,"Total atoms: ",configsAtomTotal
       print *,""
     End If
   End Subroutine outputPreCalcSummaryT
+  
+  
+  Subroutine outputEAMFunctionsT()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: i, functionCounter
+! Only on root process
+    If(TerminalPrint())Then
+      print *,"                    Read EAM Potential Functions                         "
+      Call printBR() ! -----------------------------------------------------------
+      If(potentialType.eq.1)Then 
+        print *,"Spline/Tabulated Potential"
+      End If
+      If(potentialType.eq.2)Then 
+        print *,"Analytic Potential ",apfData(1)%functionCount 
+      End If
+ 
+      print *,"EAM File: ",trim(eamFilePath)
+      print *,"EAM Type: ",eamType
+      If(eamType.eq.1)Then
+        print *,"Pair: ",eamPairCount,", Dens: ",eamDensCount,&
+        ", Dens: ",eamEmbeCount,", Total: ",eamFunctionCount
+      End If
+      print *,"EAM Potential Functions:"
+      functionCounter = 0
+      Do i=1,size(eamKey,1)
+        If(eamKey(i,1).gt.0)Then
+          functionCounter = functionCounter + 1
+          If(eamKey(i,2).gt.0)Then
+            print "(I4,A1,A4,A1,I2,A2,A2,A1,I2,A2,A2,A1,I2,A2,I7,A1,I7,A1,I7)",&
+            functionCounter," ",eamFunctionTypes(eamKey(i,3)),"(",eamKey(i,3),") ",&
+            elements(eamKey(i,1)),"(",eamKey(i,1),") ",&
+            elements(eamKey(i,2)),"(",eamKey(i,2),") ",&
+            eamKey(i,4)," ",eamKey(i,5)," ",eamKey(i,6)
+          Else
+            print "(I4,A1,A4,A1,I2,A2,A2,A1,I2,A2,A7,I7,A1,I7,A1,I7)",&
+            functionCounter," ",eamFunctionTypes(eamKey(i,3)),"(",eamKey(i,3),") ",&
+            elements(eamKey(i,1)),"(",eamKey(i,1),") ",&
+            "       ",&
+            eamKey(i,4)," ",eamKey(i,5)," ",eamKey(i,6)
+          End If
+        End If
+        If(functionCounter.eq.eamFunctionCount )Then
+          Exit  ! Exit, all functions cycled through
+        End If
+      End Do
+      print *,""
+    End If
+  End Subroutine outputEAMFunctionsT  
+  
+  Subroutine outputEAMAnParams(apfData_Fin)
+! Output params
+    Implicit None   ! Force declaration of all variables
+! In/Out    
+    Type(analyticFunctions), Dimension(:) :: apfData_Fin
+! Private variables
+    Integer(kind=StandardInteger) :: funcID, paramID
+
+    Do funcID=1,apfData_Fin(1)%functionCount
+      Print *, "Function ID: ",funcID
+      Print *, "Parameters: ",apfData_Fin(funcID)%functionParameterCount
+      Do paramID=1,apfData_Fin(funcID)%functionParameterCount
+        Print *, "   ",paramID,apfData_Fin(funcID)%functionParameters(paramID)
+      End Do
+    End Do
+
+
+  End Subroutine outputEAMAnParams  
+  
+  
+  Subroutine outputPreCalcSummaryBpT()
+! Output ref and calc forces to file
+    Implicit None   ! Force declaration of all variables
+! Private variables
+    Integer(kind=StandardInteger) :: configID
+! Only on root process
+    If(TerminalPrint())Then
+      print *,""
+      print *,"                      Bulk Property Config Summary                       "
+      Call printBR() ! -----------------------------------------------------------
+      print *,"Conf    Atoms    Vol        Rcut   Vcut   Rmin   Rmax   Nl Len          "
+      Do configID=1,configCountBP
+        print "(I4,A3,I6,A3,F10.4,A1,F6.3,A1,F6.3,A1,F6.3,A1,F6.3,A1,I6)",&
+        configID,"   ",&
+        configurationCoordsKeyBP(configID,2),"   ",&
+        0.0D0," ",&
+        neighbourListKeyRBP(configID,1)," ",&
+        neighbourListKeyRBP(configID,6)," ",&
+        neighbourListKeyRBP(configID,2)," ",&
+        neighbourListKeyRBP(configID,3)," ",&
+        neighbourListKeyBP(configID,2)
+      End Do
+      print *,"Total atoms: ",configsAtomTotalBP
+      print *,""
+    End If
+  End Subroutine outputPreCalcSummaryBpT
 
   Subroutine outputEnergyT()
 ! Output ref and calc forces to file
@@ -917,9 +1065,9 @@ Module output
 ! Only on root process
     If(TerminalPrint())Then
       print *,""
-      print *,"                     Config Energies                         "
-      print *,"----------------------------------------------------------------"
-      print *,"Conf   Atoms    Energy      Energy per Atom                  "
+      print *,"                         Config Energies                                 "
+      Call printBR() ! -----------------------------------------------------------
+      print *,"Conf   Atoms    Energy      Energy per Atom                              "
       Do configID=1,configCount
         print "(I4,A3,I8,A1,F14.7,A1,F14.7)",&
         configID,"   ",configurationCoordsKeyG(configID,2)," ",&
@@ -940,11 +1088,19 @@ Module output
     If(TerminalPrint())Then
       Print *,""
       Print *,"Configurations:"
+      print "(A7,A9,A15,A15,A15,A15)",&
+      " Config",&
+      " Atoms",&
+      "  Calc Total E ",&
+      "  Calc EPA ",&
+      "  Ref EPA ",&
+      "  RSS "
+      
       Do configID=1,configCount
-        print "(I4,A3,I8,A1,F14.7,A1,F14.7,A2,F14.7,A1,A2,F14.7,A1)",&
-        configID,"   ",configurationCoordsKeyG(configID,2)," ",&
-        (configCalcEnergies(configID)*1.0D0*&
-        configurationCoordsKeyG(configID,2)),&
+        print "(I4,A3,I8,A1,ES14.5E3,A1,ES14.5E3,A2,ES14.5E3,A1,A2,ES14.5E3,A1)",&
+        configID,"   ",&
+        configurationCoordsKeyG(configID,2)," ",&
+        (configCalcEnergies(configID)*1.0D0*configurationCoordsKeyG(configID,2)),&
         " ",configCalcEnergies(configID),&
         " (",configRefEnergies(configID),")",&
         " [",rssConfigsArr(configID)%energy,"]"
@@ -952,15 +1108,32 @@ Module output
       print *,"Bulk Protperties:"
       Do configID=1,configCountBP
         print *,"Config ",configID      
-        print *,"aLat: ",calcBulkProperties(configID)%aLat,&
+        print "(A6,ES14.5E3,A7,ES14.5E3,A1,A2,ES14.5E3,A1)",&
+        "aLat: ",calcBulkProperties(configID)%aLat,&
         " (ref: ",bpInArr(configID)%alat,")"," [",rssBPArr(configID)%aLat,"]"
-        print *,"v0: ",calcBulkProperties(configID)%v0,&
+        print "(A6,ES14.5E3,A7,ES14.5E3,A1,A2,ES14.5E3,A1)",&
+        "v0: ",calcBulkProperties(configID)%v0,&
         " (ref: ",bpInArr(configID)%v0,")"," [",rssBPArr(configID)%v0,"]"
-        print *,"e0: ",calcBulkProperties(configID)%e0,&
+        print "(A6,ES14.5E3,A7,ES14.5E3,A1,A2,ES14.5E3,A1)",&
+        "e0: ",calcBulkProperties(configID)%e0,&
         " (ref: ",bpInArr(configID)%e0,")"," [",rssBPArr(configID)%e0,"]"
-        print *,"b0: ",calcBulkProperties(configID)%b0,&
-        " (ref: ",bpInArr(configID)%b0,")"," [",rssBPArr(configID)%b0,"]"        
+        print "(A6,ES14.5E3,A7,ES14.5E3,A1,A2,ES14.5E3,A1)",&
+        "b0: ",calcBulkProperties(configID)%b0,&
+        " (ref: ",bpInArr(configID)%b0,")"," [",rssBPArr(configID)%b0,"]"    
+        print "(A6,ES14.5E3,A7,ES14.5E3,A1,A2,ES14.5E3,A1)",&
+        "C11: ",calcBulkProperties(configID)%c11,&
+        " (ref: ",bpInArr(configID)%c11,")"," [",rssBPArr(configID)%c11,"]"     
+        print "(A6,ES14.5E3,A7,ES14.5E3,A1,A2,ES14.5E3,A1)",&
+        "C12: ",calcBulkProperties(configID)%c12,&
+        " (ref: ",bpInArr(configID)%c12,")"," [",rssBPArr(configID)%c12,"]"    
+        print "(A6,ES14.5E3,A7,ES14.5E3,A1,A2,ES14.5E3,A1)",&
+        "C44: ",calcBulkProperties(configID)%c44,&
+        " (ref: ",bpInArr(configID)%c44,")"," [",rssBPArr(configID)%c44,"]"      
+        print "(A9,ES14.5E3)","EoS rss: ",rssBPArr(configID)%eos
       End Do
+      print "(A12,ES14.5E3)", "Config RSS: ",rssConfigsArrTotal%total
+      print "(A12,ES14.5E3)", "BP RSS:     ",rssBPArrTotal%total
+      print "(A12,ES14.5E3)", "Total RSS:  ",totalRSS
     End If
   End Subroutine outputBpT 
   
@@ -1019,9 +1192,9 @@ Module output
     Character(Len=4) :: configStr
 ! Only on root process
     If(TerminalPrint())Then
-      Print *,"---------------------------------------------------------------------------------------"
+      Call printBR() ! ----------------
       Print *,"                         Summary of current EAM Potential                              "
-      Print *,"---------------------------------------------------------------------------------------"
+      Call printBR() ! ----------------
       Print *,""
       Print *,"EAM Potential details:"
       Print *,"Type: ",eamType
@@ -1032,7 +1205,7 @@ Module output
             Print *,i,eamFunctionTypes(eamKey(i,3))," ",&
             elements(eamKey(i,1))," ",elements(eamKey(i,2)),eamKey(i,4)," to ",eamKey(i,6)
           Else
-            Print *,i,eamFunctionTypes(eamKey(i,3))," ",&
+            Print *,i,eamFunctionTypes(eamKey(i,3)),"    ",&
             elements(eamKey(i,1)),eamKey(i,4)," to ",eamKey(i,6)
           End If
         End If
@@ -1042,8 +1215,8 @@ Module output
       End Do       
       
       Print *,""
-      Print *,"---------------------------------------------------------------------------------------"
       print *,"                                Bulk Protperties                                    "
+      Call printBR() ! -----------------------------------------------------------
       Do configID=1,configCountBP
         Call printTableInit(table)
         table%colWidth = 20        

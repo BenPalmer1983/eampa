@@ -36,9 +36,25 @@ Module eval
 ! Loop through configs and calculate RSS
     totalRSS = 0.0D0        
     crCount = 0
+    rssConfigsArrTotal%total = 0.0D0
+    rssConfigsArrTotal%energy = 0.0D0
+    rssConfigsArrTotal%force = 0.0D0
+    rssConfigsArrTotal%stress = 0.0D0
     Do configID=1,configCount
+! RSS
       Call evalEAM_RSS(configID)
+! Totals      
+      rssConfigsArrTotal%total = rssConfigsArrTotal%total+rssConfigsArr(configID)%total
+      rssConfigsArrTotal%energy = rssConfigsArrTotal%energy+rssConfigsArr(configID)%energy
+      rssConfigsArrTotal%force = rssConfigsArrTotal%force+rssConfigsArr(configID)%force
+      rssConfigsArrTotal%stress = rssConfigsArrTotal%stress+rssConfigsArr(configID)%stress
+      !print *,"Total  ",rssConfigsArrTotal%total
+      !print *,"Energy ",rssConfigsArrTotal%energy
+      !print *,"Force  ",rssConfigsArrTotal%force
+      !print *,"Stress ",rssConfigsArrTotal%stress
+! Total RSS
       totalRSS = totalRSS + rssConfigsArr(configID)%total
+      !print *,configID,configCalcEnergies(configID)
     End Do
 ! Distribute value
     !Call M_distDouble(totalRSS)
@@ -46,10 +62,12 @@ Module eval
 ! ---------------------------------------------------------------------------------------------------
   Subroutine evalEAM_RSS(configID)
     Implicit None   ! Force declaration of all variables
-    Integer(kind=StandardInteger) :: configID, i, j, coordStartG, coordEndG
+    Integer(kind=StandardInteger) :: configID, i, j, coordStartG, coordEndG, configAtoms
     Real(kind=DoubleReal) :: energyRSS, stressRSS, forceRSS
     Real(kind=DoubleReal) :: refVal, calcVal
     Logical :: calcRSS
+! Init    
+    configAtoms = configurationCoordsKeyG(configID,2)
 ! Clear config RSS arrays
     energyRSS = 0.0D0
     stressRSS = 0.0D0
@@ -57,7 +75,8 @@ Module eval
 ! Energy
     If(configRefEnergies(configID).gt.-2.0D20.and.configCalcEnergies(configID).gt.-2.0D20)Then
       energyRSS = rssWeighting(1)*&
-      (configRefEnergies(configID)-configCalcEnergies(configID))**2
+      (configRefEnergies(configID)*configAtoms-&
+      configCalcEnergies(configID)*configAtoms)**2
       crCount = crCount + 1
       calcRef(crCount,1) = configCalcEnergies(configID)
       calcRef(crCount,2) = configRefEnergies(configID)
@@ -117,9 +136,9 @@ Module eval
       stressRSS = rssWeighting(3)*stressRSS
     End If
 ! Save rss values
-    rssConfigsArr(configID)%energy = energyRSS
-    rssConfigsArr(configID)%force = forceRSS
-    rssConfigsArr(configID)%stress = stressRSS
+    rssConfigsArr(configID)%energy = energyRSS*configWeighting(configID)
+    rssConfigsArr(configID)%force = forceRSS*configWeighting(configID)
+    rssConfigsArr(configID)%stress = stressRSS*configWeighting(configID)
     rssConfigsArr(configID)%total = energyRSS + forceRSS + stressRSS    
     !print *,rssConfigsArr(configID)%total
   End Subroutine evalEAM_RSS

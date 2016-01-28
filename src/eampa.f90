@@ -39,6 +39,7 @@ PROGRAM eampa
   Use loadData       ! load important data
   Use readinput      ! read input
   Use readEAM        ! read eam file
+  Use analytic       ! read/make analytic eam
   Use makePotential
   Use readConfig     ! read user/dft configurations
   Use bpConfig
@@ -89,8 +90,15 @@ PROGRAM eampa
 ! -----------------------------------------------------------------------
   If(eampaRunType.eq."EVAL")Then
 ! Read the EAM functions/functionals into memory
-    Call readEAMFile()             ! readEAM.f90 
+    If(potentialType.eq.1)Then
+      Call readEAMFile()             ! readEAM.f90 
+    End If  
+    If(potentialType.eq.2)Then
+      Call readAnalytic()             ! analytic.f90 
+      Call updateAnalytic()
+    End If        
 ! Read config file, dft output files and save these as one config file
+! Read the EAM functions/functionals into memory
     Call readConfigFile()          ! readConfig.f90 
 ! Read bulk property configs
     Call readBpConfigFile()        ! readConfig.f90
@@ -106,6 +114,7 @@ PROGRAM eampa
     Call runPreCalc()              ! preCalc.f90
 ! Pre calc summary
     Call outputPreCalcSummaryT()   ! output.f90
+    Call outputPreCalcSummaryBpT()   ! output.f90
 ! Calculate stress/energy/force of configuration/s
     quietOverride = .false.
     Call evalEAM()                 ! eval.f90
@@ -114,8 +123,8 @@ PROGRAM eampa
 ! Output summary on input EAM potential    
     Call outputEAMSummaryT()
     
-    Call makeRelaxConfigs()
-    Call relaxAtoms()
+    !Call makeRelaxConfigs()
+    !Call relaxAtoms()
 ! Finalise
     Call runFinaliseEval()         ! finalise.f90  prints out run time data
   End If
@@ -123,9 +132,14 @@ PROGRAM eampa
 ! --- Run Type: OPTI
 ! -----------------------------------------------------------------------
   If(eampaRunType.eq."OPTI")Then
-  print *,"opti"
 ! Read the EAM functions/functionals into memory
-    Call readEAMFile()            ! readEAM.f90
+    If(potentialType.eq.1)Then
+      Call readEAMFile()             ! readEAM.f90 
+    End If  
+    If(potentialType.eq.2)Then
+      Call readAnalytic()             ! analytic.f90 
+      Call updateAnalytic()
+    End If   
 ! Read config file, dft output files and save these as one config file
     Call readConfigFile()         ! readConfig.f90
 ! Read bulk property configs
@@ -142,8 +156,12 @@ PROGRAM eampa
     Call runPreCalc()
 ! Pre calc summary
     Call outputPreCalcSummaryT()
+    Call outputPreCalcSummaryBpT()   ! output.f90
 ! Run optimise
-    Call optiEAM()
+    Call optiEAM()   ! opti.f90
+    Call outputEAMFunctionsT()
+! Output summary on input EAM potential    
+    !Call outputEAMSummaryT()   
 ! Finalise
     Call runFinaliseEval()         ! finalise.f90  prints out run time data
   End If

@@ -49,20 +49,38 @@ Module evalBP
     If(Present(makeChartIn))Then
       makeChart = makeChartIn
     End If
-    
-    Call bpStoreUndistortedNL()
-    
+! Store the neighbour list to recall after distortion
+    Call bpStoreUndistortedNL()    
 ! Calculate alat (and fit EoS)
     Call bpEoS(makeChart) !evalBP.f90 
-    
-    Call bpEC(makeChart)
-    
-    
-    
+! Calculate elastic constants    
+    Call bpEC(makeChart) !evalBP.f90       
 ! Loop through configs and calculate RSS
     If(mpiProcessID.eq.0)Then
+      rssBPArrTotal%total = 0.0D0
+      rssBPArrTotal%aLat = 0.0D0
+      rssBPArrTotal%v0 = 0.0D0
+      rssBPArrTotal%e0 = 0.0D0
+      rssBPArrTotal%b0 = 0.0D0
+      rssBPArrTotal%bp0 = 0.0D0
+      rssBPArrTotal%eos = 0.0D0
+      rssBPArrTotal%c11 = 0.0D0
+      rssBPArrTotal%c12 = 0.0D0
+      rssBPArrTotal%c44 = 0.0D0
       Do configID=1,configCountBP
         Call evalBP_RSS(configID)
+! Totals      
+        rssBPArrTotal%total = rssBPArrTotal%total+rssBPArr(configID)%total
+        rssBPArrTotal%aLat = rssBPArrTotal%aLat+rssBPArr(configID)%aLat
+        rssBPArrTotal%v0 = rssBPArrTotal%v0+rssBPArr(configID)%v0
+        rssBPArrTotal%e0 = rssBPArrTotal%e0+rssBPArr(configID)%e0
+        rssBPArrTotal%b0 = rssBPArrTotal%b0+rssBPArr(configID)%b0
+        rssBPArrTotal%bp0 = rssBPArrTotal%bp0+rssBPArr(configID)%bp0
+        rssBPArrTotal%eos = rssBPArrTotal%eos+rssBPArr(configID)%eos
+        rssBPArrTotal%c11 = rssBPArrTotal%c11+rssBPArr(configID)%c11
+        rssBPArrTotal%c12 = rssBPArrTotal%c12+rssBPArr(configID)%c12
+        rssBPArrTotal%c44 = rssBPArrTotal%c44+rssBPArr(configID)%c44
+! Total RSS
         totalRSS = totalRSS + rssBPArr(configID)%total
       End Do
     End If
@@ -479,14 +497,6 @@ Module evalBP
     rssBPArr(configID)%c11 = RSSCalc(bpInArr(configID)%c11,calcBulkProperties(configID)%c11,rssWeighting(7))
     rssBPArr(configID)%c12 = RSSCalc(bpInArr(configID)%c12,calcBulkProperties(configID)%c12,rssWeighting(7))
     rssBPArr(configID)%c44 = RSSCalc(bpInArr(configID)%c44,calcBulkProperties(configID)%c44,rssWeighting(7))
-    !rssBPArr(configID)%alat = rssWeighting(4)*RSSCalc(bpInArr(configID)%alat,calcBulkProperties(configID)%alat)
-    !rssBPArr(configID)%v0 = rssWeighting(4)*RSSCalc(bpInArr(configID)%v0,calcBulkProperties(configID)%v0)
-    !rssBPArr(configID)%e0 = rssWeighting(5)*RSSCalc(bpInArr(configID)%e0,calcBulkProperties(configID)%e0)
-    !rssBPArr(configID)%b0 = rssWeighting(6)*RSSCalc(bpInArr(configID)%b0,calcBulkProperties(configID)%b0)
-    !rssBPArr(configID)%bp0 = 1.0D0*RSSCalc(bpInArr(configID)%bp0,calcBulkProperties(configID)%bp0)
-    !rssBPArr(configID)%c11 = rssWeighting(7)*RSSCalc(bpInArr(configID)%c11,calcBulkProperties(configID)%c11)
-    !rssBPArr(configID)%c12 = rssWeighting(7)*RSSCalc(bpInArr(configID)%c12,calcBulkProperties(configID)%c12)
-    !rssBPArr(configID)%c44 = rssWeighting(7)*RSSCalc(bpInArr(configID)%c44,calcBulkProperties(configID)%c44)
     
     
 ! Zero B'0 - input is just a guess at the moment
@@ -551,7 +561,8 @@ Module evalBP
       vol = vol + increment
       eCalc = BirchMurnCalc(vol,calcEoS_Arr)
       eRef = BirchMurnCalc(vol,refEoS_Arr)
-      rss = rss + (eCalc-eRef)**2
+      rss = rss + RSSCalc(eCalc,eRef,rssWeighting(8))
+      !rss = rss + (eCalc-eRef)**2
     End Do  
   End Subroutine evalBP_EosRSS
   

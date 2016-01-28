@@ -122,7 +122,7 @@ Module calcEAM
 ! Init
 ! -----------------
 ! Init variables
-    rCutoff = configurationsR(configID,11)
+    rCutoff = neighbourListKeyR(configID,1)
     pairEnergy = 0.0D0
     embeddingEnergy = 0.0D0
     configEnergy = 0.0D0

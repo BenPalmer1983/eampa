@@ -1,0 +1,20 @@
+#FILE              al_pair_tab.pot
+#LABEL             AL AL
+#F_ON true
+#F_TYPE            PAIR            ! PAIR DENS EMBE
+#F_GROUP
+#R_CUT              6.5
+
+#FILE              al_dens_tab.pot
+#LABEL             AL
+#F_ON true
+#F_TYPE            DENS            ! PAIR DENS EMBE
+#F_GROUP           1
+#R_CUT             6.5
+
+#FILE              al_embe_tab.pot
+#LABEL             AL
+#F_ON true
+#F_TYPE            EMBE            ! PAIR DENS EMBE
+#F_GROUP           1
+

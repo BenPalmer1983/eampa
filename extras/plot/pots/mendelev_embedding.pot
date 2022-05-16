@@ -1,0 +1,3 @@
+#TYPE   mendelev_embedding
+#P      0.6 
+#PF     0.0 

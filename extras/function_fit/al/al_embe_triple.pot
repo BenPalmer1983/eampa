@@ -1,0 +1,5 @@
+#TYPE triple_embedding
+#P -0.1 -0.0 0.0 
+#PF 0.0 
+#PL -1.0 -1.0 -1 
+#PU  3.0  3.0 30

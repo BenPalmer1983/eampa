@@ -1,0 +1,24 @@
+// Calculation type and units
+#TYPE bp
+#UNITS length=ang energy=ev pressure=gpa
+
+#CONFIG structure=fcc label=Al,Al,Al,Al a0=4.04 c=4,4,4 uv=1.0 rcut=7.0 ctype=e 
+#CONFIG structure=fcc label=Al,Al,Al,Al a0=4.04 c=4,4,4 uv=1.0 rcut=7.0 ctype=e 
+#CONFIG structure=fcc label=Al,Al,Al,Al a0=4.04 c=4,4,4 uv=1.0 rcut=7.0 ctype=e changecoord=0,0.025,0.0,0.0
+#CONFIG structure=fcc label=Al,Al,Al,Al a0=4.04 c=4,4,4 uv=1.0 rcut=7.0 ctype=e changecoord=0,0.025,0.0,0.0
+#CONFIG structure=fcc label=Al,Al,Al,Al a0=4.04 c=4,4,4 uv=1.0 rcut=7.0 ctype=e 
+
+
+#CONFIGS configs
+#NLSIZE 1000000
+#POTENTIAL pot/al.pot
+#RSS configs=1.0 e=10.0 f=0.5 s=1.0 bp=1.0 a0=100.0 e0=100.0 b0=100.0 ec=100.0 rose=1.0 msp=100.0,1000.0 bm_eos=100.0,1000.0 
+
+
+#FIT type=SA
+#FIT type=SA
+#FIT type=BH
+#FIT type=CG
+#FIT type=BFGS
+
+#BP label=Al structure=fcc a0=4.04 uv=1.0 e0=-3.36 b0=76 ec=114,62,32 

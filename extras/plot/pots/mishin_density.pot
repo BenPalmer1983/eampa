@@ -1,0 +1,4 @@
+#TYPE   mishin_density
+#P      0.5 0.3 1.0 1.0 1.0  &
+        1.0 1.0 
+#PF     6.0 

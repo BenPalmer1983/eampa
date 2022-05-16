@@ -1,0 +1,10 @@
+./ff.sh al/Al_plot.embed al/al_embe.pot
+./ff.sh al/Al_plot.den al/al_dens_spline.pot
+./ff.sh al/Al_plot.pair al/al_pair_spline.pot
+./ff.sh al/Al_plot.den al/al_dens_knot_spline.pot
+./ff.sh al/Al_plot.pair al/al_pair_morse.pot
+./ff.sh al/Al_plot.den al/al_dens_slater.pot
+./ff.sh al/Al_plot.den al/al_dens_spline_1.pot
+./ff.sh al/Al_plot.embed al/al_embe_knot_spline.pot
+./ff.sh al/Al_plot.pair al/al_pair_knot_spline.pot
+./ff.sh al/Al_plot.embed al/al_embe_poly.pot

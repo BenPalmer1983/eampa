@@ -23,7 +23,7 @@ class ifile:
 
     #   Default units
     ###############################################################
-    input_units = {'energy': 'ev', 'length': 'ang', 'pressure': 'gpa',}
+    input_units = g.units
 
     #   Read file
     ###############################################################
@@ -41,8 +41,56 @@ class ifile:
       f[0] = f[0].upper()
 
 
+      if(f[0] == "#TYPE"):
+        runtype = f[1].strip().lower()
+        if(runtype in g.runtypes):
+          g.input['runtype'] = runtype
+        else:
+          output.log("Unknown runtype: " + runtype, verbose=0)
 
-      if(f[0] == "#CONFIGS"):
+
+
+      elif(f[0] == "#UNITS"):
+        for n in range(1,len(f)):
+          df = f[n].split("=")
+          if(len(df) == 2):
+            if(df[0].lower() == "energy"):
+              g.units['energy'] = str(df[1])
+            elif(df[0].lower() == "length"):
+              g.units['length'] = str(df[1])
+            elif(df[0].lower() == "pressure"):
+              g.units['pressure'] = str(df[1])
+
+
+
+      elif(f[0] == "#MAXTIME"):
+        maxtime = float(f[1].strip())
+        g.maxtime = maxtime
+
+
+
+      elif(f[0] == "#BESTSAVEPERIOD"):
+        tp = float(f[1].strip())
+        g.potfit_bestsaveperiod = tp
+
+
+
+      elif(f[0] == "#SEED"):
+        g.seed = int(f[1].strip())
+
+
+
+      elif(f[0] == "#DISPLAY"):
+        g.display = int(f[1].strip())
+
+
+
+      elif(f[0] == "#NLSIZE"):
+        g.input['nlsize'] = int(f[1])
+
+
+
+      elif(f[0] == "#CONFIGS"):
         dir = os.path.abspath(f[1])
         if(os.path.isdir(dir)):
           g.input['configs'].append(dir)
@@ -53,21 +101,6 @@ class ifile:
 
       elif(f[0] == "#CONFIG"):
         g.one_line_configs.append(f[1:])
-
-
-
-      elif(f[0] == "#TYPE"):
-        runtype = f[1].strip().lower()
-        if(runtype in g.runtypes):
-          g.input['runtype'] = runtype
-        else:
-          output.log("Unknown runtype: " + runtype, verbose=0)
-
-
-
-
-      elif(f[0] == "#NLSIZE"):
-        g.input['nlsize'] = int(f[1])
 
 
 
@@ -121,6 +154,8 @@ class ifile:
           if(len(df) == 2):
             if(df[0].lower() == "label"):
               bp['label'] = df[1].split(",")
+            elif(df[0].lower() == "weight"):
+              bp['weight'] = float(df[1])
             elif(df[0].lower() == "structure"):
               bp['structure'] = df[1]
               if(bp['structure'].lower() == 'fcc' or bp['structure'].lower() == 'c-fcc'):
@@ -185,23 +220,94 @@ class ifile:
               step['fresh'] = float(df[1]) 
             elif(df[0].lower() == "search"):
               step['search'] = df[1].lower().strip()
+            elif(df[0].lower() == "minsize"):
+              step['minsize'] = int(df[1])
+            elif(df[0].lower() == "poolsize"):
+              step['poolsize'] = int(df[1])
+            elif(df[0].lower() == "samplesize"):
+              step['samplesize'] = int(df[1])
         g.potfit_steps.append(step) 
 
 
 
-      elif(f[0] == "#MAXTIME"):
-        maxtime = float(f[1].strip())
-        g.maxtime = maxtime
+      elif(f[0] == "#EOSBM"):
+        for n in range(1, len(f[:])):
+          df = f[n].split("=")
+          if(len(df) == 2):
+            if(df[0].lower() == "strain"):
+              g.bp_settings['eos_strain'] = float(df[1].lower()) 
+            elif(df[0].lower() == "steps"):
+              g.bp_settings['eos_steps'] = int(df[1].lower()) 
+            elif(df[0].lower() == "rcut"):
+              g.bp_settings['eos_rcut'] = float(df[1].lower()) 
+            elif(df[0].lower() == "cellsize"):
+              g.bp_settings['eos_cell_size'] = int(df[1].lower()) 
+            
+
+
+      elif(f[0] == "#ECRFKJ"):
+        for n in range(1, len(f[:])):
+          df = f[n].split("=")
+          if(len(df) == 2):
+            if(df[0].lower() == "strain"):
+              g.bp_settings['ec_strain'] = float(df[1].lower()) 
+            elif(df[0].lower() == "steps"):
+              g.bp_settings['ec_steps'] = int(df[1].lower()) 
+            elif(df[0].lower() == "rcut"):
+              g.bp_settings['ec_rcut'] = float(df[1].lower()) 
+            elif(df[0].lower() == "cellsize"):
+              g.bp_settings['ec_cell_size'] = int(df[1].lower()) 
 
 
 
-      elif(f[0] == "#BESTSAVEPERIOD"):
-        tp = float(f[1].strip())
-        g.potfit_bestsaveperiod = tp
+      elif(f[0] == "#ECMSP"):
+        for n in range(1, len(f[:])):
+          df = f[n].split("=")
+          if(len(df) == 2):
+            if(df[0].lower() == "strain"):
+              g.bp_settings['msp_ec_strain'] = float(df[1].lower()) 
+            elif(df[0].lower() == "steps"):
+              g.bp_settings['msp_ec_steps'] = int(df[1].lower()) 
+            elif(df[0].lower() == "rcut"):
+              g.bp_settings['msp_rcut'] = float(df[1].lower()) 
+            elif(df[0].lower() == "cellsize"):
+              g.bp_settings['msp_cell_size'] = int(df[1].lower()) 
 
 
 
+      elif(f[0] == "#ROSE"):
+        for n in range(1, len(f[:])):
+          df = f[n].split("=")
+          if(len(df) == 2):
+            if(df[0].lower() == "dmin"):
+              g.bp_settings['rose_a0_d1'] = float(df[1].lower()) 
+            elif(df[0].lower() == "dmax"):
+              g.bp_settings['rose_a0_d2'] = float(df[1].lower()) 
+            elif(df[0].lower() == "steps"):
+              g.bp_settings['rose_steps'] = int(df[1].lower()) 
+            elif(df[0].lower() == "rcut"):
+              g.bp_settings['rose_rcut'] = float(df[1].lower()) 
+            elif(df[0].lower() == "cellsize"):
+              g.bp_settings['rose_cell_size'] = int(df[1].lower()) 
 
+
+
+      elif(f[0] == "#GAUGE"):
+        for n in range(1,len(f)):
+          df = f[n].split("=")
+          if(len(df) == 2):
+            if(df[0].lower() == "label"):
+              g.gauge['label'] = df[1].split(",")
+            elif(df[0].lower() == "structures"):
+              g.gauge['structures'] = df[1].split(",")
+            elif(df[0].lower() == "a0"):
+              g.gauge['a0'] = float(df[1])
+            elif(df[0].lower() == "uv"):     
+              g.gauge['uv'] = ds.config_uv(df[1].split(","))
+            elif(df[0].lower() == "size"):
+              g.gauge['size'] = ds.config_cxyz(df[1].split(","))
+            elif(df[0].lower() == "rcut"):
+              g.gauge['rcut'] = float(df[1])
 
 
 

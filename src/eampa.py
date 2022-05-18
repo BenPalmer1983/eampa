@@ -24,6 +24,7 @@ from rss import rss
 from relax import relax
 from test import test
 from potfit import potfit
+from gauge import gauge
 
 
 class eampa:
@@ -69,6 +70,7 @@ class eampa:
 
     if(len(sys.argv)<2):
       output.log("Please specifiy input file.", verbose=0)
+      exit()
 
     if(not os.path.isfile(sys.argv[1])):
       output.log("Input file does not exist.", verbose=0)
@@ -76,6 +78,9 @@ class eampa:
 
     # Read Input File
     ifile.load(sys.argv[1])
+
+    # Set Seed  
+    eampa.set_seed()  
 
     # Load any config files
     cfile.read_configs('efs')
@@ -109,10 +114,24 @@ class eampa:
     elif(g.input['runtype'] == 'relax'):
       output.log("Run Relax", verbose=0)
       relax.run()
+    elif(g.input['runtype'] == 'gauge'):
+      output.log("Run Relax", verbose=0)
+      gauge.run()
     elif(g.input['runtype'] == 'test'):
       output.log("Run Test", verbose=0)
       test.run()
 
+
+  @staticmethod
+  def set_seed():
+    output.log("Seed for random numbers: " + str(g.seed), verbose=0)
+    numpy.random.seed(g.seed)
+
+    for i in range(100):
+      rn = numpy.random.randint(1,10000)
+      if(rn not in g.seeds):
+        g.seeds.append(rn)
+    
 
 
 

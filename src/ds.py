@@ -12,7 +12,17 @@ class ds:
 
   @staticmethod
   def runtypes():
-    return ['fit','rss','efs','bp','test']
+    return ['fit','rss','efs','bp','gauge','test']
+
+
+  @staticmethod
+  def units():
+    return {
+    'energy': 'ev', 
+    'length': 'ang', 
+    'pressure': 'gpa',
+    }
+
 
   @staticmethod
   def stats():
@@ -252,6 +262,7 @@ class ds:
     'index_file': '',
     'functions': [],
     'tab_for_output': [],
+    'tab_transformed': [],
     }
 
 
@@ -274,8 +285,8 @@ class ds:
     }
 
   @staticmethod
-  def tab():
-    return numpy.zeros((1001, 3), dtype=numpy.float64, order='F')
+  def tab(tlen=1001):
+    return numpy.zeros((tlen, 3), dtype=numpy.float64, order='F')
 
 
   @staticmethod
@@ -338,6 +349,7 @@ class ds:
     'built': False,
     'label': None,
     'structure': None,
+    'weight': 1.0,
     'rss': None,
     'rss_details': None,
     'a0': None,
@@ -349,7 +361,9 @@ class ds:
     'b0_gpa': None,
     'ec': None,
     'ec_gpa': None,
-    'original_id': None,
+    'original_id': None,   # remove
+    'eos_bm_original_id': None,
+    'ec_rfkj_original_id': None,
     'relax_id': None,
     'eos_ids': None,
     'eos_strains': None,
@@ -425,11 +439,18 @@ class ds:
     return {
     'cell_size': 2,
     'rcut': 7.5,
-    'eos_strain': 0.03,
-    'eos_steps': 4,        # * 2 + 1
-    'ec_strain': 0.03,
-    'ec_steps': 5,      
+    # RELAX TYPE
     'relax': 'a0',   # 'a0' or 'uva0'  
+    # EOS BM
+    'eos_strain': 0.03,
+    'eos_steps': 4,        #  2 * eos_steps + 1
+    'eos_cell_size': 2,
+    'eos_rcut': 7.5,
+    # BM EC
+    'ec_strain': 0.03,
+    'ec_steps': 4,         #  2 * ec_steps + 1
+    'ec_cell_size': 2,
+    'ec_rcut': 7.5,
     # BM EOS COMPARISON
     'bm_eos_points': 20,
     #ROSE
@@ -442,7 +463,7 @@ class ds:
     'msp_rcut': 7.5, 
     'msp_cell_size': 2,  
     'msp_ec_strain': 0.03,
-    'msp_ec_steps': 15,
+    'msp_ec_steps': 11,
     }
 
 
@@ -567,6 +588,10 @@ class ds:
     'popsize': 1000,
     'fresh': 0.2,
     'search': None,
+    'minsize': None,
+    'poolsize': None,
+    'samplesize': None,
+    'minsize': None,
     # stats
     'stats_rss': [None, None,],
     'stats_time': None,
@@ -587,6 +612,19 @@ class ds:
     'ws': 'Wide Search',
     }
 
+   
+  """#####################################
+  Gauge
+  #####################################"""
 
-
+  @staticmethod
+  def gauge():
+    return {
+    'label': None,
+    'structures': None,
+    'a0': None,
+    'uv': None,
+    'size': None,
+    'rcut': None,
+    }
 

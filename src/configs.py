@@ -130,6 +130,30 @@ class configs:
 
     g.calc_counter = g.calc_counter + 1
     g.calc_time = g.calc_time + calc_time
+
+
+
+  @staticmethod
+  def calc_density(config_id):
+
+    start_time = time.time()
+
+    # Get IDs
+    nl_id = g.configs[config_id]['nl_id']
+    if(nl_id is None):
+      nl.build_nl(config_id) 
+      nl_id = g.configs[config_id]['nl_id']
+
+
+    atoms = g.configs[config_id]['count']
+    groups = len(g.groups)
+    density = numpy.zeros((atoms, groups,), dtype=numpy.float64)
+    atom.d(g.nl[nl_id]['labels'][:,:], 
+          g.nl[nl_id]['r'][:], 
+          g.configs[config_id]['labels'][:], 
+          density[:,:])   
+    return density
+
    
   @staticmethod
   def one_line_configs():
@@ -452,6 +476,10 @@ class configs:
       return numpy.asarray([[0.0, 0.0, 0.0], [0.5, 0.5, 0.0], [0.5, 0.0, 0.5], [0.0, 0.5, 0.5]])
     elif(structure=='bcc'):
       return numpy.asarray([[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]])
+    elif(structure=='sc'):
+      return numpy.asarray([[0.0, 0.0, 0.0]])
+    elif(structure=='hcp'):
+      return numpy.asarray([[0.0, 0.0, 0.0], [0.3333333, 0.6666667, 0.5]])
     elif(structure=='c-fcc'):
       return numpy.asarray([[0.25, 0.25, 0.25], [0.75, 0.75, 0.25], [0.75, 0.25, 0.75], [0.25, 0.75, 0.75]])
     elif(structure=='c-bcc'):

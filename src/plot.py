@@ -21,7 +21,7 @@ class plot:
   
 
   @staticmethod
-  def potentials(dir = None):
+  def potentials(dir = None, source=None):
     if(dir is None):
       dir = g.dir['plots_potential']
     for fn in range(len(g.potential['functions'])):
@@ -31,14 +31,15 @@ class plot:
       plot_name = plot_name[0] + ".eps"
       plot_path = os.path.join(dir, plot_name)
 
-      if(pfn['tab'] is not None):
+      if(source is None and pfn['tab'] is not None):
         plt.plot(pfn['tab'][:,0], pfn['tab'][:,2], color="tab:green", ls="dashed")
         plt.plot(pfn['tab'][:,0], pfn['tab'][:,1], color="tab:blue")
         #plt.yscale('log')
         plt.ylim(-5, 10)
+        plt.grid()
         plt.savefig(plot_path)
         plt.cla()
-      else:
+      elif(source is None and pfn['tab'] is None):
         rcut = pfn['rcut']
         if(rcut is None):
           rcut = 10.0
@@ -49,6 +50,23 @@ class plot:
         plt.plot(x[:], y[:], color="tab:blue")
         #plt.yscale('log')
         plt.ylim(-5, 10)
+        plt.grid()
+        plt.savefig(plot_path)
+        plt.cla()
+      elif(source is 'tab_for_output'):
+        plt.plot(g.potential['tab_for_output'][fn][:,0], g.potential['tab_for_output'][fn][:,2], color="tab:green", ls="dashed")
+        plt.plot(g.potential['tab_for_output'][fn][:,0], g.potential['tab_for_output'][fn][:,1], color="tab:blue")
+        #plt.yscale('log')
+        plt.ylim(-5, 10)
+        plt.grid()
+        plt.savefig(plot_path)
+        plt.cla()
+      elif(source is 'transformed'):
+        plt.plot(g.potential['tab_transformed'][fn][:,0], g.potential['tab_transformed'][fn][:,2], color="tab:green", ls="dashed")
+        plt.plot(g.potential['tab_transformed'][fn][:,0], g.potential['tab_transformed'][fn][:,1], color="tab:blue")
+        #plt.yscale('log')
+        plt.ylim(-5, 10)
+        plt.grid()
         plt.savefig(plot_path)
         plt.cla()
         
@@ -125,7 +143,6 @@ class plot:
       for di in range(len(g.bp[n]['ec_ids'])):
         s = g.bp[n]['ec_strains'][di, :]
         e = g.bp[n]['ec_energies'][di, :]
-
         fit[di,:,0] = numpy.linspace(s[0], s[-1], 101)
         p = numpy.polyfit(s[:], e[:], 2)
         fit[di,:,1] = p[2] + p[1] * fit[di,:,0] + p[0] * fit[di,:,0]**2

@@ -148,7 +148,7 @@ class bp:
     # Weight
     t = 0.0
     for k in g.bp[n]['rss_details'].keys():
-      g.bp[n]['rss_details'][k] = g.rss_w['bp'] * g.bp[n]['rss_details'][k]
+      g.bp[n]['rss_details'][k] = g.bp[n]['weight'] * g.rss_w['bp'] * g.bp[n]['rss_details'][k]
       t = t + g.bp[n]['rss_details'][k]  
     g.bp[n]['rss_details']['bp_total'] = t
     g.bp[n]['rss'] = t
@@ -178,13 +178,13 @@ class bp:
     label = g.bp[n]['label']
     a0 = g.bp[n]['a0']
     uv = g.bp[n]['uv']
-    rcut = g.bp_settings['rcut']
-    cell_size = g.bp_settings['cell_size']
 
     # Create original unedited structure and build neighbour list
-    original_id = configs.add_common(structure, label, a0, uv, [cell_size], rcut, 'bp', 'e')
-    g.bp[n]['original_id'] = original_id
-    nl.build_nl(g.bp[n]['original_id'])
+    rcut = g.bp_settings['eos_rcut']
+    cell_size = g.bp_settings['eos_cell_size']
+    eos_bm_original_id = configs.add_common(structure, label, a0, uv, [cell_size], rcut, 'bp', 'e')
+    g.bp[n]['eos_bm_original_id'] = eos_bm_original_id
+    nl.build_nl(g.bp[n]['eos_bm_original_id'])
 
 
     """
@@ -192,7 +192,7 @@ class bp:
     ######################################################"""
 
     # Create Relax
-    g.bp[n]['relax_id'] = configs.duplicate(original_id)
+    g.bp[n]['relax_id'] = configs.duplicate(eos_bm_original_id)
 
 
     """
@@ -213,7 +213,7 @@ class bp:
     for i in range(-eos_steps, eos_steps+1):
       s = eos_strain * (i / eos_steps)
       g.bp[n]['eos_strains'][k] = s
-      g.bp[n]['eos_ids'].append(configs.duplicate(original_id))
+      g.bp[n]['eos_ids'].append(configs.duplicate(eos_bm_original_id))
       k = k + 1
 
 
@@ -225,9 +225,17 @@ class bp:
     ! 
     ######################################################"""
 
+    rcut = g.bp_settings['ec_rcut']
+    cell_size = g.bp_settings['ec_cell_size']
     ec_strain = g.bp_settings['ec_strain']
     ec_steps = g.bp_settings['ec_steps']
-    ecs = ec_steps
+
+    # Create original unedited structure and build neighbour list
+    ec_rfkj_original_id = configs.add_common(structure, label, a0, uv, [cell_size], rcut, 'bp', 'e')
+    g.bp[n]['ec_rfkj_original_id'] = ec_rfkj_original_id
+    nl.build_nl(g.bp[n]['ec_rfkj_original_id'])
+
+    ecs = 2 * ec_steps + 1
 
     g.bp[n]['ec_ids'] = []
     g.bp[n]['ec_strains'] = ds.bp_ec_arr(ecs)
@@ -237,13 +245,13 @@ class bp:
     g.bp[n]['c_ec'] = ds.bp_ec()
     g.bp[n]['c_ec_gpa'] = ds.bp_ec()
  
-    k = 0
     for di in range(9):
+      k = 0
       g.bp[n]['ec_ids'].append([])
-      for i in range(ec_steps):
-        s = ec_strain * (i / (ec_steps - 1))
-        g.bp[n]['ec_strains'][di, i] = s
-        g.bp[n]['ec_ids'][di].append(configs.duplicate(original_id))
+      for i in range(-ec_steps, ec_steps+1):
+        s = ec_strain * (i / ec_steps)
+        g.bp[n]['ec_strains'][di, k] = s
+        g.bp[n]['ec_ids'][di].append(configs.duplicate(ec_rfkj_original_id))
         k = k + 1
 
 
@@ -377,12 +385,12 @@ class bp:
   def reset():
     output.log("Reset BP configurations", verbose=3)
     for n in range(len(g.bp)):
-      configs.duplicate(g.bp[n]['original_id'], g.bp[n]['relax_id'])
+      configs.duplicate(g.bp[n]['eos_bm_original_id'], g.bp[n]['relax_id'])
       for k in range(len(g.bp[n]['eos_ids'])):
-        configs.duplicate(g.bp[n]['original_id'], g.bp[n]['eos_ids'][k])
+        configs.duplicate(g.bp[n]['eos_bm_original_id'], g.bp[n]['eos_ids'][k])
       for di in range(9):
         for k in range(len(g.bp[n]['ec_ids'][di])):
-          configs.duplicate(g.bp[n]['original_id'], g.bp[n]['ec_ids'][di][k])
+          configs.duplicate(g.bp[n]['ec_rfkj_original_id'], g.bp[n]['ec_ids'][di][k])
 
 
   """

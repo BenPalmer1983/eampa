@@ -27,6 +27,7 @@ INCLUDE "atom.ef.f90"
 INCLUDE "atom.efs.f90"
 INCLUDE "atom.verlet_step.f90"
 INCLUDE "atom.relax.f90"
+INCLUDE "atom.d.f90"
 
 
 

@@ -81,7 +81,10 @@ class potfit:
       elif(g.potfit_steps[sn]['type'].lower() == 'ga'):
         p = ga.run(potfit.get_rss, p, niter=g.potfit_steps[sn]['niter'], popsize=g.potfit_steps[sn]['popsize'], fresh=g.potfit_steps[sn]['fresh'], threshold=1.0e20, min_final=True)
       elif(g.potfit_steps[sn]['type'].lower() == 'hs'):
-        p = hybrid_search.run(potfit.get_rss, p, sample_size=200, minima_size=10)
+        p = hybrid_search.run(potfit.get_rss, p, 
+                              pool_size=g.potfit_steps[sn]['poolsize'], 
+                              sample_size=g.potfit_steps[sn]['samplesize'], 
+                              minima_size=g.potfit_steps[sn]['minsize'])
       elif(g.potfit_steps[sn]['type'].lower() == 'bh'):
         res = basinhopping(potfit.get_rss, p, niter=10, T=10.0, stepsize=1.0)
         p = res['x']
@@ -107,12 +110,19 @@ class potfit:
 
   @staticmethod
   def end():    
+    output.log("", verbose=0)
+    output.log("##################################################", verbose=0)
+    output.log("Ending of Potential Fit", verbose=0)
+    output.log("##################################################", verbose=0)
+    output.log("", verbose=0)
+
     # Set parameters for potential
     p = ds.potential_p(g.potfit['p_best']) 
     potential.update_p(p)
 
     # Run calculation
     efs_rss, bp_rss, total_rss = potfit.get_rss_calc()
+    output.log("", verbose=0)
 
     # Make tabulated
     potential.tab_for_output()

@@ -47,6 +47,8 @@ class eos:
     E0 = p[1]
     B0 = p[2]
     B0P = p[3]
+    if(numpy.isnan(V0) or numpy.isnan(V).any()):
+      return -1.0e10
     if(V0 == 0.0):
       V0 = 1.0e-20
     try:

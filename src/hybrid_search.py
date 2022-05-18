@@ -2,28 +2,39 @@
 
 import numpy
 from scipy.optimize import minimize
+#import multiprocessing
+
+from g import g
 
 
 class hybrid_search:
 
-
+  flag = ''
   test_counter = 0
   pool = None
   samples = None
 
+  def set_flag(msg=''):
+    g.displaynote = ''
+    if(hybrid_search.flag != ''):
+      g.displaynote = hybrid_search.flag + '   '
+    g.displaynote = g.displaynote + msg
+
 
   @staticmethod
-  def run(f, p, sample_size=100, minima_size=10):
+  def run(f, p, pool_size=100, sample_size=100, minima_size=10):
     """###########################################
     Make a pool of parameters to use for new random
     ###########################################"""
-    hybrid_search.make_pool(f, p)
+    hybrid_search.set_flag('Make starting pool')
+    hybrid_search.make_pool(f, p, pool_size)
 
     """###########################################
     Search over a wide parameter range to sample
     points within set threshold for minimization
     ###########################################"""
 
+    hybrid_search.set_flag('Create sample for minimization')
     threshold = 10.0 * hybrid_search.pool[-1,0]
     hybrid_search.samples = numpy.zeros((sample_size, len(p)+1,), dtype=numpy.float64)
 
@@ -32,38 +43,57 @@ class hybrid_search:
       p_new = hybrid_search.rand_p(p)
       rss = f(p_new)
       if(rss < threshold):
+        hybrid_search.set_flag('Sample ' + str(sn + 1) + '/' + str(sample_size) + ' accepted')
         hybrid_search.samples[sn,0] = rss
         hybrid_search.samples[sn,1:] = p_new
         sn = sn + 1
+      else:
+        hybrid_search.set_flag('Sample ' + str(sn + 1) + '/' + str(sample_size) + ' rejected')
 
     # Order
+    hybrid_search.set_flag('Sort samples')
     hybrid_search.samples = hybrid_search.samples[hybrid_search.samples[:, 0].argsort()]
     
     keys = numpy.arange(len(hybrid_search.samples))
     numpy.random.shuffle(keys) 
 
+    # Randomly allow for local min, but bias to better results
     rss_best  = hybrid_search.samples[0,0]  
     mn = 0
     kn = 0
+    minlist = []
     while(mn < minima_size):
-      if(numpy.random.uniform() < (rss_best / hybrid_search.samples[keys[kn],0])):
-        res = minimize(f, hybrid_search.samples[keys[kn], 1:], method='BFGS', options={'gtol':  1.0e-8, 'maxiter': 3, })
-        hybrid_search.samples[keys[kn], 0] = res['fun']
-        hybrid_search.samples[keys[kn], 1:] = res['x'][:]
-        mn = mn + 1
+      if(kn not in minlist):
+        if(numpy.random.uniform() < (rss_best / hybrid_search.samples[keys[kn],0])):
+          hybrid_search.set_flag('Minimise ' + str(kn+1) + '   ' + str(mn + 1) + '/' + str(minima_size))
+          res = minimize(f, hybrid_search.samples[keys[kn], 1:], method='BFGS', options={'gtol':  1.0e-8, 'maxiter': 3, })
+          hybrid_search.samples[keys[kn], 0] = res['fun']
+          hybrid_search.samples[keys[kn], 1:] = res['x'][:]
+          mn = mn + 1
+          minlist.append(kn)
       kn = (kn + 1) % len(keys)
 
+    # Breed samples
+    hybrid_search.flag = 'Breed samples'
+    hybrid_search.set_flag()
     hybrid_search.samples = hybrid_search.samples[hybrid_search.samples[:, 0].argsort()]
     hybrid_search.samples = hybrid_search.genetic(f, hybrid_search.samples, gens=2, inner=1)
+    hybrid_search.flag = ''
 
+    # Minimise best selection
     mn = 0
     while(mn < minima_size):
+      hybrid_search.set_flag('Minimise ' + str(mn + 1) + '/' + str(minima_size))
       res = minimize(f, hybrid_search.samples[mn, 1:], method='BFGS', options={'gtol':  1.0e-8, 'maxiter': 3, })
       hybrid_search.samples[mn, 0] = res['fun']
       hybrid_search.samples[mn, 1:] = res['x'][:]
       mn = mn + 1
-    
+    hybrid_search.flag = ''
+
+    # Continue to minimise the very best result
+    hybrid_search.set_flag('Sort samples')
     hybrid_search.samples = hybrid_search.samples[hybrid_search.samples[:, 0].argsort()]
+    hybrid_search.set_flag('Minimise best sample')
     res = minimize(f, hybrid_search.samples[0, 1:], method='BFGS', options={'gtol':  1.0e-8, 'maxiter': 3, })
     
     return res['x']
@@ -73,9 +103,9 @@ class hybrid_search:
   """ MAKE A POOL OF PARAMETERS """
 
   @staticmethod
-  def make_pool(f, p):
-    pool_size = 20
-    scratch_size = 100
+  def make_pool(f, p, pool_size):
+    pool_size = pool_size
+    scratch_size = 4 * pool_size
     threshold = 1.0e10
     wide_narrow = 0.4
 
@@ -89,6 +119,7 @@ class hybrid_search:
     sn = sn + 1
 
     while(sn < scratch_size):
+      hybrid_search.set_flag('Make pool: ' + str(sn+1) + " of " + str(scratch_size))
       if(numpy.random.uniform() < wide_narrow):
         p_new = hybrid_search.rand_wide(p)
         rss = f(p_new[:])
@@ -105,10 +136,14 @@ class hybrid_search:
           sn = sn + 1
     
     # Sort scratch
+    hybrid_search.set_flag('Sort pool')
     scratch = scratch[scratch[:, 0].argsort()]
 
     # Breed results
+    hybrid_search.flag = 'Breed pool'
+    hybrid_search.set_flag()
     hybrid_search.genetic(f, scratch, gens=1, inner=2)
+    hybrid_search.flag = ''
   
     # Save pool
     hybrid_search.pool = numpy.copy(scratch[:pool_size,:])
@@ -132,6 +167,7 @@ class hybrid_search:
       for nn in range(inner):
         numpy.random.shuffle(parents)
         for pn in range(pl // 2):
+          hybrid_search.set_flag('gen ' + str(gn+1) + '/' + str(gens) + '   inner ' + str(nn+1) + '/' + str(inner) + '   ' + str(pn+1) + '/' + str(pl // 2) + '   parents ' + str(parents[2*pn]) + ":" + str(parents[2*pn+1]))
           ca, cb = hybrid_search.breed(temp[parents[2*pn],1:], temp[parents[2*pn+1],1:])
           ca = hybrid_search.no_clones(ca, temp[:n, 1:])
           temp[n, 1:] = numpy.copy(ca)
@@ -143,6 +179,7 @@ class hybrid_search:
           n = n + 1
       temp = temp[temp[:, 0].argsort()]
     pool = temp[:pl, :]
+    hybrid_search.set_flag('')
     return pool
     
   @staticmethod

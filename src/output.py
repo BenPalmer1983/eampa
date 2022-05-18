@@ -355,7 +355,7 @@ class output:
       if(pfn['tab'] is not None and pfn['fname'] == 'tab'):
         pot_name = file_name + ".tab"
         pot_path = os.path.join(dir, pot_name)
-        output.potential_tabulated(pot_path, pfn['tab'], ",")      
+        output.potential_tabulated(pot_path, pfn['tab'])      
       else:
         pot_name = file_name + ".pot"
         pot_path = os.path.join(dir, pot_name)
@@ -366,19 +366,31 @@ class output:
   def potentials_tabulated(dir=None):
     if(dir is None):
       dir = g.dir['data_potential']
+    bn = os.path.basename(g.potential['index_file'])
+    shutil.copyfile(g.potential['index_file'], os.path.join(dir, bn))
     for fn in range(len(g.potential['functions'])):
       pfn = g.potential['functions'][fn]
       tab = g.potential['tab_for_output'][fn]
       file_name = os.path.basename(pfn['file'])
-      file_name = file_name.split(".")
-      file_name = str(file_name[0])
-
-      pot_name = file_name + ".tab"
-      pot_path = os.path.join(dir, pot_name)
+      #file_name = file_name.split(".")
+      #file_name = str(file_name[0])
+      #pot_name = file_name + ".tab"
+      pot_path = os.path.join(dir, file_name)
       output.potential_tabulated(pot_path, tab) 
-      pot_name = file_name + ".dat"
-      pot_path = os.path.join(dir, pot_name)
-      output.potential_data(pot_path, tab)      
+
+
+  @staticmethod
+  def potentials_transformed(dir=None):
+    if(dir is None):
+      dir = g.dir['data_potential']
+    bn = os.path.basename(g.potential['index_file'])
+    shutil.copyfile(g.potential['index_file'], os.path.join(dir, bn))
+    for fn in range(len(g.potential['functions'])):
+      pfn = g.potential['functions'][fn]
+      tab = g.potential['tab_transformed'][fn]
+      file_name = os.path.basename(pfn['file'])
+      pot_path = os.path.join(dir, file_name)
+      output.potential_tabulated(pot_path, tab) 
 
 
 
@@ -467,7 +479,7 @@ class output:
     fh = open(path, 'w')
     fh.write("#TYPE tab\n")
     for n in range(len(tab_in)):
-      fh.write("{0:16.8e}   {0:16.8e}\n".format(tab_in[n, 0], tab_in[n, 1]))
+      fh.write("{:16.8e}   {:16.8e}\n".format(tab_in[n, 0], tab_in[n, 1]))
     fh.close()
 
 
@@ -475,7 +487,7 @@ class output:
   def potential_data(path, tab_in):
     fh = open(path, 'w')
     for n in range(len(tab_in)):
-      fh.write("{0:16.8e}   {0:16.8e}   {0:16.8e}\n".format(tab_in[n, 0], tab_in[n, 1], tab_in[n, 2]))
+      fh.write("{:16.8e}   {:16.8e}   {:16.8e}\n".format(tab_in[n, 0], tab_in[n, 1], tab_in[n, 2]))
     fh.close()
 
 

@@ -3,12 +3,16 @@ from ds import ds
 class g:
 
 
-  # directories
+  # main
   dir = {'out': None, }
-
-
-  # file handles
+  start = None
+  end = None
   fh = None        # g.fh is the main log file
+
+  units = ds.units()
+  seed = 1
+  seeds = []
+  display = 3    # Display (fitting)
 
   # Input file
   input = {}
@@ -24,13 +28,12 @@ class g:
   one_line_configs = []
   bp = []
   bp_settings = ds.bp_settings()
+  gauge = ds.gauge()
 
   rss_w = ds.rss_w()
 
 
   # timers
-  start = None
-  end = None
 
   stats = ds.stats()
 
@@ -42,8 +45,7 @@ class g:
   # 2 detailed, write to file but don't usually log
   # 3 log for testing
 
-  # Display (fitting)
-  display = 1
+  
   
    
   """#####################################

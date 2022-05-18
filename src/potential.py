@@ -87,7 +87,7 @@ class potential:
         g.potential['functions'][pf_id]['fgroup'] = -1
         if(len(f) == 2):
           g.potential['functions'][pf_id]['fgroup'] = potential.group(f[1].upper())
-
+          
 
       elif(f[0] == "#R_CUT"): 
         g.potential['functions'][pf_id]['rcut'] = None
@@ -172,7 +172,9 @@ class potential:
 
 
   @staticmethod
-  def tab_for_output():
+  def tab_for_output(rcut_none_set=None):
+    if(rcut_none_set is None):
+      rcut_none_set = 10.0
     g.potential['tab_for_output'] = []
     for fn in range(len(g.potential['functions'])):
       g.potential['tab_for_output'].append(None)
@@ -182,11 +184,11 @@ class potential:
         g.potential['tab_for_output'][fn] = pfn['tab']
       else:
         # Make tabulated
-        tab = ds.tab()
+        tab = ds.tab(tlen=10001)
         # rcut
         rcut = g.potential['functions'][fn]['rcut']
         if(rcut is None):
-          rcut = 10.0
+          rcut = rcut_none_set
         # x-values
         tab[:, 0] = numpy.linspace(0.0, rcut, len(tab))
         # fx-values        

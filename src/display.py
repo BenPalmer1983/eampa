@@ -6,6 +6,7 @@ import os
 
 from g import g
 from ds import ds
+from output import output
 
 class display:
 
@@ -161,19 +162,28 @@ class display:
   def show_2():
     first = False
     if(display.flag == False):
-      display.hrr() ######################
-      print(" Fitting             Seed: " + str(g.seed))
-      display.hrr() ######################
-      print("{:<12s} {:<10s} {:<18s} {:<10s} {:20s} {:40s}".format("Time","Counter","Best RSS", "Config/s" ,"Fit", "Notes"))
-      display.hr() ######################
+      block = ''
+      block = block + display.hrr(print_out=False) + "\n"
+      block = block + "Fitting             Seed: " + str(g.seed) + "\n"
+      block = block + display.hrr(print_out=False) + "\n"
+      block = block + "{:<12s} {:<10s} {:<18s} {:<10s} {:<10s} {:20s} {:40s}".format("Time","Counter","Improv", "Best RSS", "Config/s" ,"Fit", "Notes") + "\n"
+      block = block + display.hr(print_out=False) + "\n"
+      output.log(block, verbose=0)
+      print(block)
       display.flag = True
       display.last = time.time()
       first = True
-    if(g.potfit['improvement_counter'] == 0 or (time.time() - display.last) > 60.0 or first):
+    if(g.potfit['improvement_counter'] == 0 or (time.time() - display.last) > 20.0 or first):
       fit_type = g.potfit_step_types[g.potfit_steps[g.potfit['sn']]['type'].lower()]
       display.last = time.time()
-      print("{:12.4f} {:10d} {:18.6e} {:10d} {:20s} {:40s}".format(
-             time.time() - g.start, g.potfit['counter'], g.potfit['rss_best'], int(g.calc_counter / g.calc_time), fit_type, g.displaynote))
+      if(g.potfit['improvement_counter'] == 0):
+        line = "{:12.4f} {:10d} {:10s} {:18.6e} {:10d} {:20s} {:40s}".format(
+             time.time() - g.start, g.potfit['counter'], "  *IMPR*  ", g.potfit['rss_best'], int(g.calc_counter / g.calc_time), fit_type, g.displaynote)
+      else:
+        line = "{:12.4f} {:10d} {:10d} {:18.6e} {:10d} {:20s} {:40s}".format(
+             time.time() - g.start, g.potfit['counter'], g.potfit['improvement_counter'], g.potfit['rss_best'], int(g.calc_counter / g.calc_time), fit_type, g.displaynote)
+      output.log(line, verbose=0)
+      print(line)
 
 
 
@@ -325,16 +335,24 @@ class display:
 
 
   @staticmethod
-  def hr():
+  def hr(print_out=True):
+    l = ''
     for i in range(display.w):
-      print("-", end="")
-    print()
+      l = l + '-'  
+    if(print_out):
+      print(l)
+    return l
+
 
   @staticmethod
-  def hrr():
+  def hrr(print_out=True):
+    l = ''
     for i in range(display.w):
-      print("#", end="")
-    print()
+      l = l + '#'  
+    if(print_out):
+      print(l)
+    return l
+
 
   @staticmethod
   def clear():

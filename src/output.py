@@ -23,6 +23,8 @@ class output:
 
   @staticmethod
   def log(inp, fh = None, verbose=0):
+    if(not isinstance(inp, list) and "\n" in inp):
+      inp = inp.split("\n")
     t = time.time() - g.start
     t = "{0:.4e}".format(t)
     while(len(t) < 10):
@@ -43,6 +45,7 @@ class output:
     
     if(verbose <= g.verbose['file']):
       g.fh.write(tofile)
+      g.fh.flush()
 
     # Always save if a specific file provided
     if(fh != None):
@@ -409,14 +412,35 @@ class output:
     out = out + "\n"     
 
     for sn in range(len(g.potfit_steps)):
-      out = out + "Loop:                " + str(sn) + "\n"  
-      out = out + "Minimiser:           " + str(g.potfit_steps[sn]['type']) + " \n"  
-      out = out + "Starting rss:        " + str(g.potfit_steps[sn]['stats_rss'][0]) + " \n"  
-      out = out + "Ending rss:          " + str(g.potfit_steps[sn]['stats_rss'][1]) + " \n"   
-      out = out + "Calculation count:   " + str(g.potfit_steps[sn]['counter']) + " \n"   
-      out = out + "Config count:        " + str(g.potfit_steps[sn]['stats_counter']) + " \n"   
-      out = out + "Speed:               " + str(g.potfit_steps[sn]['stats_speed']) + " \n"    
+      t = g.potfit_steps[sn]['stats_time']
+      out = out + "{:22s} {:12d}\n".format("Loop:", sn) 
+      out = out + "{:22s} {:12s}\n".format("Minimiser:", g.potfit_steps[sn]['type'])  
+      if(g.potfit_steps[sn]['stats_complete']):
+        out = out + "{:22s} {:12s}\n".format("Complete:", "True")  
+      else:
+        out = out + "{:22s} {:12s}\n".format("Complete:", "False")  
+      out = out + "{:22s} {:12.4f}\n".format("Time:", t)  
+      try:
+        out = out + "{:22s} {:12.4e}\n".format("Starting rss:", g.potfit_steps[sn]['stats_rss'][0])  
+      except:
+        pass
+      try:
+        out = out + "{:22s} {:12.4e}\n".format("Ending rss:", g.potfit_steps[sn]['stats_rss'][1])  
+      except:
+        pass
+      out = out + "{:22s} {:12d} {:12.4f}\n".format("Calculation count:", g.potfit_steps[sn]['counter'], (g.potfit_steps[sn]['counter']/t)) 
+      out = out + "{:22s} {:12d} {:12.4f}\n".format("Config count:", g.potfit_steps[sn]['stats_counter'], (g.potfit_steps[sn]['stats_counter']/t)) 
       out = out + "\n"    
+
+    t = g.potfit['potfit_end_time'] - g.potfit['potfit_start_time']
+    out = out + "\n"    
+    out = out + "Stats\n"
+    out = out + "\n"    
+    out = out + "{:12s} {:16.2f}\n".format("Time: ", t)
+    out = out + "{:12s} {:16d} {:16.2f}\n".format("Steps: ", g.potfit['counter'], g.potfit['counter']/ t)
+    out = out + "{:12s} {:16d} {:16.2f}\n".format("Configs: ", g.calc_counter, g.calc_counter/ t)
+    out = out + "{:12s} {:16.2f}\n".format("Best RSS: ", g.potfit['rss_best'])
+    out = out + "\n"    
     
 
     fhpr = open(os.path.join(dir, 'potfit_results.txt'), 'w')

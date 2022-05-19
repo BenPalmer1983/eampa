@@ -58,7 +58,7 @@ class potfit:
       output.log("End", verbose=0)
       exit()
 
-
+    g.potfit['potfit_start_time'] = time.time()
     for sn in range(len(g.potfit_steps)):
       if(sn > 0):
         p = ds.potential_p(g.potfit['p_best'])
@@ -67,8 +67,9 @@ class potfit:
 
       
       g.potfit_steps[sn]['stats_rss'][0] = g.potfit['rss_best']
-      start_config_counter = g.calc_counter
-      start_time = time.time()
+      g.potfit_steps[sn]['stats_start_time'] = time.time()
+      g.potfit_steps[sn]['stats_start_counter'] = g.calc_counter
+
 
       # Run
       if(g.potfit_steps[sn]['type'].lower() == 'rand'):
@@ -86,7 +87,7 @@ class potfit:
                               sample_size=g.potfit_steps[sn]['samplesize'], 
                               minima_size=g.potfit_steps[sn]['minsize'])
       elif(g.potfit_steps[sn]['type'].lower() == 'bh'):
-        res = basinhopping(potfit.get_rss, p, niter=10, T=10.0, stepsize=1.0)
+        res = basinhopping(potfit.get_rss, p, niter=g.potfit_steps[sn]['niter'], T=10.0, stepsize=1.0)
         p = res['x']
       elif(g.potfit_steps[sn]['type'].lower() == 'bfgs'):
         res = minimize(potfit.get_rss, p, method='BFGS', options={'gtol':  1.0e-6, 'maxiter': 4, })
@@ -97,10 +98,10 @@ class potfit:
 
       # Record stats
       g.potfit_steps[sn]['stats_rss'][1] = g.potfit['rss_best']
-      g.potfit_steps[sn]['stats_time'] = time.time() - start_time
-      g.potfit_steps[sn]['stats_counter'] = g.calc_counter - start_config_counter
+      g.potfit_steps[sn]['stats_time'] = time.time() - g.potfit_steps[sn]['stats_start_time']
+      g.potfit_steps[sn]['stats_counter'] = g.calc_counter - g.potfit_steps[sn]['stats_start_counter']
       g.potfit_steps[sn]['stats_speed'] = g.potfit_steps[sn]['stats_counter'] / g.potfit_steps[sn]['stats_time']
-      
+      g.potfit_steps[sn]['stats_complete'] = True
 
 
     # End fitting
@@ -109,11 +110,26 @@ class potfit:
 
 
   @staticmethod
-  def end():    
-    output.log("", verbose=0)
+  def end(interupt=False): 
+    g.potfit['potfit_end_time'] = time.time()
+
+    if(interupt):
+      sn = g.potfit['sn']
+      g.potfit_steps[sn]['stats_rss'][1] = g.potfit['rss_best']
+      g.potfit_steps[sn]['stats_time'] = time.time() - g.potfit_steps[sn]['stats_start_time']
+      g.potfit_steps[sn]['stats_counter'] = g.calc_counter - g.potfit_steps[sn]['stats_start_counter']
+      g.potfit_steps[sn]['stats_speed'] = g.potfit_steps[sn]['stats_counter'] / g.potfit_steps[sn]['stats_time']
+      g.potfit_steps[sn]['stats_complete'] = False
+
+
     output.log("##################################################", verbose=0)
     output.log("Ending of Potential Fit", verbose=0)
     output.log("##################################################", verbose=0)
+    output.log("", verbose=0)
+    if(interupt):
+      output.log("Reached maximum time limit", verbose=0)
+    else:
+      output.log("Completed within maximum time limit", verbose=0)
     output.log("", verbose=0)
 
     # Set parameters for potential
@@ -123,6 +139,27 @@ class potfit:
     # Run calculation
     efs_rss, bp_rss, total_rss = potfit.get_rss_calc()
     output.log("", verbose=0)
+
+
+    output.log("Best Parameters", verbose=0)
+    output.log("--------------------------------------------------", verbose=0)
+    line = ''
+    for i in range(len(g.potfit['p_best'])):
+      line = line + "{:10.3e} ".format(g.potfit['p_best'][i])
+      if((i + 1) % 10 == 0 and i != len(g.potfit['p_best'])-1):
+        output.log(line, verbose=0)
+        line = ''
+    if(line != ''):   
+      output.log(line, verbose=0)
+ 
+    t = g.potfit['potfit_end_time'] - g.potfit['potfit_start_time']
+    output.log("Stats", verbose=0)
+    output.log("--------------------------------------------------", verbose=0)
+    output.log("{:12s} {:16.2f}".format("Time: ", t), verbose=0)
+    output.log("{:12s} {:16d} {:16.2f}".format("Steps: ", g.potfit['counter'], g.potfit['counter']/ t), verbose=0)
+    output.log("{:12s} {:16d} {:16.2f}".format("Configs: ", g.calc_counter, g.calc_counter/ t), verbose=0)
+    output.log("{:12s} {:16.2f}".format("Best RSS: ", g.potfit['rss_best']), verbose=0)
+    output.log('', verbose=0)
 
     # Make tabulated
     potential.tab_for_output()
@@ -195,7 +232,7 @@ class potfit:
   def get_rss(p_in):
     # End
     if((time.time() - g.start) > g.maxtime):
-      potfit.end()
+      potfit.end(interupt=True)
 
     # Set parameters for potential
     p = ds.potential_p(p_in) 
@@ -272,7 +309,7 @@ class potfit:
 
 
 
-
+  @staticmethod
   def set_potfit_store():
     g.potfit = ds.potfit()
 
@@ -287,8 +324,6 @@ class potfit:
       g.potfit['bp_best'] = []
       for n in range(len(g.bp)):
         g.potfit['bp_best'].append(ds.potfit_bp())
-
-
 
 
   

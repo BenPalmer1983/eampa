@@ -559,6 +559,8 @@ class ds:
     'bp_rss_best': None,
     'rss_best': None,
     'bp_best': None,
+    'potfit_start_time': None,
+    'potfit_end_time': None,
     }
 
   @staticmethod
@@ -597,6 +599,10 @@ class ds:
     'stats_time': None,
     'stats_counter': None,
     'stats_speed': None,
+    'stats_complete': None,
+    # Temp    
+    'stats_start_time': None,
+    'stats_start_counter': None,
     }
 
   @staticmethod

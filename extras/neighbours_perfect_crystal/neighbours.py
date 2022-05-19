@@ -6,7 +6,12 @@ from matplotlib import colors
 from matplotlib.ticker import PercentFormatter
 from matplotlib.ticker import MultipleLocator
 
+"""
+python3 neighbours.py structure=FCC a0=3.42 title="FCC Iron: Neighbours to Atom at 0,0,0" out="fe_fcc.eps"
 
+python3 neighbours.py structure=BCC a0=2.80 title="BCC Iron: Neighbours to Atom at 0,0,0" out="fe_bcc.eps"
+
+"""
 
 class neighbours:
 
@@ -90,6 +95,10 @@ class neighbours:
   def getcoords(structure):
     if(structure.upper() == "FCC"):
       return [[0.0,0.0,0.0],[0.5,0.5,0.0],[0.5,0.0,0.5],[0.0,0.5,0.5]]
+    elif(structure.upper() == "BCC"):
+      return [[0.0,0.0,0.0],[0.5,0.5,0.5]]
+    elif(structure.upper() == "SC"):
+      return [[0.0,0.0,0.0],[0.5,0.5,0.5]]
 
 
 
